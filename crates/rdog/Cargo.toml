@@ -1,0 +1,43 @@
+[package]
+name = "rdog"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# shared = { path = "crates/shaders/shared" }
+glam = { version = "0.27", default-features = false }
+cfg-if = "1.0.0"
+bytemuck = { workspace = true }
+spirv-std = { workspace = true }
+wgpu = { version = "0.19.4", features = ["spirv", "vulkan-portability"] }
+winit = { version = "0.30", features = ["rwh_05"] }
+# Workspace
+rdog_lib = { path = "../rdog_lib" }
+rdog_shaders = { path = "../rdog_shaders" }
+
+strum = { version = "0.26.3", default-features = false, features = [
+    "std",
+    "derive",
+] }
+futures = { version = "0.3", default-features = false, features = [
+    "std",
+    "executor",
+] }
+log = { workspace = true }
+derivative = "2.2.0"
+guillotiere = "0.6.2"
+bevy = { git = "https://github.com/orderrrr/bevy", branch = "0.14.0", default-features = false, features = [
+    "bevy_winit",
+    "bevy_pbr",
+    "tonemapping_luts",
+] }
+# bevy_egui = "0.27.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+env_logger = "0.11.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = "0.3.60"
+console_error_panic_hook = "0.1.6"
+console_log = "0.2.0"
+wasm-bindgen-futures = "0.4.18"

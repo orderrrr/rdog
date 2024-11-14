@@ -1,0 +1,12 @@
+[package]
+name = "rdog_shaders"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[lib]
+crate-type = ["dylib"]
+
+[dependencies]
+spirv-std = { workspace = true }
+rdog_lib = { path = "../rdog_lib" }

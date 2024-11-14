@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/rdog",
+    "crates/rdog_lib",
+    "crates/rdog_builder",
+    "crates/rdog_shaders",
+]
+
+[workspace.dependencies]
+bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu" }
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu" }
+log = "0.4.22"
