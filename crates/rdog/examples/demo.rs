@@ -1,6 +1,7 @@
-#![feature(inline_const)] 
+#![feature(inline_const)]
 
 use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResolution};
+use rand::Rng;
 use rdog::RdogPlugin;
 
 pub const W: u32 = 1920;
@@ -16,7 +17,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            RdogPlugin,
+            RdogPlugin(rand::thread_rng().gen_range(0..4_294_967_295)),
         ))
         .add_systems(Startup, setup_camera)
         .run();

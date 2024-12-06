@@ -7,15 +7,23 @@
 
 pub mod camera;
 pub mod frame;
-pub mod shader;
-pub mod util;
+pub mod math;
 pub mod mix;
+pub mod rng;
+pub mod shader;
+pub mod smoothstep;
+pub mod util;
+pub mod sample;
 
 pub use self::camera::*;
 pub use self::frame::*;
-pub use self::shader::*;
-pub use self::util::*;
+pub use self::math::*;
 pub use self::mix::*;
+pub use self::rng::*;
+pub use self::shader::*;
+pub use self::smoothstep::*;
+pub use self::util::*;
+pub use self::sample::*;
 
 pub mod prelude {
     pub use core::f32::consts::PI;

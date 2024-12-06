@@ -16,7 +16,7 @@ impl SubRayPass {
         let sub_ray_pass = ComputePass::builder("sub_ray")
             .bind([
                 &buffers.curr_camera.bind_readable(),
-                &buffers.time.bind_readable(),
+                &buffers.globals.bind_readable(),
                 &buffers.sub_ray.bind_writable(),
             ])
             // .bind([])

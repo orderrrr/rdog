@@ -1,53 +1,57 @@
 use std::ops::DerefMut;
 
-use crate::{buffers::mapped_uniform_buffer::MappedUniformBuffer, texture::Texture};
+use crate::{buffers::mapped_uniform_buffer::MappedUniformBuffer, texture::Texture, Globals};
 
 use super::{
     config::Camera,
     engine::Engine,
     passes::{Pass, Passes},
-    Time,
 };
 use glam::uvec2;
 use log::{debug, info};
 use rdog_lib as lib;
-use rdog_shaders::atmosphere::SIZE;
+use rdog_shaders::atmosphere::noise::NOISE_DIM;
 
 #[derive(Debug)]
 pub struct Buffers {
     pub curr_camera: MappedUniformBuffer<lib::camera::Camera>,
     pub prev_camera: MappedUniformBuffer<lib::camera::Camera>,
 
-    pub time: MappedUniformBuffer<lib::shader::Time>,
+    pub globals: MappedUniformBuffer<lib::shader::Globals>,
 
     pub sub_ray: Texture,
     pub atmosphere: Texture,
+    pub atmos_noise: Texture,
 }
 
 impl Buffers {
-    pub fn new(device: &wgpu::Device, camera: &Camera, time: &Time) -> Self {
-        // // Returns the size of a screen-space buffer with given parameters
-        // let viewport_buffer_size = |element_size| {
-        //     (camera.viewport.size.x as usize) * (camera.viewport.size.y as usize) * element_size
-        // };
-
+    pub fn new(engine: &Engine, device: &wgpu::Device, camera: &Camera) -> Self {
         debug!("Initializing camera buffers");
 
         let curr_camera = MappedUniformBuffer::new(device, "camera", camera.serialize());
         let prev_camera = MappedUniformBuffer::new(device, "prev_camera", camera.serialize());
-        let time = MappedUniformBuffer::new(device, "time", time.serialize());
+        let globals =
+            MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
 
         let sub_ray = Texture::builder("sub_ray")
-            .with_size(uvec2(1080, 1080)) // TODO - put this somewhere.
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba8Unorm)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
             .build(device);
 
         let atmosphere = Texture::builder("atmosphere")
-            .with_size(uvec2(SIZE, SIZE * SIZE)) // TODO - put this somewhere.
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_size(camera.viewport.size * 2) // should be larger maybe? not sure
+            .with_format(wgpu::TextureFormat::Rgba8Unorm)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_linear_filtering_sampler()
+            .build(device);
+
+        let atmos_noise = Texture::builder("atmos_noise")
+            .with_size(NOISE_DIM)
+            .with_format(wgpu::TextureFormat::Rgba8Unorm)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -56,7 +60,8 @@ impl Buffers {
         Self {
             prev_camera,
             curr_camera,
-            time,
+            atmos_noise,
+            globals,
             sub_ray,
             atmosphere,
         }
@@ -75,7 +80,7 @@ impl CameraController {
     pub(crate) fn new(engine: &Engine, device: &wgpu::Device, camera: Camera) -> Self {
         info!("Creating camera `{}`", camera);
 
-        let buffers = Buffers::new(device, &camera, &engine.time);
+        let buffers = Buffers::new(engine, device, &camera);
         let passes = Passes::new(engine, device, &camera, &buffers);
 
         Self {
@@ -98,7 +103,7 @@ impl CameraController {
         self.camera = camera;
         *self.buffers.prev_camera.deref_mut() = *self.buffers.curr_camera;
         *self.buffers.curr_camera.deref_mut() = self.camera.serialize();
-        *self.buffers.time.deref_mut() = engine.time.serialize();
+        *self.buffers.globals.deref_mut() = Globals::from_engine(engine).serialize();
 
         if is_invalidated {
             self.rebuild_buffers(engine, device);
@@ -108,7 +113,7 @@ impl CameraController {
     fn rebuild_buffers(&mut self, engine: &Engine, device: &wgpu::Device) {
         debug!("Rebuilding buffers for camera `{}`", self.camera);
 
-        self.buffers = Buffers::new(device, &self.camera, &engine.time);
+        self.buffers = Buffers::new(engine, device, &self.camera);
     }
 
     fn rebuild_passes(&mut self, engine: &Engine, device: &wgpu::Device) {
@@ -136,7 +141,7 @@ impl CameraController {
         self.frame = frame;
         self.buffers.curr_camera.flush(queue);
         self.buffers.prev_camera.flush(queue);
-        self.buffers.time.flush(queue);
+        self.buffers.globals.flush(queue);
     }
 }
 

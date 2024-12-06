@@ -33,7 +33,7 @@ impl RayPass {
 
         let bg0 = BindGroup::builder("ray_bg0")
             .add(&buffers.curr_camera.bind_readable()) // TODO - readd later
-            .add(&buffers.time.bind_readable()) // TODO - readd later
+            .add(&buffers.globals.bind_readable()) // TODO - readd later
             .build(device);
 
         let bg1 = BindGroup::builder("ray_bg1")

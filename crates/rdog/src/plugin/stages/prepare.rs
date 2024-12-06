@@ -144,5 +144,5 @@ pub(crate) fn extras(
 ) {
     let engine = &mut *engine;
 
-    engine.time = crate::Time(vec2(time.elapsed_seconds(), time.delta_seconds()));
+    engine.time = vec2(time.elapsed_seconds(), time.delta_seconds());
 }

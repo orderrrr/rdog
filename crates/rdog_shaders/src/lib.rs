@@ -1,6 +1,7 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
-#![deny(warnings)] // meh
+// #![deny(warnings)] // meh
 
+pub mod sdf;
 pub mod ray;
 pub mod sub_ray;
 pub mod atmosphere;

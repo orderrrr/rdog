@@ -35,7 +35,7 @@ impl Bufferable for Camera {
     }
 }
 
-impl Bufferable for gpu::Time {
+impl Bufferable for gpu::Globals {
     fn data(&self) -> &[u8] {
         bytemuck::cast_slice(slice::from_ref(self))
     }

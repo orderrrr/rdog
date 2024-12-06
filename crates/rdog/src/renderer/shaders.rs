@@ -38,4 +38,4 @@ macro_rules! shaders {
     };
 }
 
-shaders!([sub_ray, atmosphere, ray_vs, ray_fs,]);
+shaders!([sub_ray, atmosphere_noise, atmosphere_atmosphere, ray_vs, ray_fs,]);

@@ -4,6 +4,8 @@ use glam::{uvec2, Mat4, UVec2, Vec2};
 use log::info;
 use rdog_lib as gpu;
 
+use super::Engine;
+
 #[derive(Clone, Debug)]
 pub struct Camera {
     pub mode: CameraMode,
@@ -118,10 +120,23 @@ impl CameraHandle {
 }
 
 #[derive(Clone, Debug)]
-pub struct Time(pub Vec2);
+pub struct Globals {
+    time: Vec2,
+    seed: UVec2,
+}
 
-impl Time {
-    pub(crate) fn serialize(&self) -> gpu::shader::Time {
-        gpu::shader::Time(self.0)
+impl Globals {
+    pub fn from_engine(engine: &Engine) -> Self {
+        Self {
+            time: engine.time,
+            seed: UVec2::splat(engine.seed),
+        }
+    }
+
+    pub(crate) fn serialize(&self) -> gpu::shader::Globals {
+        gpu::shader::Globals {
+            time: self.time,
+            seed: self.seed,
+        }
     }
 }

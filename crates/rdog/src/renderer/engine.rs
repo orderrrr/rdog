@@ -1,8 +1,9 @@
 use super::{
     camera_controllers::RenderControllers, images::Images, render::CameraController,
-    shaders::Shaders, utils, Camera, CameraHandle, Image, Time,
+    shaders::Shaders, utils, Camera, CameraHandle, Image,
 };
 use bevy::{asset::AssetId, prelude::Image as BevyImage};
+use glam::Vec2;
 use std::{mem, time::Instant};
 
 use log::info;
@@ -13,7 +14,8 @@ pub struct Engine {
     pub shaders: Shaders,
     // images: Images<P>,
     pub frame: lib::Frame,
-    pub time: Time,
+    pub time: Vec2,
+    pub seed: u32,
     // world: MappedUniformBuffer<gpu::World>,
     cameras: RenderControllers,
     images: Images,
@@ -21,7 +23,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device, seed: u32) -> Self {
         info!("Initializing");
 
         Self {
@@ -29,8 +31,9 @@ impl Engine {
             frame: lib::Frame::new(1),
             cameras: Default::default(),
             images: Images::new(device),
-            time: Time(Default::default()),
+            time: Default::default(),
             has_dirty_images: false,
+            seed,
         }
     }
 
@@ -95,11 +98,7 @@ impl Engine {
     /// Note that this is a pretty heavy operation that allocates per-camera
     /// buffers etc., and so it's expected that you only call this function when
     /// necessary (not, say, each frame).
-    pub fn create_camera(
-        &mut self,
-        device: &wgpu::Device,
-        camera: Camera,
-    ) -> CameraHandle {
+    pub fn create_camera(&mut self, device: &wgpu::Device, camera: Camera) -> CameraHandle {
         self.cameras
             .add(CameraController::new(self, device, camera))
     }

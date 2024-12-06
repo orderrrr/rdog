@@ -14,7 +14,7 @@ pub mod rendering;
 pub mod stages;
 pub mod state;
 
-pub struct RdogPlugin;
+pub struct RdogPlugin(pub u32);
 
 impl Plugin for RdogPlugin {
     fn build(&self, app: &mut App) {
@@ -33,7 +33,7 @@ impl Plugin for RdogPlugin {
         };
 
         let render_device = render_app.world().resource::<RenderDevice>();
-        let engine = crate::Engine::new(render_device.wgpu_device());
+        let engine = crate::Engine::new(render_device.wgpu_device(), self.0);
 
         render_app.insert_resource(EngineResource(engine));
     }
