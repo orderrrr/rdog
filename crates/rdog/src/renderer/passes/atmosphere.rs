@@ -1,5 +1,5 @@
 use bevy::utils::HashMap;
-use rdog_shaders::atmosphere::{atmosphere::ATMOS_MULT, noise::NOISE_DIM};
+use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 use crate::{
     compute_pass::ComputePass,
@@ -16,7 +16,7 @@ impl AtmospherePass {
         let noise_pass = ComputePass::builder("noise")
             .bind([
                 &buffers.globals.bind_readable(),
-                &buffers.atmos_noise.bind_writable(),
+                &buffers.atmos_noise_tx.bind_writable(),
             ])
             .build(device, &engine.shaders.atmosphere_noise);
 
@@ -24,8 +24,8 @@ impl AtmospherePass {
             .bind([
                 &buffers.curr_camera.bind_readable(),
                 &buffers.globals.bind_readable(),
-                &buffers.atmos_noise.bind_sampled(),
-                &buffers.atmosphere.bind_writable(),
+                &buffers.atmos_noise_tx.bind_sampled(),
+                &buffers.atmosphere_tx.bind_writable(),
             ])
             .build(device, &engine.shaders.atmosphere_atmosphere);
 

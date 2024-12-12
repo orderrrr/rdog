@@ -9,7 +9,7 @@ use super::{
 };
 use log::{debug, info};
 use rdog_lib as lib;
-use rdog_shaders::atmosphere::{atmosphere::ATMOS_MULT, noise::NOISE_DIM};
+use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 #[derive(Debug)]
 pub struct Buffers {

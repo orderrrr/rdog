@@ -1,4 +1,4 @@
-use glam::{vec2, vec3, vec4};
+use glam::{uvec2, uvec3, uvec4, vec2, vec3, vec4, UVec2, UVec3, UVec4};
 use spirv_std::glam::{Vec2, Vec3, Vec4};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
@@ -97,5 +97,59 @@ impl Wrap<Vec3> for Vec3 {
 impl Wrap<Vec4> for Vec4 {
     fn wrap(&self) -> Vec4 {
         vec4(self.x.wrap(), self.y.wrap(), self.z.wrap(), self.w.wrap())
+    }
+}
+
+pub trait Bits<T> {
+    fn bits(&self) -> T;
+    fn from_bits(input: T) -> Self;
+}
+
+impl Bits<u32> for f32 {
+    fn bits(&self) -> u32 {
+        self.to_bits()
+    }
+
+    fn from_bits(input: u32) -> Self {
+        f32::from_bits(input)
+    }
+}
+
+impl Bits<UVec2> for Vec2 {
+    fn bits(&self) -> UVec2 {
+        uvec2(self.x.bits(), self.y.bits())
+    }
+
+    fn from_bits(input: UVec2) -> Self {
+        vec2(f32::from_bits(input.x), f32::from_bits(input.y))
+    }
+}
+
+impl Bits<UVec3> for Vec3 {
+    fn bits(&self) -> UVec3 {
+        uvec3(self.x.bits(), self.y.bits(), self.z.bits())
+    }
+
+    fn from_bits(input: UVec3) -> Self {
+        vec3(
+            f32::from_bits(input.x),
+            f32::from_bits(input.y),
+            f32::from_bits(input.z),
+        )
+    }
+}
+
+impl Bits<UVec4> for Vec4 {
+    fn bits(&self) -> UVec4 {
+        uvec4(self.x.bits(), self.y.bits(), self.z.bits(), self.w.bits())
+    }
+
+    fn from_bits(input: UVec4) -> Self {
+        vec4(
+            f32::from_bits(input.x),
+            f32::from_bits(input.y),
+            f32::from_bits(input.z),
+            f32::from_bits(input.w),
+        )
     }
 }

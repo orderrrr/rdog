@@ -2,7 +2,7 @@ use coord::gather_pos;
 use rdog_lib::prelude::*;
 use spirv_std::glam::{UVec3, Vec2, Vec3Swizzles};
 
-pub const ATMOS_MULT: f32 = 2.0;
+pub const ATMOS_MULT: f32 = 4.0;
 
 #[inline]
 fn d0(x: Vec3) -> Vec3 {
@@ -16,6 +16,7 @@ fn d02(x: Vec3) -> Vec3 {
 
 // TODO - I would prefer to do vec3 instantiation and then * 1e-5 but for some reason does not work
 // const RAYLEIGH_COEFF: Vec3 = vec3(0.27, 0.5, 1.0) * 1e-5;
+pub const NOISE_DIM: UVec2 = UVec2::new(64, 64);
 const SPHERICAL_PROJECTION: bool = true;
 const RAYLEIGH_COEFF: Vec3 = vec3(0.27 * 1e-5, 0.5 * 1e-5, 1.0 * 1e-5);
 const MIE_COEFF: Vec3 = Vec3::splat(0.5e-6);
@@ -385,7 +386,7 @@ fn calculate_volumetric_clouds(
 }
 
 #[spirv(compute(threads(1)))]
-pub fn main(
+pub fn atmosphere(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
@@ -430,5 +431,18 @@ pub fn main(
     // col = col.clamp(Vec3::ZERO, Vec3::ONE);
     unsafe {
         out.write(global_id, col.extend(1.0));
+    }
+}
+
+#[spirv(compute(threads(1)))]
+pub fn noise(
+    #[spirv(global_invocation_id)] global_id: UVec3,
+    #[spirv(descriptor_set = 0, binding = 0, uniform)] globals: &Globals,
+    #[spirv(descriptor_set = 0, binding = 1)] out: TexRgba8,
+) {
+    let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 0.97;
+
+    unsafe {
+        out.write(global_id.xy(), Vec3::splat(rng).extend(1.0));
     }
 }
