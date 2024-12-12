@@ -1,8 +1,8 @@
-use coord::gather_pos;
+use coord::{gather_pos, gather_pos_with_coord};
 use rdog_lib::prelude::*;
 use spirv_std::glam::{UVec3, Vec2, Vec3Swizzles};
 
-pub const ATMOS_MULT: f32 = 4.0;
+pub const ATMOS_MULT: f32 = 2.0;
 
 #[inline]
 fn d0(x: Vec3) -> Vec3 {
@@ -30,7 +30,7 @@ pub const EARTH_RADIUS: f32 = 6371000.0; // TODO move
 const CLOUD_HEIGHT: f32 = 1600.0;
 const CLOUD_THICKNESS: f32 = 500.0;
 const CLOUD_MIN_HEIGHT: f32 = CLOUD_HEIGHT;
-const CLOUD_MAX_HEIGHT: f32 = CLOUD_THICKNESS + CLOUD_MIN_HEIGHT;
+pub const CLOUD_MAX_HEIGHT: f32 = CLOUD_THICKNESS + CLOUD_MIN_HEIGHT;
 const CLOUD_DENSITY: f32 = 0.03;
 const CLOUD_SPEED: f32 = 0.02;
 
@@ -42,8 +42,6 @@ pub const HPI: f32 = PI * 0.5; // TODO move out
 const RLOG2: f32 = 1.0 / 0.69314718056;
 
 pub struct PositionStruct {
-    _tx_coord: Vec2,
-    _w_pos: Vec3,
     world_vector: Vec3,
     sun_vector: Vec3,
 }
@@ -59,35 +57,55 @@ pub mod coord {
         sc.z * vec3(c.x * c.y, s.y, s.x * c.y)
     }
 
-    pub fn calculate_world_space_position(p: Vec2) -> Vec3 {
+    pub fn calculate_world_space_position(p: Vec2, sphere: bool) -> Vec3 {
         let p = (p * 2.0) - 1.0;
         let mut world_space_position = vec3(p.x, p.y, 1.0);
 
-        if SPHERICAL_PROJECTION {
+        if sphere {
             world_space_position = sphere_to_cart(world_space_position * vec3(PI, HPI, 1.0));
         }
 
         world_space_position
     }
 
-    pub fn gather_pos(frag_coord: Vec2, screen_res: Vec2, globals: &Globals) -> PositionStruct {
-        let mut tx_coord = frag_coord / screen_res;
-        tx_coord.y = 1.0 - tx_coord.y;
-
+    pub fn gather_pos_with_coord(sphere: bool, uv: Vec3, globals: &Globals) -> PositionStruct {
         let mouse_coord = vec2(
             ((globals.time.x * 0.2).sin() * 0.5) + 0.5,
             (((globals.time.x.cos() * 0.5) + 0.5) * 0.5) + 0.5,
         );
 
-        let w_pos = calculate_world_space_position(tx_coord);
+        // sun position
+        let sun_vector = (calculate_world_space_position(mouse_coord, sphere)).normalize();
+
+        PositionStruct {
+            world_vector: uv,
+            sun_vector,
+        }
+    }
+
+    pub fn gather_pos(
+        sphere: bool,
+        frag_coord: Vec2,
+        screen_res: Vec2,
+        globals: &Globals,
+    ) -> PositionStruct {
+        let mut tx_coord = frag_coord / screen_res;
+        tx_coord.y = 1.0 - tx_coord.y;
+
+        let mouse_coord = vec2(
+            0.8,
+            0.55,
+            // ((globals.time.x * 0.2).sin() * 0.5) + 0.5,
+            // (((globals.time.x.cos() * 0.5) + 0.5) * 0.5) + 0.5,
+        );
+
+        let w_pos = calculate_world_space_position(tx_coord, sphere);
         let world_vector = w_pos.normalize();
 
         // sun position
-        let sun_vector = (calculate_world_space_position(mouse_coord)).normalize();
+        let sun_vector = (calculate_world_space_position(mouse_coord, sphere)).normalize();
 
         PositionStruct {
-            _tx_coord: tx_coord,
-            _w_pos: w_pos,
             world_vector,
             sun_vector,
         }
@@ -160,7 +178,7 @@ fn calculate_scatter_integral(optical_depth: f32, coeff: f32) -> f32 {
     return (a * optical_depth).exp2() * b + c;
 }
 
-fn calc_atmospheric_scatter(pos: &PositionStruct, absorb_light: &mut Vec3) -> Vec3 {
+pub fn calc_atmospheric_scatter(pos: &PositionStruct, absorb_light: &mut Vec3) -> Vec3 {
     let ln2 = f32::ln(2.0);
 
     let l_dot_w = pos.sun_vector.dot(pos.world_vector);
@@ -317,7 +335,7 @@ fn get_volumetric_clouds_scattering(
     return (sun_lighting + sky_lighting) * integral * PI;
 }
 
-fn calculate_volumetric_clouds(
+pub fn calculate_volumetric_clouds(
     pos: &PositionStruct,
     color: Vec3,
     dither: f32,
@@ -396,21 +414,9 @@ pub fn atmosphere(
 
     #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16,
 ) {
-    let global_id = global_id.xy();
-    let coord = global_id.as_vec2();
-
-    let pos = gather_pos(coord, camera.screen.xy() * ATMOS_MULT, globals);
-
-    let dither = bayer_16(global_id.xy().as_vec2());
-
-    let mut light_absorb = Vec3::ZERO;
-
-    let mut col = calc_atmospheric_scatter(&pos, &mut light_absorb);
-    col = calculate_volumetric_clouds(
-        &pos,
-        col,
-        dither,
-        light_absorb,
+    let col = calc_atmosphere(
+        global_id.xy().as_vec2(),
+        camera,
         globals,
         noise_tx,
         noise_sampler,
@@ -430,8 +436,64 @@ pub fn atmosphere(
 
     // col = col.clamp(Vec3::ZERO, Vec3::ONE);
     unsafe {
-        out.write(global_id, col.extend(1.0));
+        out.write(global_id.xy(), col.extend(1.0));
     }
+}
+
+pub fn calc_atmosphere2(
+    coord: Vec3,
+    uv: Vec2,
+    globals: &Globals,
+
+    noise_tx: Tex,
+    noise_sampler: &Sampler,
+) -> Vec3 {
+    let pos = gather_pos_with_coord(false, coord, globals);
+
+    let dither = bayer_16(uv);
+
+    let mut light_absorb = Vec3::ZERO;
+
+    let mut col = calc_atmospheric_scatter(&pos, &mut light_absorb);
+    col = calculate_volumetric_clouds(
+        &pos,
+        col,
+        dither,
+        light_absorb,
+        globals,
+        noise_tx,
+        noise_sampler,
+    );
+
+    col
+}
+
+pub fn calc_atmosphere(
+    coord: Vec2,
+    camera: &Camera,
+    globals: &Globals,
+
+    noise_tx: Tex,
+    noise_sampler: &Sampler,
+) -> Vec3 {
+    let pos = gather_pos(false, coord, camera.screen.xy() * ATMOS_MULT, globals);
+
+    let dither = bayer_16(coord);
+
+    let mut light_absorb = Vec3::ZERO;
+
+    let mut col = calc_atmospheric_scatter(&pos, &mut light_absorb);
+    col = calculate_volumetric_clouds(
+        &pos,
+        col,
+        dither,
+        light_absorb,
+        globals,
+        noise_tx,
+        noise_sampler,
+    );
+
+    col
 }
 
 #[spirv(compute(threads(1)))]

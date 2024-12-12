@@ -37,7 +37,8 @@ impl RayPass {
             .build(device);
 
         let bg1 = BindGroup::builder("ray_bg1")
-            .add(&buffers.atmosphere_tx.bind_sampled())
+            // .add(&buffers.atmosphere_tx.bind_sampled())
+            .add(&buffers.atmos_noise_tx.bind_sampled())
             .build(device);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

@@ -1,10 +1,12 @@
 use rdog_lib::prelude::*;
 use spirv_std::glam::{vec4, Vec2, Vec4};
 
-use crate::atmosphere::HPI;
+use crate::atmosphere::{calc_atmosphere, calc_atmosphere2, HPI};
 
 const RMAX: u32 = 150;
 const TMAX: f32 = 22.0;
+
+const TMAX_PLANE: f32 = 22.0;
 
 // Function to rotate a vector using a rotor
 fn rotate_vector(q: Vec4, v: Vec3) -> Vec3 {
@@ -57,21 +59,6 @@ fn calc_normal(pos: Vec3, el: f32) -> Vec3 {
         .normalize()
 }
 
-fn cart_to_sphere(v: Vec3) -> Vec3 {
-    let normalized = v.normalize();
-    Vec3::new(
-        normalized.z.atan2(normalized.x),
-        normalized.y.asin(),
-        v.length(),
-    )
-}
-
-fn world_space_to_uv(world_pos: Vec3) -> Vec2 {
-    let spherical = cart_to_sphere(world_pos);
-    let ndc = Vec2::new(spherical.x / PI, spherical.y / HPI);
-    (ndc + Vec2::ONE) * 0.5
-}
-
 fn robobo_1221_tonemap(color: Vec3) -> Vec3 {
     let l = color.length();
 
@@ -107,8 +94,8 @@ fn render(
     camera: &Camera,
     globals: &Globals,
 
-    atmosphere_tx: Tex,
-    atmosphere_sampler: &Sampler,
+    noise_tx: Tex,
+    noise_sampler: &Sampler,
 ) -> Vec3 {
     let uv = (2.0 * pos - camera.screen).xy() / camera.screen.y;
     let uvx = (2.0 * (pos.xy() + vec2(1.0, 0.0)) - camera.screen.xy()).xy() / camera.screen.y;
@@ -156,13 +143,15 @@ fn render(
         t += h.x;
     }
 
-    let mut col = sample(
-        atmosphere_tx,
-        atmosphere_sampler,
-        // world_space_to_uv(ro + rd * 1000.0) - vec2(0.0, 0.03),
-        world_space_to_uv(ro + rd * 1000.0),
-    )
-    .xyz();
+    let mut col = Vec3::ZERO;
+
+    // sample(
+    //     atmosphere_tx,
+    //     atmosphere_sampler,
+    //     // world_space_to_uv(ro + rd * 1000.0) - vec2(0.0, 0.03),
+    //     world_space_to_uv(ro + rd * 1000.0),
+    // )
+    // .xyz();
 
     if res.x < TMAX {
         let pos = ro + t * rd;
@@ -170,7 +159,7 @@ fn render(
         col = calc_normal(pos, time);
     }
 
-    if res.y < 1.5 && res.y > 0.0 {
+    if res.x < TMAX_PLANE && res.y < 1.5 && res.y > 0.0 {
         let pos = ro + res.x * rd;
         // // project pixel footprint into the plane
         let dpdx = ro.y * (rd / rd.y - rdx / rdx.y);
@@ -178,6 +167,19 @@ fn render(
         let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
         col = 0.15 + f * Vec3::splat(0.05);
         // ks = 0.4;
+    }
+
+    if col == Vec3::ZERO {
+        let mut coord = ro + rd * 10.0;
+        coord.y = coord.y * -1.0;
+
+        col = calc_atmosphere2(
+            coord.normalize(),
+            (pos - camera.screen).xy(),
+            globals,
+            noise_tx,
+            noise_sampler,
+        );
     }
 
     col
@@ -190,11 +192,17 @@ pub fn fs(
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
 
-    #[spirv(descriptor_set = 1, binding = 0)] atmosphere_tx: Tex,
-    #[spirv(descriptor_set = 1, binding = 1)] atmosphere_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 0)] nosie_tx: Tex,
+    #[spirv(descriptor_set = 1, binding = 1)] noise_sampler: &Sampler,
     output: &mut Vec4,
 ) {
-    let mut col: Vec3 = render(pos, camera, globals, atmosphere_tx, atmosphere_sampler);
+    let mut col: Vec3 = render(
+        pos,
+        camera,
+        globals,
+        nosie_tx,
+        noise_sampler,
+    );
 
     // let uv: Vec2 = (pos / camera.screen).xy();
     // let mut col = sample(

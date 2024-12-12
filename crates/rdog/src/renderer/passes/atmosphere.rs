@@ -49,13 +49,14 @@ impl Pass for AtmospherePass {
         if _engine.frame.get() < 5 {
             self.0.get(&0).unwrap().run(camera, encoder, NOISE_DIM, ());
         }
-        if _engine.frame.get() < 5 {
-            self.0.get(&1).unwrap().run(
-                camera,
-                encoder,
-                camera.camera.viewport.size * (ATMOS_MULT as u32),
-                (),
-            );
-        }
+        // may need this later but not sure.
+        // if _engine.frame.get() < 5 {
+        //     self.0.get(&1).unwrap().run(
+        //         camera,
+        //         encoder,
+        //         camera.camera.viewport.size * (ATMOS_MULT as u32),
+        //         (),
+        //     );
+        // }
     }
 }
