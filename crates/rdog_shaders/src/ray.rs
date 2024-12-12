@@ -1,7 +1,7 @@
 use rdog_lib::prelude::*;
 use spirv_std::glam::{vec4, Vec2, Vec4};
 
-use crate::atmosphere::{calc_atmosphere, calc_atmosphere2, HPI};
+use crate::atmosphere::calc_atmosphere2;
 
 const RMAX: u32 = 150;
 const TMAX: f32 = 22.0;
@@ -145,14 +145,6 @@ fn render(
 
     let mut col = Vec3::ZERO;
 
-    // sample(
-    //     atmosphere_tx,
-    //     atmosphere_sampler,
-    //     // world_space_to_uv(ro + rd * 1000.0) - vec2(0.0, 0.03),
-    //     world_space_to_uv(ro + rd * 1000.0),
-    // )
-    // .xyz();
-
     if res.x < TMAX {
         let pos = ro + t * rd;
         // col = calc_normal(pos, time);
@@ -166,7 +158,6 @@ fn render(
         let dpdy = ro.y * (rd / rd.y - rdy / rdy.y);
         let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
         col = 0.15 + f * Vec3::splat(0.05);
-        // ks = 0.4;
     }
 
     if col == Vec3::ZERO {
@@ -196,21 +187,7 @@ pub fn fs(
     #[spirv(descriptor_set = 1, binding = 1)] noise_sampler: &Sampler,
     output: &mut Vec4,
 ) {
-    let mut col: Vec3 = render(
-        pos,
-        camera,
-        globals,
-        nosie_tx,
-        noise_sampler,
-    );
-
-    // let uv: Vec2 = (pos / camera.screen).xy();
-    // let mut col = sample(
-    //     atmosphere_tx,
-    //     atmosphere_sampler,
-    //     uv,
-    // )
-    // .xyz();
+    let mut col: Vec3 = render(pos, camera, globals, nosie_tx, noise_sampler);
 
     col = col.powf(1.0 / 2.2);
     col = robobo_1221_tonemap(col);

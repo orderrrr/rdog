@@ -1,5 +1,5 @@
 use bevy::utils::HashMap;
-use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
+use rdog_shaders::atmosphere::NOISE_DIM;
 
 use crate::{
     compute_pass::ComputePass,

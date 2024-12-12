@@ -47,7 +47,7 @@ pub struct PositionStruct {
 }
 
 pub mod coord {
-    use super::{PositionStruct, HPI, SPHERICAL_PROJECTION};
+    use super::{PositionStruct, HPI};
     use rdog_lib::{math::Math, prelude::*};
     use spirv_std::glam::{vec3, Vec2};
 
@@ -83,21 +83,11 @@ pub mod coord {
         }
     }
 
-    pub fn gather_pos(
-        sphere: bool,
-        frag_coord: Vec2,
-        screen_res: Vec2,
-        globals: &Globals,
-    ) -> PositionStruct {
+    pub fn gather_pos(sphere: bool, frag_coord: Vec2, screen_res: Vec2) -> PositionStruct {
         let mut tx_coord = frag_coord / screen_res;
         tx_coord.y = 1.0 - tx_coord.y;
 
-        let mouse_coord = vec2(
-            0.8,
-            0.55,
-            // ((globals.time.x * 0.2).sin() * 0.5) + 0.5,
-            // (((globals.time.x.cos() * 0.5) + 0.5) * 0.5) + 0.5,
-        );
+        let mouse_coord = vec2(0.8, 0.55);
 
         let w_pos = calculate_world_space_position(tx_coord, sphere);
         let world_vector = w_pos.normalize();
@@ -421,20 +411,7 @@ pub fn atmosphere(
         noise_tx,
         noise_sampler,
     );
-    // col = col.powf(1.0 / 2.2);
-    // col = robobo_1221_tonemap(col);
-    // col = col.powf(2.2);
 
-    // let uv = vec2(
-    //     (uv.x * globals.time.x * 200.0).sin() * uv.y,
-    //     (uv.y * globals.time.x * 200.0).cos() * uv.x,
-    // );
-
-    // let uv = global_id.xy().as_vec2() / camera.screen.xy();
-    // let col = sample(noise_tx, noise_sampler, uv).xyz(); // noise, generated every frame for some reason (shrug) // TODO don't
-    // let mut col = sample(noise_tx, noise_sampler, tx_coord).xyz();
-
-    // col = col.clamp(Vec3::ZERO, Vec3::ONE);
     unsafe {
         out.write(global_id.xy(), col.extend(1.0));
     }
@@ -476,7 +453,7 @@ pub fn calc_atmosphere(
     noise_tx: Tex,
     noise_sampler: &Sampler,
 ) -> Vec3 {
-    let pos = gather_pos(false, coord, camera.screen.xy() * ATMOS_MULT, globals);
+    let pos = gather_pos(SPHERICAL_PROJECTION, coord, camera.screen.xy() * ATMOS_MULT);
 
     let dither = bayer_16(coord);
 
