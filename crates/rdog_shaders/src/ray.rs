@@ -21,7 +21,6 @@ struct Material {
     f0: f32,
     roughness: f32,
     scattering_weight: f32,
-    checker: bool,
 }
 
 impl Default for Material {
@@ -40,14 +39,13 @@ impl Default for Material {
             f0: 0.04,
             roughness: 0.0,
             scattering_weight: 0.0,
-            checker: false,
         }
     }
 }
 
 fn map(pos: Vec3, elapsed: f32) -> Vec2 {
     let pos = axis_angle_rotate(
-        pos + vec3(0.0, 1.0, 0.0),
+        pos + vec3(0.0, -1.0, 0.0),
         vec3(0.2, 0.6, 1.5).normalize(),
         elapsed * 10.0,
     );
@@ -110,9 +108,11 @@ fn render(
     noise_tx: Tex,
     noise_sampler: &Sampler,
 ) -> Vec3 {
-    let uv = (2.0 * pos - camera.screen).xy() / camera.screen.y;
-    let uvx = (2.0 * (pos.xy() + vec2(1.0, 0.0)) - camera.screen.xy()).xy() / camera.screen.y;
-    let uvy = (2.0 * (pos.xy() + vec2(0.0, 1.0)) - camera.screen.xy()).xy() / camera.screen.y;
+    let p = vec2(pos.x, camera.screen.y - pos.y);
+
+    let uv = (2.0 * p - camera.screen.xy()) / camera.screen.y;
+    let uvx = (2.0 * (p + vec2(1.0, 0.0)) - camera.screen.xy()).xy() / camera.screen.y;
+    let uvy = (2.0 * (p + vec2(0.0, 1.0)) - camera.screen.xy()).xy() / camera.screen.y;
 
     // let uv = (2.0 * pos - camera.screen).xy() / camera.screen.y;
     // let uv = uv * -1.0;
@@ -122,7 +122,7 @@ fn render(
     let rotor = rotor_y(rotation_angle);
 
     // Calculate ro, rotating around y-axis
-    let ro = rotate_vector(rotor, vec3(0.0, -1.0, -2.0));
+    let ro = rotate_vector(rotor, vec3(0.0, 1.0, -2.0));
 
     let f = 1.5;
 
@@ -134,8 +134,7 @@ fn render(
     let mut col = get_color(ro, rd, rdx, rdy, time);
 
     if col == Vec3::ZERO {
-        let mut coord = ro + rd * 10.0;
-        coord.y = coord.y * -1.0;
+        let coord = ro + rd * 10.0;
 
         col = calc_atmosphere2(
             coord.normalize(),
@@ -150,30 +149,21 @@ fn render(
 }
 
 fn get_color(ro: Vec3, rd: Vec3, rdx: Vec3, rdy: Vec3, e: f32) -> Vec3 {
-    let res = hit(ro, rd, e);
+    let mut res = hit(ro, rd, rdx, rdy, e);
 
     if res.dist < TMAX {
         let mut col = Vec3::ZERO;
 
-        if res.checker {
-            let pos = ro + res.dist * rd;
-            // // project pixel footprint into the plane
-            let dpdx = ro.y * (rd / rd.y - rdx / rdx.y);
-            let dpdy = ro.y * (rd / rd.y - rdy / rdy.y);
-            let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
-            return 0.15 + f * Vec3::splat(0.05);
-        }
-
         let pos = ro + res.dist * rd;
         // col = calc_normal(pos, time);
         let norm = res.normal;
-        return res.normal;
+        return res.albedo;
     }
 
     Vec3::ZERO
 }
 
-fn hit(ro: Vec3, rd: Vec3, e: f32) -> Material {
+fn hit(ro: Vec3, rd: Vec3, rdx: Vec3, rdy: Vec3, e: f32) -> Material {
     // TODO - change to a Material struct
     let mut t = 0.;
 
@@ -182,7 +172,13 @@ fn hit(ro: Vec3, rd: Vec3, e: f32) -> Material {
     let tp1 = (0.0 - ro.y) / rd.y;
     if tp1 > 0.0 {
         res.dist = tp1;
-        res.checker = true;
+        res.normal = vec3(0.0, 1.0, 0.0);
+        let pos = ro + res.dist * rd;
+        // // project pixel footprint into the plane
+        let dpdx = ro.y * (rd / rd.y - rdx / rdx.y);
+        let dpdy = ro.y * (rd / rd.y - rdy / rdy.y);
+        let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
+        res.albedo = 0.15 + f * Vec3::splat(0.05);
         // todo material here.
     }
 
@@ -195,16 +191,18 @@ fn hit(ro: Vec3, rd: Vec3, e: f32) -> Material {
                 2.0 => Material {
                     dist: t,
                     normal: calc_normal(p, e),
+                    albedo: vec3(1.0, 0.0, 0.0),
                     ..Default::default()
                 },
                 _ => Material {
                     dist: t,
+                    albedo: vec3(1.0, 0.0, 0.0),
                     normal: calc_normal(p, e),
                     ..Default::default()
                 },
             };
 
-            break;
+            return res;
         }
         if t > TMAX {
             break;
