@@ -18,9 +18,9 @@ pub struct Buffers {
 
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
 
-    pub sub_ray: Texture,
-    pub atmosphere: Texture,
-    pub atmos_noise: Texture,
+    pub sub_ray_tx: Texture,
+    pub atmosphere_tx: Texture,
+    pub atmos_noise_tx: Texture,
 }
 
 impl Buffers {
@@ -32,7 +32,7 @@ impl Buffers {
         let globals =
             MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
 
-        let sub_ray = Texture::builder("sub_ray")
+        let sub_ray_tx = Texture::builder("sub_ray")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba8Unorm)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -40,7 +40,7 @@ impl Buffers {
             .with_linear_filtering_sampler()
             .build(device);
 
-        let atmosphere = Texture::builder("atmosphere")
+        let atmosphere_tx = Texture::builder("atmosphere")
             .with_size(camera.viewport.size * (ATMOS_MULT as u32)) // should be larger maybe? not sure
             .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -48,7 +48,7 @@ impl Buffers {
             .with_linear_filtering_sampler()
             .build(device);
 
-        let atmos_noise = Texture::builder("atmos_noise")
+        let atmos_noise_tx = Texture::builder("atmos_noise")
             .with_size(NOISE_DIM)
             .with_format(wgpu::TextureFormat::Rgba8Unorm)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -59,10 +59,10 @@ impl Buffers {
         Self {
             prev_camera,
             curr_camera,
-            atmos_noise,
+            atmos_noise_tx,
             globals,
-            sub_ray,
-            atmosphere,
+            sub_ray_tx,
+            atmosphere_tx,
         }
     }
 }
