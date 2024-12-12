@@ -2,6 +2,8 @@ use coord::gather_pos;
 use rdog_lib::prelude::*;
 use spirv_std::glam::{UVec3, Vec2, Vec3Swizzles};
 
+pub const ATMOS_MULT: f32 = 2.0;
+
 #[inline]
 fn d0(x: Vec3) -> Vec3 {
     x.abs() + 1e-8
@@ -39,8 +41,8 @@ pub const HPI: f32 = PI * 0.5; // TODO move out
 const RLOG2: f32 = 1.0 / 0.69314718056;
 
 pub struct PositionStruct {
-    tx_coord: Vec2,
-    w_pos: Vec3,
+    _tx_coord: Vec2,
+    _w_pos: Vec3,
     world_vector: Vec3,
     sun_vector: Vec3,
 }
@@ -83,8 +85,8 @@ pub mod coord {
         let sun_vector = (calculate_world_space_position(mouse_coord)).normalize();
 
         PositionStruct {
-            tx_coord,
-            w_pos,
+            _tx_coord: tx_coord,
+            _w_pos: w_pos,
             world_vector,
             sun_vector,
         }
@@ -106,26 +108,6 @@ fn bayer_8(a: Vec2) -> f32 {
 #[inline]
 fn bayer_16(a: Vec2) -> f32 {
     bayer_8(0.5 * a) * 0.25 + bayer_2(a)
-}
-
-fn rotation_matrix(axis: Vec3, angle: f32) -> Mat3 {
-    let axis = axis.normalize();
-    let (s, c) = angle.sin_cos();
-    let oc = 1.0 - c;
-
-    let xx = axis.x * axis.x;
-    let yy = axis.y * axis.y;
-    let zz = axis.z * axis.z;
-
-    let xy = axis.x * axis.y;
-    let xz = axis.x * axis.z;
-    let zy = axis.z * axis.y;
-
-    Mat3::from_cols(
-        Vec3::new(oc * xx + c, oc * xy + axis.z * s, oc * xz - axis.y * s),
-        Vec3::new(oc * xy - axis.z * s, oc * yy + c, oc * zy + axis.x * s),
-        Vec3::new(oc * xz + axis.y * s, oc * zy - axis.x * s, oc * zz + c),
-    )
 }
 
 fn ray_sphere_intersection(position: Vec3, direction: Vec3, radius: f32) -> Vec2 {
@@ -402,19 +384,6 @@ fn calculate_volumetric_clouds(
         .mix(color, (start_position.length() * 0.00001).clamp(0.0, 1.0));
 }
 
-#[inline]
-fn r_t_operator(x: Vec3) -> Vec3 {
-    return x / (x * x + 1.0).sqrt();
-}
-
-fn robobo_1221_tonemap(color: Vec3) -> Vec3 {
-    let l = color.length();
-
-    let mut color = color;
-    color = color.mix(color * 0.5, l / (l + 1.0));
-    r_t_operator(color)
-}
-
 #[spirv(compute(threads(1)))]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
@@ -424,12 +393,12 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 2)] noise_tx: Tex,
     #[spirv(descriptor_set = 0, binding = 3)] noise_sampler: &Sampler,
 
-    #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba8,
+    #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16,
 ) {
     let global_id = global_id.xy();
     let coord = global_id.as_vec2();
 
-    let pos = gather_pos(coord, camera.screen.xy() * 2.0, globals);
+    let pos = gather_pos(coord, camera.screen.xy() * ATMOS_MULT, globals);
 
     let dither = bayer_16(global_id.xy().as_vec2());
 
@@ -445,8 +414,9 @@ pub fn main(
         noise_tx,
         noise_sampler,
     );
-    col = robobo_1221_tonemap(col * 0.5);
-    col = col.powf(1.0 / 2.2);
+    // col = col.powf(1.0 / 2.2);
+    // col = robobo_1221_tonemap(col);
+    // col = col.powf(2.2);
 
     // let uv = vec2(
     //     (uv.x * globals.time.x * 200.0).sin() * uv.y,
@@ -457,8 +427,8 @@ pub fn main(
     // let col = sample(noise_tx, noise_sampler, uv).xyz(); // noise, generated every frame for some reason (shrug) // TODO don't
     // let mut col = sample(noise_tx, noise_sampler, tx_coord).xyz();
 
-    col = col.clamp(Vec3::ZERO, Vec3::ONE);
+    // col = col.clamp(Vec3::ZERO, Vec3::ONE);
     unsafe {
-        out.write(global_id, col.powf(2.2).extend(1.0));
+        out.write(global_id, col.extend(1.0));
     }
 }

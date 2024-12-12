@@ -30,6 +30,7 @@ bevy = { git = "https://github.com/orderrrr/bevy", branch = "0.14.0", default-fe
     "bevy_winit",
     "bevy_pbr",
     "tonemapping_luts",
+    "bevy_dev_tools"
 ] }
 rand = "0.8.5"
 # bevy_egui = "0.27.1"

@@ -1,6 +1,5 @@
 use bevy::utils::HashMap;
-use glam::uvec2;
-use rdog_shaders::atmosphere::noise::NOISE_DIM;
+use rdog_shaders::atmosphere::{atmosphere::ATMOS_MULT, noise::NOISE_DIM};
 
 use crate::{
     compute_pass::ComputePass,
@@ -47,13 +46,16 @@ impl Pass for AtmospherePass {
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
     ) {
-        self.0
-            .get(&0)
-            .unwrap()
-            .run(camera, encoder, NOISE_DIM, ());
-        self.0
-            .get(&1)
-            .unwrap()
-            .run(camera, encoder, camera.camera.viewport.size * 2, ());
+        if _engine.frame.get() < 5 {
+            self.0.get(&0).unwrap().run(camera, encoder, NOISE_DIM, ());
+        }
+        if _engine.frame.get() < 5 {
+            self.0.get(&1).unwrap().run(
+                camera,
+                encoder,
+                camera.camera.viewport.size * (ATMOS_MULT as u32),
+                (),
+            );
+        }
     }
 }

@@ -2,7 +2,7 @@ use rdog_lib::prelude::*;
 
 // pub const NOISE_DIM: UVec2 = UVec2::new(256, 256);
 // pub const NOISE_DIM: UVec2 = UVec2::new(128, 128);
-pub const NOISE_DIM: UVec2 = UVec2::new(64, 64);
+pub const NOISE_DIM: UVec2 = UVec2::new(128, 128);
 
 #[spirv(compute(threads(1)))]
 pub fn main(

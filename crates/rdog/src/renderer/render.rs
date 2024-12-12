@@ -7,10 +7,9 @@ use super::{
     engine::Engine,
     passes::{Pass, Passes},
 };
-use glam::uvec2;
 use log::{debug, info};
 use rdog_lib as lib;
-use rdog_shaders::atmosphere::noise::NOISE_DIM;
+use rdog_shaders::atmosphere::{atmosphere::ATMOS_MULT, noise::NOISE_DIM};
 
 #[derive(Debug)]
 pub struct Buffers {
@@ -42,8 +41,8 @@ impl Buffers {
             .build(device);
 
         let atmosphere = Texture::builder("atmosphere")
-            .with_size(camera.viewport.size * 2) // should be larger maybe? not sure
-            .with_format(wgpu::TextureFormat::Rgba8Unorm)
+            .with_size(camera.viewport.size * (ATMOS_MULT as u32)) // should be larger maybe? not sure
+            .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()

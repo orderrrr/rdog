@@ -5,7 +5,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::{renderer::utils, stages::prepare::flush};
+use crate::renderer::utils;
 
 use super::{bindable::Bindable, bufferable::Bufferable};
 

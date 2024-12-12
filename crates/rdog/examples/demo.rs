@@ -1,6 +1,12 @@
 #![feature(inline_const)]
 
-use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResolution};
+use bevy::{
+    dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
+    prelude::*,
+    render::camera::CameraRenderGraph,
+    window::WindowResolution,
+};
+
 use rand::Rng;
 use rdog::RdogPlugin;
 
@@ -18,6 +24,11 @@ fn main() {
                 ..default()
             }),
             RdogPlugin(rand::thread_rng().gen_range(0..4_294_967_295)),
+            FpsOverlayPlugin {
+                config: FpsOverlayConfig {
+                    ..Default::default()
+                },
+            },
         ))
         .add_systems(Startup, setup_camera)
         .run();

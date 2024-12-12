@@ -20,7 +20,8 @@ pub trait Pass {
 macro_rules! passes {
     ([ $( $name:ident => $class:ident, )* ]) => {
         $( mod $name; )*
-        $( pub use self::$name::*; )*
+        $(  #[allow(unused_imports)]
+            pub use self::$name::*; )*
 
         #[derive(Debug)]
         pub enum PassTypes {
@@ -66,6 +67,6 @@ macro_rules! passes {
 
 passes!([
     atmosphere => AtmospherePass,
-    sub_ray => SubRayPass,
+    // sub_ray => SubRayPass,
     ray => RayPass,
 ]);
