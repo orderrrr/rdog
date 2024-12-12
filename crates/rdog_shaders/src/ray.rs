@@ -1,35 +1,48 @@
 use rdog_lib::prelude::*;
-use spirv_std::glam::{vec4, Vec2, Vec4};
+use spirv_std::glam::{Vec2, Vec4};
 
 use crate::atmosphere::calc_atmosphere2;
 
 const RMAX: u32 = 150;
 const TMAX: f32 = 22.0;
 
-const TMAX_PLANE: f32 = 22.0;
-
-// Function to rotate a vector using a rotor
-fn rotate_vector(q: Vec4, v: Vec3) -> Vec3 {
-    let u = q.xyz();
-    let s = q.w;
-    2.0 * u.dot(v) * u + (s * s - u.dot(u)) * v + 2.0 * s * u.cross(v)
+// TODO TEMP PUB
+struct Material {
+    dist: f32,
+    normal: Vec3,
+    metallic: bool,
+    refractive: bool,
+    albedo: Vec3,
+    scattering_color: Vec3,
+    diffuse_scale: f32,
+    specular_scale: f32,
+    emissive: f32,
+    ior: f32,
+    f0: f32,
+    roughness: f32,
+    scattering_weight: f32,
+    checker: bool,
 }
 
-// Function to create a rotor (quaternion) for rotation around y-axis
-fn rotor_y(a: f32) -> Vec4 {
-    let ha = a * 0.5;
-    vec4(0.0, ha.sin(), 0.0, ha.cos())
-}
-
-fn axis_angle_rotate(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
-    let ha = a * 0.5;
-    let sh = ha.sin();
-
-    let s = ha.cos();
-    let b = axis * sh;
-
-    let temp = b.cross(v) + s * v;
-    v + 2.0 * b.cross(temp)
+impl Default for Material {
+    fn default() -> Self {
+        Self {
+            dist: TMAX,
+            normal: Vec3::ZERO,
+            metallic: false,
+            refractive: false,
+            albedo: Vec3::ZERO,
+            scattering_color: Vec3::ZERO,
+            diffuse_scale: 1.0,
+            specular_scale: 1.0,
+            emissive: 0.0,
+            ior: 1.0,
+            f0: 0.04,
+            roughness: 0.0,
+            scattering_weight: 0.0,
+            checker: false,
+        }
+    }
 }
 
 fn map(pos: Vec3, elapsed: f32) -> Vec2 {
@@ -118,47 +131,7 @@ fn render(
     let rdx = (rotate_vector(rotor, vec3(uvx.x, uvx.y, f))).normalize();
     let rdy = (rotate_vector(rotor, vec3(uvy.x, uvy.y, f))).normalize();
 
-    let mut t = 0.;
-
-    let mut res = Vec2::MAX;
-
-    let tp1 = (0.0 - ro.y) / rd.y;
-    if tp1 > 0.0 {
-        res.x = tp1;
-        res.y = 1.0;
-    }
-
-    for _ in 0..RMAX {
-        let p = ro + t * rd;
-
-        let h = map(p, time);
-        if h.x < 0.001 {
-            res.x = t;
-            res.y = h.y;
-            break;
-        }
-        if t > TMAX {
-            break;
-        }
-        t += h.x;
-    }
-
-    let mut col = Vec3::ZERO;
-
-    if res.x < TMAX {
-        let pos = ro + t * rd;
-        // col = calc_normal(pos, time);
-        col = calc_normal(pos, time);
-    }
-
-    if res.x < TMAX_PLANE && res.y < 1.5 && res.y > 0.0 {
-        let pos = ro + res.x * rd;
-        // // project pixel footprint into the plane
-        let dpdx = ro.y * (rd / rd.y - rdx / rdx.y);
-        let dpdy = ro.y * (rd / rd.y - rdy / rdy.y);
-        let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
-        col = 0.15 + f * Vec3::splat(0.05);
-    }
+    let mut col = get_color(ro, rd, rdx, rdy, time);
 
     if col == Vec3::ZERO {
         let mut coord = ro + rd * 10.0;
@@ -174,6 +147,72 @@ fn render(
     }
 
     col
+}
+
+fn get_color(ro: Vec3, rd: Vec3, rdx: Vec3, rdy: Vec3, e: f32) -> Vec3 {
+    let res = hit(ro, rd, e);
+
+    if res.dist < TMAX {
+        let mut col = Vec3::ZERO;
+
+        if res.checker {
+            let pos = ro + res.dist * rd;
+            // // project pixel footprint into the plane
+            let dpdx = ro.y * (rd / rd.y - rdx / rdx.y);
+            let dpdy = ro.y * (rd / rd.y - rdy / rdy.y);
+            let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
+            return 0.15 + f * Vec3::splat(0.05);
+        }
+
+        let pos = ro + res.dist * rd;
+        // col = calc_normal(pos, time);
+        let norm = res.normal;
+        return res.normal;
+    }
+
+    Vec3::ZERO
+}
+
+fn hit(ro: Vec3, rd: Vec3, e: f32) -> Material {
+    // TODO - change to a Material struct
+    let mut t = 0.;
+
+    let mut res = Material::default();
+
+    let tp1 = (0.0 - ro.y) / rd.y;
+    if tp1 > 0.0 {
+        res.dist = tp1;
+        res.checker = true;
+        // todo material here.
+    }
+
+    for _ in 0..RMAX {
+        let p = ro + t * rd;
+
+        let h = map(p, e);
+        if h.x < 0.001 {
+            res = match h.y {
+                2.0 => Material {
+                    dist: t,
+                    normal: calc_normal(p, e),
+                    ..Default::default()
+                },
+                _ => Material {
+                    dist: t,
+                    normal: calc_normal(p, e),
+                    ..Default::default()
+                },
+            };
+
+            break;
+        }
+        if t > TMAX {
+            break;
+        }
+        t += h.x;
+    }
+
+    return res;
 }
 
 #[spirv(fragment)]

@@ -1,4 +1,4 @@
-use glam::{uvec2, uvec3, uvec4, vec2, vec3, vec4, UVec2, UVec3, UVec4};
+use glam::{uvec2, uvec3, uvec4, vec2, vec3, vec4, UVec2, UVec3, UVec4, Vec4Swizzles};
 use spirv_std::glam::{Vec2, Vec3, Vec4};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
@@ -153,3 +153,28 @@ impl Bits<UVec4> for Vec4 {
         )
     }
 }
+
+// Function to rotate a vector using a rotor
+pub fn rotate_vector(q: Vec4, v: Vec3) -> Vec3 {
+    let u = q.xyz();
+    let s = q.w;
+    2.0 * u.dot(v) * u + (s * s - u.dot(u)) * v + 2.0 * s * u.cross(v)
+}
+
+// Function to create a rotor (quaternion) for rotation around y-axis
+pub fn rotor_y(a: f32) -> Vec4 {
+    let ha = a * 0.5;
+    vec4(0.0, ha.sin(), 0.0, ha.cos())
+}
+
+pub fn axis_angle_rotate(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
+    let ha = a * 0.5;
+    let sh = ha.sin();
+
+    let s = ha.cos();
+    let b = axis * sh;
+
+    let temp = b.cross(v) + s * v;
+    v + 2.0 * b.cross(temp)
+}
+
