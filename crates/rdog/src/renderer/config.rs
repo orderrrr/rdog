@@ -129,7 +129,7 @@ impl Globals {
     pub fn from_engine(engine: &Engine) -> Self {
         Self {
             time: engine.time,
-            seed: UVec2::splat(engine.seed),
+            seed: uvec2(engine.seed, engine.seed + engine.frame.get()), // seed offset with current frame (for rays)
         }
     }
 

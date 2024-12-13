@@ -1,9 +1,18 @@
-use glam::{UVec3, Vec2};
+use glam::{UVec3, Vec2, Vec3};
 
 pub fn rng01(s: Vec2, seed: u32, width: u32) -> f32 {
     let x = (s.x as u32).wrapping_mul(seed);
     let y = (s.y as u32).wrapping_mul(seed);
     let u = x.wrapping_add(y.wrapping_mul(width));
+
+    (pcg(u) as f32) * (1.0 / (0xffffffffu32 as f32))
+}
+
+pub fn rng(s: Vec3, seed: u32) -> f32 {
+    let x = (s.x as u32).wrapping_mul(seed);
+    let y = (s.y as u32).wrapping_mul(seed);
+    let z = (s.z as u32).wrapping_mul(seed);
+    let u = x.wrapping_add(y.wrapping_mul(200).wrapping_add(z.wrapping_mul(200)));
 
     (pcg(u) as f32) * (1.0 / (0xffffffffu32 as f32))
 }
