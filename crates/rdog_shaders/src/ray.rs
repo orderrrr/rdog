@@ -413,21 +413,22 @@ fn get_color(
     let res = hit(r, g);
 
     if res.dist >= TMAX {
-        let coord = r.o + r.d;
-
         if REALTIME_ATMOS {
+            let coord = r.o + r.d * 10.0;
             return calc_atmosphere2(
-                (coord * 10.0).normalize(),
+                coord.normalize(),
                 uv - camera.screen.xy(),
                 g,
                 noise_tx,
                 noise_sampler,
             );
         } else {
+            let coord = r.o + r.d * 1000.0;
+
             return sample(
                 atmos_tx,
                 atmos_sampler,
-                world_space_to_uv(coord * 1000.0) - vec2(0.0, 0.02),
+                world_space_to_uv(coord) - vec2(0.0, 0.02),
             )
             .xyz();
         }
