@@ -5,6 +5,7 @@ use crate::atmosphere::calc_atmosphere2;
 
 const RMAX: u32 = 300;
 const TMAX: f32 = 22.0;
+const DIFFUSE_STEPS: u32 = 8;
 
 #[derive(Copy, Clone)]
 struct Ray {
@@ -211,13 +212,20 @@ fn rand_float(seed: Vec2, g: &Globals) -> f32 {
         .fract()
 }
 
-fn sample_direct_diff_spherical(p: Vec3, v: Vec3, n: Vec3, uv: Vec2, g: &Globals) -> Vec3 {
+fn sample_direct_diff_spherical(
+    p: Vec3,
+    v: Vec3,
+    n: Vec3,
+    uv: Vec2,
+    camera: &Camera,
+    g: &Globals,
+) -> Vec3 {
     let cl = light_map(p, g);
 
     // assumed spherical
     let l = {
-        let u0 = rng01(uv + vec2(5.0, 7.0), g.seed.y, 200);
-        let u1 = rng01(uv - vec2(3.0, 3.0), g.seed.y, 200);
+        let u0 = rng01(uv + vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
+        let u1 = rng01(uv - vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
         // let u0 = rand_float(uv + vec2(1.0, 2.0), g); // TODO don't use this one
         // let u1 = rand_float(uv - vec2(1.0, 1.0), g);
 
@@ -268,8 +276,8 @@ fn sample_indirect_diff(
     let mut p = p;
     let mut n = n;
 
-    for i in 0..4 {
-        let l = translate_to_ws(get_random_sample(uv + (i as f32), g), n);
+    for i in 0..DIFFUSE_STEPS {
+        let l = translate_to_ws(get_random_sample(uv + (i as f32), camera, g), n);
         let cos_theta = n.dot(l);
         let sr = Ray::new(p + l, l);
         let h = hit(sr, g);
@@ -287,29 +295,31 @@ fn sample_indirect_diff(
                     noise_sampler,
                 );
 
+            // continue;
             break;
         }
 
         // // todo && i > 0??
         if h.emissive > 0.0 && i > 0 {
             t += albedo * cos_theta;
+            // continue;
             break;
         }
 
         albedo *= h.albedo;
         n = h.normal;
         p = sr.o + sr.d * h.dist;
-        t += albedo * cos_theta * sample_direct_diff_spherical(p, v, n, uv, g);
+        t += albedo * cos_theta * sample_direct_diff_spherical(p, v, n, uv, camera, g);
     }
 
     return t;
 }
 
-fn get_random_sample(uv: Vec2, g: &Globals) -> Vec3 // cosine weighted uniform distribution
+fn get_random_sample(uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 // cosine weighted uniform distribution
 {
-    let cos_theta = (1.0 - rng01(uv, g.seed.y, 1000)).sqrt();
+    let cos_theta = (1.0 - rng01(uv.xy(), g.seed.y, camera.screen.y as u32)).sqrt();
     let sin_theta = (1.0 - (cos_theta * cos_theta)).max(0.0).sqrt();
-    let phi = rng01(uv, g.seed.y, 1000) * 2.0 * PI;
+    let phi = rng01(uv.yx(), g.seed.y, camera.screen.y as u32) * 2.0 * PI;
 
     return vec3((phi).cos() * sin_theta, cos_theta, (phi).sin() * sin_theta);
 }
@@ -348,7 +358,7 @@ fn get_color(
     if res.diffuse_scale > 0.0 {
         diffuse = res.diffuse_scale
             * res.albedo
-            * (sample_direct_diff_spherical(pos, v, res.normal, uv, g)
+            * (sample_direct_diff_spherical(pos, v, res.normal, uv, camera, g)
                 + sample_indirect_diff(pos, v, res.normal, uv, camera, g, noise_tx, noise_sampler));
     }
 
