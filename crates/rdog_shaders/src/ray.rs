@@ -1,7 +1,8 @@
 use rdog_lib::prelude::*;
 use spirv_std::glam::{Vec2, Vec4};
 
-use crate::atmosphere::{calc_atmosphere2, HPI};
+// use crate::atmosphere::{calc_atmosphere2};
+pub const HPI: f32 = PI * 0.5; // TODO move out
 
 const REALTIME_ATMOS: bool = false;
 
@@ -96,6 +97,7 @@ fn map(posi: Vec3, g: &Globals) -> Vec2 {
     let ld = sphere(posi - vec3(-2.0, 1.0, 1.0), 0.5);
 
     let u = op_smooth_union(o, r, 0.1);
+    let u = sphere(posi - vec3(0.0, 1.0, 0.0), 0.4);
 
     if ld > u {
         vec2(u, 2.0)
@@ -243,10 +245,8 @@ fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
 // }
 
 fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
-    let u0 = rng01(uv + vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
+    let u0 = rng01(uv + vec2(2.0, 3.0), g.seed.y, camera.screen.y as u32);
     let u1 = rng01(uv - vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
-    // let u0 = rand_float(uv + vec2(1.0, 2.0), g); // TODO don't use this one
-    // let u1 = rand_float(uv - vec2(1.0, 1.0), g);
 
     // let d = (cl.pos - p).length(); // TODO use one provided by light
     let d = cl.dist;
@@ -297,32 +297,38 @@ fn sample_direct_diff_spherical(p: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: 
 }
 
 fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
-    let scale = 3.0;
-    let bias = 0.01;
     let p1 = pos - (n * 0.005);
 
     let cl = light_map(p1, g);
     let l = spherical_light_sample(cl, p1, uv, camera, g);
 
-    let mut sr = Ray::new(p1 + l, l);
+    // p1 = p1 + l;
+
+    let mut sr = Ray::new(p1, l);
     let h = hit(sr, g);
 
-    let n1 = -h.normal;
-
-    let cos_theta = n1.dot(l);
-    sr.o = p1 + l * h.dist;
+    sr.o = p1 + l * (h.dist + 1.0);
 
     let h1 = hit(sr, g);
 
-    if h1.emissive > 0.0 {
-        let s = scale * (h.dist + bias);
-        let e = (0.3 + cos_theta).max(0.0);
-        let a = 2.0 / (h1.dist * h1.dist);
-
-        return t(s) * e * a * h1.albedo;
+    if h1.emissive <= 0.0 {
+        return Vec3::Y;
     }
 
-    Vec3::ZERO
+    return scatter(&h, &h1, l);
+}
+
+fn scatter(h: &Material, h1: &Material, l: Vec3) -> Vec3 {
+    let scale = 3.0;
+    let bias = 0.01;
+
+    let n1 = -h.normal;
+    let cos_theta = n1.dot(l);
+    let s = scale * (h.dist + bias);
+    let e = (0.3 + cos_theta).max(0.0);
+    let a = 1.0 / (h1.dist * h1.dist);
+
+    return t(s) * e * a * h.albedo;
 }
 
 fn sample_indirect_diff(
@@ -353,14 +359,14 @@ fn sample_indirect_diff(
             let coord = sr.o + sr.d;
 
             if REALTIME_ATMOS {
-                t += albedo
-                    * calc_atmosphere2(
-                        (coord * 10.0).normalize(),
-                        uv - camera.screen.xy(),
-                        g,
-                        noise_tx,
-                        noise_sampler,
-                    );
+                // t += albedo
+                //     * calc_atmosphere2(
+                //         (coord * 10.0).normalize(),
+                //         uv - camera.screen.xy(),
+                //         g,
+                //         noise_tx,
+                //         noise_sampler,
+                //     );
             } else {
                 t += albedo
                     * sample(
@@ -414,21 +420,21 @@ fn get_color(
 
     if res.dist >= TMAX {
         if REALTIME_ATMOS {
-            let coord = r.o + r.d * 10.0;
-            return calc_atmosphere2(
-                coord.normalize(),
-                uv - camera.screen.xy(),
-                g,
-                noise_tx,
-                noise_sampler,
-            );
+            // let coord = r.o + r.d * 10.0;
+            // return calc_atmosphere2(
+            //     coord.normalize(),
+            //     uv - camera.screen.xy(),
+            //     g,
+            //     noise_tx,
+            //     noise_sampler,
+            // );
         } else {
             let coord = r.o + r.d * 1000.0;
 
             return sample(
                 atmos_tx,
                 atmos_sampler,
-                world_space_to_uv(coord) - vec2(0.0, 0.02),
+                world_space_to_uv(coord) + vec2(0.0, 0.02),
             )
             .xyz();
         }
@@ -478,7 +484,7 @@ fn get_color(
 
 fn hit(r: Ray, g: &Globals) -> Material {
     // TODO - change to a Material struct
-    let mut t = 0.;
+    let mut t = 0.0;
 
     let mut res = Material::default();
 
@@ -494,7 +500,7 @@ fn hit(r: Ray, g: &Globals) -> Material {
                     scattering_weight: 1.0,
                     scattering_color: Vec3::splat(1.0),
                     normal: calc_normal(p, g),
-                    albedo: vec3(1.0, 0.0, 0.0),
+                    albedo: vec3(0.941, 0.721, 0.627),
                     ..Default::default()
                 },
                 999.0 => Material {

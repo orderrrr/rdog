@@ -404,13 +404,10 @@ pub fn atmosphere(
 
     #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16,
 ) {
-    let col = calc_atmosphere(
-        global_id.xy().as_vec2(),
-        camera,
-        globals,
-        noise_tx,
-        noise_sampler,
-    );
+    let mut pos = global_id.xy().as_vec2();
+    pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
+
+    let col = calc_atmosphere(pos, camera, globals, noise_tx, noise_sampler);
 
     unsafe {
         out.write(global_id.xy(), col.extend(1.0));
