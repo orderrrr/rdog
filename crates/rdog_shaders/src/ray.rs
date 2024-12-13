@@ -19,6 +19,7 @@ impl Ray {
     }
 }
 
+#[derive(Copy, Clone)]
 struct Light {
     dist: f32,
     pos: Vec3,
@@ -65,7 +66,7 @@ impl Default for Material {
 }
 
 fn light_map(posi: Vec3, _g: &Globals) -> Light {
-    let pos = vec3(2.0, 1.0, 1.0);
+    let pos = vec3(-2.0, 1.0, 1.0);
     let radius = 0.5;
 
     let dist = sphere(posi - pos, radius);
@@ -83,12 +84,16 @@ fn map(posi: Vec3, g: &Globals) -> Vec2 {
     let po = axis_angle_rotate(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
     let pp = axis_angle_rotate(pos, vec3(1.0, 0.0, 0.0).normalize(), 45.0_f32.to_radians());
 
-    let o = sd_rounded_cylinder(pp + vec3(0.0, 0.0, -0.2), 0.3, 0.1, 0.05);
-    let r = sd_rounded_cylinder(po + vec3(-0.2, 0.0, 0.2), 0.3, 0.1, 0.05);
+    let d = 0.35;
+    let o = sd_rounded_cylinder(pp + vec3(0.0, 0.0, -d), 0.3, 0.1, 0.1);
 
-    let ld = sphere(posi - vec3(2.0, 1.0, 1.0), 0.5);
+    let r = sd_rounded_cylinder(po + vec3(-d, 0.0, d), 0.3, 0.1, 0.1);
+    let v = sd_rounded_cylinder(po + vec3(-d, 0.0, d), 0.15, 0.1, 0.4);
+    let r = op_smooth_subtraction(v, r, 0.1);
 
-    let u = op_smooth_union(o, r, 0.3);
+    let ld = sphere(posi - vec3(-2.0, 1.0, 1.0), 0.5);
+
+    let u = op_smooth_union(o, r, 0.1);
 
     if ld > u {
         vec2(u, 2.0)
@@ -200,16 +205,42 @@ fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
     );
 }
 
-// float randFloat (vec2 seed)
-// {
-// 	return fract(sin(dot(seed.xy + vec2(iTime), vec2(12.9898, 78.233))) * 43758.5453);
-// }
 fn rand_float(seed: Vec2, g: &Globals) -> f32 {
     ((seed + Vec2::splat(g.time.x))
         .dot(vec2(12.9898, 78.233))
         .sin()
         * 43758.5453)
         .fract()
+}
+
+fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
+    let u0 = rng01(uv + vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
+    let u1 = rng01(uv - vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
+    // let u0 = rand_float(uv + vec2(1.0, 2.0), g); // TODO don't use this one
+    // let u1 = rand_float(uv - vec2(1.0, 1.0), g);
+
+    let d = (cl.pos - p).length(); // TODO use one provided by light
+    let lv = (cl.pos - p) / d;
+
+    let sin_theta_max_sq = (cl.radius * cl.radius) / (d * d);
+    let cos_theta_max = (1.0 - sin_theta_max_sq).max(0.0).sqrt();
+
+    let cos_theta = (u0 * cos_theta_max) + (1.0 - u0);
+    let sin_theta = (1.0 - (cos_theta * cos_theta)).max(0.0).sqrt();
+    let phi = u1 * 2.0 * PI;
+
+    let sample_direction = vec3(phi.cos() * sin_theta, cos_theta, phi.sin() * sin_theta);
+
+    translate_to_ws(sample_direction, lv)
+}
+
+fn t(s: f32) -> Vec3 {
+    Vec3::new(0.233, 0.455, 0.649) * (-s * s / 0.0064).exp()
+        + Vec3::new(0.1, 0.336, 0.344) * (-s * s / 0.0484).exp()
+        + Vec3::new(0.118, 0.198, 0.0) * (-s * s / 0.187).exp()
+        + Vec3::new(0.113, 0.007, 0.007) * (-s * s / 0.567).exp()
+        + Vec3::new(0.358, 0.004, 0.0) * (-s * s / 1.99).exp()
+        + Vec3::new(0.078, 0.0, 0.0) * (-s * s / 7.41).exp()
 }
 
 fn sample_direct_diff_spherical(
@@ -223,26 +254,7 @@ fn sample_direct_diff_spherical(
     let cl = light_map(p, g);
 
     // assumed spherical
-    let l = {
-        let u0 = rng01(uv + vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
-        let u1 = rng01(uv - vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
-        // let u0 = rand_float(uv + vec2(1.0, 2.0), g); // TODO don't use this one
-        // let u1 = rand_float(uv - vec2(1.0, 1.0), g);
-
-        let d = (cl.pos - p).length(); // TODO use one provided by light
-        let lv = (cl.pos - p) / d;
-
-        let sin_theta_max_sq = (cl.radius * cl.radius) / (d * d);
-        let cos_theta_max = (1.0 - sin_theta_max_sq).max(0.0).sqrt();
-
-        let cos_theta = (u0 * cos_theta_max) + (1.0 - u0);
-        let sin_theta = (1.0 - (cos_theta * cos_theta)).max(0.0).sqrt();
-        let phi = u1 * 2.0 * PI;
-
-        let sample_direction = vec3(phi.cos() * sin_theta, cos_theta, phi.sin() * sin_theta);
-
-        translate_to_ws(sample_direction, lv)
-    };
+    let l = spherical_light_sample(cl, p, uv, camera, g);
 
     let cos_theta = n.dot(l);
     if cos_theta < 0.0 {
@@ -259,6 +271,35 @@ fn sample_direct_diff_spherical(
     } else {
         Vec3::ZERO
     }
+}
+
+fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
+    let scale = 3.0;
+    let bias = 0.01;
+    let p1 = pos - (n * 0.005);
+
+    let cl = light_map(p1, g);
+    let l = spherical_light_sample(cl, p1, uv, camera, g);
+
+    let mut sr = Ray::new(p1 + l, l);
+    let h = hit(sr, g);
+
+    let n1 = -h.normal;
+
+    let cos_theta = n1.dot(l);
+    sr.o = p1 + l * h.dist;
+
+    let h1 = hit(sr, g);
+
+    if h1.emissive > 0.0 {
+        let s = scale * (h.dist + bias);
+        let e = (0.3 + cos_theta).max(0.0);
+        let a = 2.0 / (h1.dist * h1.dist);
+
+        return t(s) * e * a * h1.albedo;
+    }
+
+    Vec3::ZERO
 }
 
 fn sample_indirect_diff(
@@ -351,6 +392,7 @@ fn get_color(
     }
 
     let mut diffuse = Vec3::ZERO;
+    let mut scattering = Vec3::ZERO;
 
     let v = -r.d;
     let pos = r.o + r.d * res.dist;
@@ -362,12 +404,18 @@ fn get_color(
                 + sample_indirect_diff(pos, v, res.normal, uv, camera, g, noise_tx, noise_sampler));
     }
 
+    if res.scattering_weight > 0.0 {
+        scattering = res.scattering_weight
+            * res.scattering_color
+            * sample_scattering(pos, res.normal, uv + vec2(1.325, 2.4), camera, g);
+    }
+
     // let mut col = Vec3::ZERO;
     //
     // let pos = ro + res.dist * rd;
     // // col = calc_normal(pos, time);
     // let norm = res.normal;
-    return diffuse;
+    return scattering;
 }
 
 fn hit(r: Ray, g: &Globals) -> Material {
@@ -385,6 +433,8 @@ fn hit(r: Ray, g: &Globals) -> Material {
                 2.0 => Material {
                     id: h.y,
                     dist: t,
+                    scattering_weight: 1.0,
+                    scattering_color: Vec3::splat(1.0),
                     normal: calc_normal(p, g),
                     albedo: vec3(1.0, 0.0, 0.0),
                     ..Default::default()
@@ -392,7 +442,7 @@ fn hit(r: Ray, g: &Globals) -> Material {
                 999.0 => Material {
                     id: h.y,
                     dist: t,
-                    emissive: 2.0,
+                    emissive: 8.0,
                     albedo: vec3(1.0, 1.0, 1.0),
                     ..Default::default()
                 },
