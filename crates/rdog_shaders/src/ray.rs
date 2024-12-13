@@ -1,7 +1,9 @@
 use rdog_lib::prelude::*;
 use spirv_std::glam::{Vec2, Vec4};
 
-use crate::atmosphere::calc_atmosphere2;
+use crate::atmosphere::{calc_atmosphere2, HPI};
+
+const REALTIME_ATMOS: bool = false;
 
 const RMAX: u32 = 300;
 const TMAX: f32 = 22.0;
@@ -155,12 +157,30 @@ fn checkers_grad_box(p: Vec2, dpdx: Vec2, dpdy: Vec2) -> f32 {
     0.5 - 0.5 * i.x * i.y
 }
 
+fn cart_to_sphere(v: Vec3) -> Vec3 {
+    let normalized = v.normalize();
+    Vec3::new(
+        normalized.z.atan2(normalized.x),
+        normalized.y.asin(),
+        v.length(),
+    )
+}
+
+fn world_space_to_uv(world_pos: Vec3) -> Vec2 {
+    let spherical = cart_to_sphere(world_pos);
+    let ndc = Vec2::new(spherical.x / PI, spherical.y / HPI);
+    (ndc + Vec2::ONE) * 0.5
+}
+
 fn render(
     pos: Vec4,
 
     camera: &Camera,
 
     globals: &Globals,
+
+    atmos_tx: Tex,
+    atmos_sampler: &Sampler,
 
     noise_tx: Tex,
     noise_sampler: &Sampler,
@@ -186,7 +206,16 @@ fn render(
 
     let r = Ray::new(ro, rd);
 
-    get_color(r, pos.xy(), camera, globals, noise_tx, noise_sampler)
+    get_color(
+        r,
+        pos.xy(),
+        camera,
+        globals,
+        atmos_tx,
+        atmos_sampler,
+        noise_tx,
+        noise_sampler,
+    )
 }
 
 fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
@@ -205,13 +234,13 @@ fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
     );
 }
 
-fn rand_float(seed: Vec2, g: &Globals) -> f32 {
-    ((seed + Vec2::splat(g.time.x))
-        .dot(vec2(12.9898, 78.233))
-        .sin()
-        * 43758.5453)
-        .fract()
-}
+// fn rand_float(seed: Vec2, g: &Globals) -> f32 {
+//     ((seed + Vec2::splat(g.time.x))
+//         .dot(vec2(12.9898, 78.233))
+//         .sin()
+//         * 43758.5453)
+//         .fract()
+// }
 
 fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
     let u0 = rng01(uv + vec2(1.0, 1.0), g.seed.y, camera.screen.y as u32);
@@ -219,7 +248,8 @@ fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, g: &Glo
     // let u0 = rand_float(uv + vec2(1.0, 2.0), g); // TODO don't use this one
     // let u1 = rand_float(uv - vec2(1.0, 1.0), g);
 
-    let d = (cl.pos - p).length(); // TODO use one provided by light
+    // let d = (cl.pos - p).length(); // TODO use one provided by light
+    let d = cl.dist;
     let lv = (cl.pos - p) / d;
 
     let sin_theta_max_sq = (cl.radius * cl.radius) / (d * d);
@@ -243,14 +273,7 @@ fn t(s: f32) -> Vec3 {
         + Vec3::new(0.078, 0.0, 0.0) * (-s * s / 7.41).exp()
 }
 
-fn sample_direct_diff_spherical(
-    p: Vec3,
-    v: Vec3,
-    n: Vec3,
-    uv: Vec2,
-    camera: &Camera,
-    g: &Globals,
-) -> Vec3 {
+fn sample_direct_diff_spherical(p: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
     let cl = light_map(p, g);
 
     // assumed spherical
@@ -309,6 +332,8 @@ fn sample_indirect_diff(
     uv: Vec2,
     camera: &Camera,
     g: &Globals,
+    atmos_tx: Tex,
+    atmos_sampler: &Sampler,
     noise_tx: Tex,
     noise_sampler: &Sampler,
 ) -> Vec3 {
@@ -325,16 +350,26 @@ fn sample_indirect_diff(
 
         // TODO put sampling into some kind of helper
         if h.dist >= TMAX {
-            let coord = sr.o + sr.d * 10.0;
+            let coord = sr.o + sr.d;
 
-            t += albedo
-                * calc_atmosphere2(
-                    coord.normalize(),
-                    uv - camera.screen.xy(),
-                    g,
-                    noise_tx,
-                    noise_sampler,
-                );
+            if REALTIME_ATMOS {
+                t += albedo
+                    * calc_atmosphere2(
+                        (coord * 10.0).normalize(),
+                        uv - camera.screen.xy(),
+                        g,
+                        noise_tx,
+                        noise_sampler,
+                    );
+            } else {
+                t += albedo
+                    * sample(
+                        atmos_tx,
+                        atmos_sampler,
+                        world_space_to_uv(coord * 1000.0) - vec2(0.0, 0.02),
+                    )
+                    .xyz();
+            }
 
             // continue;
             break;
@@ -350,7 +385,7 @@ fn sample_indirect_diff(
         albedo *= h.albedo;
         n = h.normal;
         p = sr.o + sr.d * h.dist;
-        t += albedo * cos_theta * sample_direct_diff_spherical(p, v, n, uv, camera, g);
+        t += albedo * cos_theta * sample_direct_diff_spherical(p, n, uv, camera, g);
     }
 
     return t;
@@ -370,21 +405,32 @@ fn get_color(
     uv: Vec2,
     camera: &Camera,
     g: &Globals,
+    atmos_tx: Tex,
+    atmos_sampler: &Sampler,
     noise_tx: Tex,
     noise_sampler: &Sampler,
 ) -> Vec3 {
     let res = hit(r, g);
 
     if res.dist >= TMAX {
-        let coord = r.o + r.d * 10.0;
+        let coord = r.o + r.d;
 
-        return calc_atmosphere2(
-            coord.normalize(),
-            uv - camera.screen.xy(),
-            g,
-            noise_tx,
-            noise_sampler,
-        );
+        if REALTIME_ATMOS {
+            return calc_atmosphere2(
+                (coord * 10.0).normalize(),
+                uv - camera.screen.xy(),
+                g,
+                noise_tx,
+                noise_sampler,
+            );
+        } else {
+            return sample(
+                atmos_tx,
+                atmos_sampler,
+                world_space_to_uv(coord * 1000.0) - vec2(0.0, 0.02),
+            )
+            .xyz();
+        }
     }
 
     if res.id > 900.0 {
@@ -400,8 +446,19 @@ fn get_color(
     if res.diffuse_scale > 0.0 {
         diffuse = res.diffuse_scale
             * res.albedo
-            * (sample_direct_diff_spherical(pos, v, res.normal, uv, camera, g)
-                + sample_indirect_diff(pos, v, res.normal, uv, camera, g, noise_tx, noise_sampler));
+            * (sample_direct_diff_spherical(pos, res.normal, uv, camera, g)
+                + sample_indirect_diff(
+                    pos,
+                    v,
+                    res.normal,
+                    uv,
+                    camera,
+                    g,
+                    atmos_tx,
+                    atmos_sampler,
+                    noise_tx,
+                    noise_sampler,
+                ));
     }
 
     if res.scattering_weight > 0.0 {
@@ -486,11 +543,21 @@ pub fn fs(
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
 
-    #[spirv(descriptor_set = 1, binding = 0)] nosie_tx: Tex,
-    #[spirv(descriptor_set = 1, binding = 1)] noise_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 0)] atmos_tx: Tex,
+    #[spirv(descriptor_set = 1, binding = 1)] atmos_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 2)] nosie_tx: Tex,
+    #[spirv(descriptor_set = 1, binding = 3)] noise_sampler: &Sampler,
     output: &mut Vec4,
 ) {
-    let mut col: Vec3 = render(pos, camera, globals, nosie_tx, noise_sampler);
+    let mut col: Vec3 = render(
+        pos,
+        camera,
+        globals,
+        atmos_tx,
+        atmos_sampler,
+        nosie_tx,
+        noise_sampler,
+    );
 
     col = col.powf(1.0 / 2.2);
     col = robobo_1221_tonemap(col);
