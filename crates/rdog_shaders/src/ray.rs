@@ -122,6 +122,7 @@ fn shape(posi: Vec3, g: G) -> f32 {
     let r = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.3, 0.1, 0.1);
     let v = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.15, 0.1, 0.4);
     let r = op_smooth_subtraction(v, r, 0.1);
+
     op_smooth_union(o, r, 0.1)
 }
 

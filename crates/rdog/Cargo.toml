@@ -5,12 +5,12 @@ edition = "2021"
 
 [dependencies]
 # shared = { path = "crates/shaders/shared" }
-glam = { version = "0.27", default-features = false }
+glam = { version = "0.29", default-features = false }
 cfg-if = "1.0.0"
 bytemuck = { workspace = true }
 spirv-std = { workspace = true }
-wgpu = { version = "0.19.4", features = ["spirv", "vulkan-portability"] }
-winit = { version = "0.30", features = ["rwh_05"] }
+wgpu = { version = "23.0.1", features = ["spirv", "vulkan-portability"] }
+winit = { version = "0.30", features = ["rwh_06"] }
 # Workspace
 rdog_lib = { path = "../rdog_lib" }
 rdog_shaders = { path = "../rdog_shaders" }
@@ -26,11 +26,26 @@ futures = { version = "0.3", default-features = false, features = [
 log = { workspace = true }
 derivative = "2.2.0"
 guillotiere = "0.6.2"
-bevy = { git = "https://github.com/orderrrr/bevy", branch = "0.14.0", default-features = false, features = [
+# bevy = { git = "https://github.com/orderrrr/bevy", branch = "0.14.0", default-features = false, features = [
+#     "bevy_winit",
+#     "bevy_pbr",
+#     "tonemapping_luts",
+#     "bevy_dev_tools"
+# ] }
+bevy = { version = "0.15.0", default-features = false, features = [
     "bevy_winit",
+    "bevy_window",
+
     "bevy_pbr",
+    "bevy_render",
+    "bevy_state",
+    "hdr",
+
+    "multi_threaded",
+
     "tonemapping_luts",
-    "bevy_dev_tools"
+    "bevy_core_pipeline",
+    # "bevy_dev_tools",
 ] }
 rand = "0.8.5"
 # bevy_egui = "0.27.1"

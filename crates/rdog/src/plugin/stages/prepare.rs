@@ -3,6 +3,7 @@ use std::mem;
 use bevy::render::camera::ExtractedCamera as BevyExtractedCamera;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::texture::GpuImage;
+use bevy::render::view::ExtractedView;
 use bevy::utils::{Entry, HashSet};
 use bevy::{
     prelude::*,
@@ -15,9 +16,10 @@ use glam::vec2;
 
 use crate::images::ImageData;
 use crate::plugin::state::{
-    ExtractedCamera, ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState,
+    RdogExtractedCamera, ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState,
 };
 use crate::plugin::EngineResource;
+use crate::CameraMode;
 
 pub fn flush(
     device: Res<RenderDevice>,
@@ -73,17 +75,16 @@ pub(crate) fn cameras(
     device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
     mut engine: ResMut<EngineResource>,
-    mut cameras: Query<(Entity, &ViewTarget, &BevyExtractedCamera, &ExtractedCamera)>,
+    mut cameras: Query<(Entity, &ViewTarget, &ExtractedView, &BevyExtractedCamera)>,
 ) {
     let device = device.wgpu_device();
     let state = &mut *state;
     let engine = &mut *engine;
     let mut alive_cameras = HashSet::new();
 
-    for (entity, view_target, bevy_ext_camera, ext_camera) in cameras.iter_mut() {
+    for (entity, view_target, bevy_ext_view, bevy_ext_camera) in cameras.iter_mut() {
         let camera = crate::Camera {
-            mode: ext_camera.mode.unwrap_or_default(),
-
+            mode: CameraMode::Image,
             viewport: {
                 let format = view_target.main_texture_format();
 
@@ -104,8 +105,8 @@ pub(crate) fn cameras(
                 }
             },
 
-            transform: ext_camera.transform,
-            projection: ext_camera.projection,
+            transform: bevy_ext_view.world_from_view.compute_matrix(),
+            projection: bevy_ext_view.clip_from_view,
         };
 
         match state.cameras.entry(entity) {
@@ -144,5 +145,5 @@ pub(crate) fn extras(
 ) {
     let engine = &mut *engine;
 
-    engine.time = vec2(time.elapsed_seconds(), time.delta_seconds());
+    engine.time = vec2(time.elapsed_secs(), time.delta_secs());
 }

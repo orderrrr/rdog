@@ -27,7 +27,7 @@ pub struct SyncedCamera {
 }
 
 #[derive(Debug, Component)]
-pub(crate) struct ExtractedCamera {
+pub(crate) struct RdogExtractedCamera {
     pub transform: Mat4,
     pub projection: Mat4,
     pub mode: Option<crate::CameraMode>,
