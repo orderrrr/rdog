@@ -167,13 +167,14 @@ pub fn rotor_y(a: f32) -> Vec4 {
     vec4(0.0, ha.sin(), 0.0, ha.cos())
 }
 
-// pub fn axis_angle_rotate(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
-//     let ha = a * 0.5;
-//     let sh = ha.sin();
-//
-//     let s = ha.cos();
-//     let b = axis * sh;
-//
-//     let temp = b.cross(v) + s * v;
-//     v + 2.0 * b.cross(temp)
-// }
+// axis_angle_rotate
+pub fn aar(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
+    let ha = a * 0.5;
+    let sh = ha.sin();
+
+    let s = ha.cos();
+    let b = axis * sh;
+
+    let temp = b.cross(v) + s * v;
+    v + 2.0 * b.cross(temp)
+}
