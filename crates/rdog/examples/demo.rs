@@ -10,8 +10,8 @@ use bevy::{
 use rand::Rng;
 use rdog::RdogPlugin;
 
-pub const W: u32 = 1920;
-pub const H: u32 = 1080;
+pub const W: u32 = 468;
+pub const H: u32 = 468;
 
 fn main() {
     App::new()

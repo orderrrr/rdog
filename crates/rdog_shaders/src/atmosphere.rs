@@ -25,7 +25,7 @@ const TOTAL_COEFF: Vec3 = Vec3::new(
     RAYLEIGH_COEFF.y + MIE_COEFF.y,
     RAYLEIGH_COEFF.z + MIE_COEFF.z,
 );
-const SUN_BRIGHTNESS: f32 = 5.0;
+const SUN_BRIGHTNESS: f32 = 2.5;
 pub const EARTH_RADIUS: f32 = 6371000.0; // TODO move
 const CLOUD_HEIGHT: f32 = 1600.0;
 const CLOUD_THICKNESS: f32 = 500.0;
