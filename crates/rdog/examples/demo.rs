@@ -1,10 +1,4 @@
-#![feature(inline_const)]
-
-use bevy::{
-    prelude::*,
-    render::camera::CameraRenderGraph,
-    window::WindowResolution,
-};
+use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResolution};
 
 use rand::Rng;
 use rdog::RdogPlugin;
@@ -29,12 +23,13 @@ fn main() {
 }
 
 fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        camera_render_graph: CameraRenderGraph::new(rdog::graph::Rdog),
-        camera: Camera {
+    commands.spawn((
+        Camera3d::default(),
+        Camera {
             hdr: true,
+
             ..default()
         },
-        ..default()
-    });
+        CameraRenderGraph::new(rdog::graph::Rdog),
+    ));
 }

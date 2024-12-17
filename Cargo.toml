@@ -10,5 +10,7 @@ members = [
 [workspace.dependencies]
 bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
 spirv-std = { git = "https://github.com/LykenSol/rust-gpu/", branch = "rustup" }
-spirv-builder = { git = "https://github.com/LykenSol/rust-gpu/", branch = "rustup" }
+spirv-builder = { git = "https://github.com/LykenSol/rust-gpu/", branch = "rustup", features = [
+    "watch",
+] }
 log = "0.4.22"

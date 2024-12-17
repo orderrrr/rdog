@@ -6,7 +6,7 @@ const REALTIME_ATMOS: bool = false;
 
 const RMAX: u32 = 300;
 const TMAX: f32 = 22.0;
-const _DIFFUSE_STEPS: u32 = 8;
+const DIFFUSE_STEPS: u32 = 16;
 
 const LIGHT_POS: Vec3 = vec3(0.0, 1.5, 2.5);
 const LIGHT_RAD: f32 = 1.0;
@@ -97,33 +97,35 @@ fn light_map(posi: Vec3, _g: G) -> Light {
     }
 }
 
-fn aar(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
-    let ha = a * 0.5;
-    let sh = ha.sin();
+// fn aar(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
+//     let ha = a * 0.5;
+//     let sh = ha.sin();
+//
+//     let s = ha.cos();
+//     let b = axis * sh;
+//
+//     let temp = b.cross(v) + s * v;
+//     v + 2.0 * b.cross(temp)
+// }
 
-    let s = ha.cos();
-    let b = axis * sh;
+fn shape(posi: Vec3, _g: G) -> f32 {
+    // let pos = aar(
+    //     posi + Vec3::NEG_Y,
+    //     vec3(0.0, 0.8, 1.0).normalize(),
+    //     g.el * 0.5,
+    // );
+    //
+    // let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
+    // let pp = aar(pos, vec3(1.0, 0.0, 0.0).normalize(), 45.0_f32.to_radians());
+    //
+    // let o = sd_rounded_cylinder(pp + vec3(0.0, 0.0, -0.35), 0.3, 0.1, 0.1);
+    // let r = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.3, 0.1, 0.1);
+    // let v = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.15, 0.1, 0.4);
+    // let r = op_smooth_subtraction(v, r, 0.1);
+    //
+    // op_smooth_union(o, r, 0.1)
 
-    let temp = b.cross(v) + s * v;
-    v + 2.0 * b.cross(temp)
-}
-
-fn shape(posi: Vec3, g: G) -> f32 {
-    let pos = aar(
-        posi + Vec3::NEG_Y,
-        vec3(0.0, 0.8, 1.0).normalize(),
-        g.el * 0.5,
-    );
-
-    let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
-    let pp = aar(pos, vec3(1.0, 0.0, 0.0).normalize(), 45.0_f32.to_radians());
-
-    let o = sd_rounded_cylinder(pp + vec3(0.0, 0.0, -0.35), 0.3, 0.1, 0.1);
-    let r = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.3, 0.1, 0.1);
-    let v = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.15, 0.1, 0.4);
-    let r = op_smooth_subtraction(v, r, 0.1);
-
-    op_smooth_union(o, r, 0.1)
+    sphere(posi, 1.0)
 }
 
 fn map(posi: Vec3, g: G) -> Vec2 {
@@ -294,37 +296,37 @@ fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, g: G) -
     translate_to_ws(sample_direction, lv)
 }
 
-// fn t(s: f32) -> Vec3 {
-//     Vec3::new(0.233, 0.455, 0.649) * (-s * s / 0.0064).exp()
-//         + Vec3::new(0.1, 0.336, 0.344) * (-s * s / 0.0484).exp()
-//         + Vec3::new(0.118, 0.198, 0.0) * (-s * s / 0.187).exp()
-//         + Vec3::new(0.113, 0.007, 0.007) * (-s * s / 0.567).exp()
-//         + Vec3::new(0.358, 0.004, 0.0) * (-s * s / 1.99).exp()
-//         + Vec3::new(0.078, 0.0, 0.0) * (-s * s / 7.41).exp()
-// }
+fn t(s: f32) -> Vec3 {
+    Vec3::new(0.233, 0.455, 0.649) * (-s * s / 0.0064).exp()
+        + Vec3::new(0.1, 0.336, 0.344) * (-s * s / 0.0484).exp()
+        + Vec3::new(0.118, 0.198, 0.0) * (-s * s / 0.187).exp()
+        + Vec3::new(0.113, 0.007, 0.007) * (-s * s / 0.567).exp()
+        + Vec3::new(0.358, 0.004, 0.0) * (-s * s / 1.99).exp()
+        + Vec3::new(0.078, 0.0, 0.0) * (-s * s / 7.41).exp()
+}
 
-// fn sample_direct_diff_spherical(p: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
-//     let cl = light_map(p, g);
-//
-//     // assumed spherical
-//     let l = spherical_light_sample(cl, p, uv, camera, g);
-//
-//     let cos_theta = n.dot(l);
-//     if cos_theta < 0.0 {
-//         return Vec3::ZERO;
-//     }
-//
-//     let lsr = Ray::new(p + l, l);
-//     let hit = hit(lsr, &g);
-//
-//     let attenuation = hit.dist / cl.radius + 0.5; // direct light attenuation factor
-//
-//     if hit.emissive > 0.0 {
-//         hit.albedo * cos_theta / (attenuation * attenuation)
-//     } else {
-//         Vec3::ZERO
-//     }
-// }
+fn sample_direct_diff_spherical(p: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: G) -> Vec3 {
+    let cl = light_map(p, g);
+
+    // assumed spherical
+    let l = spherical_light_sample(cl, p, uv, camera, g);
+
+    let cos_theta = n.dot(l);
+    if cos_theta < 0.0 {
+        return Vec3::ZERO;
+    }
+
+    let lsr = Ray::new(p + l, l);
+    let hit = hit(lsr, g);
+
+    let attenuation = hit.dist / cl.radius + 0.5; // direct light attenuation factor
+
+    if hit.emissive > 0.0 {
+        hit.albedo * cos_theta / (attenuation * attenuation)
+    } else {
+        Vec3::ZERO
+    }
+}
 
 fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: G) -> Vec3 {
     let p1 = pos - (n * 0.02);
@@ -341,113 +343,113 @@ fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: G) -> Vec
 
     let h1 = hit(sr, g);
 
-    if h1.id == 0.0 {
-        return vec3(1.0, 1.0, 0.0);
-    }
-
-    if h1.id == 2.0 {
-        return vec3(1.0, 0.0, 0.0);
-    }
-
-    if h1.emissive <= 0.0 {
-        return Vec3::Y;
-    }
-
-    return Vec3::Z;
+    // if h1.id == 0.0 {
+    //     return vec3(1.0, 1.0, 0.0);
+    // }
+    //
+    // if h1.id == 2.0 {
+    //     return vec3(1.0, 0.0, 0.0);
+    // }
+    //
+    // if h1.emissive <= 0.0 {
+    //     return Vec3::Y;
+    // }
+    //
+    // return Vec3::Z;
 
     // let x: f32 = (p1 + (l * h.dist)).x;
     // return vec3(x.clamp(0.0, 1.0), (x * -1.0).clamp(0.0, 1.0), 0.0);
 
-    // if h1.emissive > 0.0 {
-    //     let scale = 3.0;
-    //     let bias = 0.01;
-    //
-    //     let n1 = -h1.normal;
-    //     let cos_theta = n1.dot(l);
-    //     let s = scale * (h.dist + bias);
-    //
-    //     let e = (0.3 + cos_theta).max(0.0);
-    //
-    //     let a = 1.0 / (h1.dist * h1.dist);
-    //
-    //     return t(s) * e * a * (h1.albedo * h1.emissive);
-    // }
-    //
-    // return Vec3::ZERO;
+    if h1.emissive > 0.0 {
+        let scale = 3.0;
+        let bias = 0.01;
+
+        let n1 = -h1.normal;
+        let cos_theta = n1.dot(l);
+        let s = scale * (h.dist + bias);
+
+        let e = (0.3 + cos_theta).max(0.0);
+
+        let a = 1.0 / (h1.dist * h1.dist);
+
+        return t(s) * e * a * (h1.albedo * h1.emissive);
+    }
+
+    return Vec3::ZERO;
 }
 
-// fn sample_indirect_diff(
-//     p: Vec3,
-//     _v: Vec3,
-//     n: Vec3,
-//     uv: Vec2,
-//     camera: &Camera,
-//     g: &Globals,
-//     atmos_tx: Tex,
-//     atmos_sampler: &Sampler,
-// ) -> Vec3 {
-//     let mut t = Vec3::ZERO;
-//     let mut albedo = Vec3::splat(1.0);
-//     let mut p = p;
-//     let mut n = n;
-//
-//     for i in 0..DIFFUSE_STEPS {
-//         let l = translate_to_ws(get_random_sample(uv + (i as f32), camera, g), n);
-//         let cos_theta = n.dot(l);
-//         let sr = Ray::new(p + l, l);
-//         let h = hit(sr, g);
-//
-//         // TODO put sampling into some kind of helper
-//         if h.dist >= TMAX {
-//             let coord = sr.o + sr.d;
-//
-//             if REALTIME_ATMOS {
-//                 // t += albedo
-//                 //     * calc_atmosphere2(
-//                 //         (coord * 10.0).normalize(),
-//                 //         uv - camera.screen.xy(),
-//                 //         g,
-//                 //         noise_tx,
-//                 //         noise_sampler,
-//                 //     );
-//             } else {
-//                 t += albedo
-//                     * sample(
-//                         atmos_tx,
-//                         atmos_sampler,
-//                         world_space_to_uv(coord * 1000.0) - vec2(0.0, 0.02),
-//                     )
-//                     .xyz();
-//             }
-//
-//             // continue;
-//             break;
-//         }
-//
-//         // // todo && i > 0??
-//         if h.emissive > 0.0 && i > 0 {
-//             t += albedo * cos_theta;
-//             // continue;
-//             break;
-//         }
-//
-//         albedo *= h.albedo;
-//         n = h.normal;
-//         p = sr.o + sr.d * h.dist;
-//         t += albedo * cos_theta * sample_direct_diff_spherical(p, n, uv, camera, g);
-//     }
-//
-//     return t;
-// }
+fn sample_indirect_diff(
+    p: Vec3,
+    _v: Vec3,
+    n: Vec3,
+    uv: Vec2,
+    camera: &Camera,
+    g: G,
+    atmos_tx: Tex,
+    atmos_sampler: &Sampler,
+) -> Vec3 {
+    let mut t = Vec3::ZERO;
+    let mut albedo = Vec3::splat(1.0);
+    let mut p = p;
+    let mut n = n;
 
-// fn get_random_sample(uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 // cosine weighted uniform distribution
-// {
-//     let cos_theta = (1.0 - rng01(uv.xy(), g.seed.y, camera.screen.y as u32)).sqrt();
-//     let sin_theta = (1.0 - (cos_theta * cos_theta)).max(0.0).sqrt();
-//     let phi = rng01(uv.yx(), g.seed.y, camera.screen.y as u32) * 2.0 * PI;
-//
-//     return vec3((phi).cos() * sin_theta, cos_theta, (phi).sin() * sin_theta);
-// }
+    for i in 0..DIFFUSE_STEPS {
+        let l = translate_to_ws(get_random_sample(uv + (i as f32), camera, g), n);
+        let cos_theta = n.dot(l);
+        let sr = Ray::new(p + l, l);
+        let h = hit(sr, g);
+
+        // TODO put sampling into some kind of helper
+        if h.dist >= TMAX {
+            let coord = sr.o + sr.d;
+
+            if REALTIME_ATMOS {
+                // t += albedo
+                //     * calc_atmosphere2(
+                //         (coord * 10.0).normalize(),
+                //         uv - camera.screen.xy(),
+                //         g,
+                //         noise_tx,
+                //         noise_sampler,
+                //     );
+            } else {
+                t += albedo
+                    * sample(
+                        atmos_tx,
+                        atmos_sampler,
+                        world_space_to_uv(coord * 1000.0) - vec2(0.0, 0.02),
+                    )
+                    .xyz();
+            }
+
+            // continue;
+            break;
+        }
+
+        // // todo && i > 0??
+        if h.emissive > 0.0 && i > 0 {
+            t += albedo * cos_theta;
+            // continue;
+            break;
+        }
+
+        albedo *= h.albedo;
+        n = h.normal;
+        p = sr.o + sr.d * h.dist;
+        t += albedo * cos_theta * sample_direct_diff_spherical(p, n, uv, camera, g);
+    }
+
+    return t;
+}
+
+fn get_random_sample(uv: Vec2, camera: &Camera, g: G) -> Vec3 // cosine weighted uniform distribution
+{
+    let cos_theta = (1.0 - rng01(uv.xy(), g.seed.y, camera.screen.y as u32)).sqrt();
+    let sin_theta = (1.0 - (cos_theta * cos_theta)).max(0.0).sqrt();
+    let phi = rng01(uv.yx(), g.seed.y, camera.screen.y as u32) * 2.0 * PI;
+
+    return vec3((phi).cos() * sin_theta, cos_theta, (phi).sin() * sin_theta);
+}
 
 fn get_color(
     r: Ray,
@@ -487,18 +489,18 @@ fn get_color(
         return res.albedo;
     }
 
-    let mut _diffuse = Vec3::ZERO;
+    let mut diffuse = Vec3::ZERO;
     let mut scattering = Vec3::ZERO;
 
-    let _v = -r.d;
+    let v = -r.d;
     let pos = r.o + r.d * res.dist;
 
-    // if res.diffuse_scale > 0.0 {
-    //     _diffuse = res.diffuse_scale
-    //         * res.albedo
-    //         * (sample_direct_diff_spherical(pos, res.normal, uv, camera, g)
-    //             + sample_indirect_diff(pos, v, res.normal, uv, camera, g, atmos_tx, atmos_sampler));
-    // }
+    if res.diffuse_scale > 0.0 {
+        diffuse = res.diffuse_scale
+            * res.albedo
+            * (sample_direct_diff_spherical(pos, res.normal, uv, camera, g)
+                + sample_indirect_diff(pos, v, res.normal, uv, camera, g, atmos_tx, atmos_sampler));
+    }
 
     if res.scattering_weight > 0.0 {
         scattering = res.scattering_weight
@@ -511,7 +513,7 @@ fn get_color(
     // let pos = ro + res.dist * rd;
     // // col = calc_normal(pos, time);
     // let norm = res.normal;
-    return scattering;
+    return scattering + diffuse;
 }
 
 fn hit_transparrent(r: Ray, g: G) -> Material {
