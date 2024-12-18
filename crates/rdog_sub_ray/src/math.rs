@@ -1,6 +1,7 @@
+use spirv_std::glam::{uvec2, uvec3, uvec4, vec2, vec3, vec4, UVec2, UVec3, UVec4, Vec4Swizzles};
+use spirv_std::glam::{Vec2, Vec3, Vec4};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
-use spirv_std::glam::{Vec2, Vec3, Vec4, uvec2, uvec3, uvec4, vec2, vec3, vec4, UVec2, UVec3, UVec4, Vec4Swizzles};
 
 /// Linear interpolation between two values, similar to GLSL's mix function
 pub trait Math<T> {
@@ -176,47 +177,4 @@ pub fn aar(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
 
     let temp = b.cross(v) + s * v;
     v + 2.0 * b.cross(temp)
-}
-
-pub trait Clamp {
-    fn c(self, min: Self, max: Self) -> Self;
-}
-
-impl Clamp for f32 {
-    fn c(self, min: Self, max: Self) -> Self {
-        if self < min {
-            min
-        } else if self > max {
-            max
-        } else {
-            self
-        }
-    }
-}
-
-impl Clamp for Vec2 {
-    fn c(self, min: Self, max: Self) -> Self {
-        vec2(self.x.clamp(min.x, max.x), self.y.clamp(min.y, max.y))
-    }
-}
-
-impl Clamp for Vec3 {
-    fn c(self, min: Self, max: Self) -> Self {
-        vec3(
-            self.x.clamp(min.x, max.x),
-            self.y.clamp(min.y, max.y),
-            self.z.clamp(min.z, max.z),
-        )
-    }
-}
-
-impl Clamp for Vec4 {
-    fn c(self, min: Self, max: Self) -> Self {
-        vec4(
-            self.x.clamp(min.x, max.x),
-            self.y.clamp(min.y, max.y),
-            self.z.clamp(min.z, max.z),
-            self.w.clamp(min.w, max.w),
-        )
-    }
 }

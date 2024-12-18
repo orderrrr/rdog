@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::*;
 
 pub fn sd_round_box(p: Vec3, b: Vec3, r: f32) -> f32 {
     let q = p.abs() - b + r;
@@ -15,11 +15,11 @@ pub fn sd_rounded_cylinder(p: Vec3, ra: f32, rb: f32, h: f32) -> f32 {
 }
 
 pub fn op_smooth_union(d1: f32, d2: f32, k: f32) -> f32 {
-    let h = (0.5 + 0.5 * (d2 - d1) / k).c(0.0, 1.0);
+    let h = (0.5 + 0.5 * (d2 - d1) / k).clamp(0.0, 1.0);
     d2 + (d1 - d2) * h - k * h * (1.0 - h)
 }
 
 pub fn op_smooth_subtraction(d1: f32, d2: f32, k: f32) -> f32 {
-    let h = (0.5 - 0.5 * (d2 + d1) / k).c(0.0, 1.0);
+    let h = (0.5 - 0.5 * (d2 + d1) / k).clamp(0.0, 1.0);
     d2.lerp(-d1, h) + k * h * (1.0 - h)
 }

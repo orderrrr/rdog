@@ -5,7 +5,15 @@ members = [
     "crates/rdog_lib",
     "crates/rdog_builder",
     "crates/rdog_shaders",
+    "crates/rdog_sub_ray",
 ]
+
+[workspace.package]
+edition = "2021"
+authors = ["Nate"]
+version = "0.1.0"
+license = ""
+repository = ""
 
 [workspace.dependencies]
 bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
@@ -27,3 +35,4 @@ bevy = { version = "0.15.0", default-features = false, features = [
     "tonemapping_luts",
     "bevy_core_pipeline",
 ] }
+
