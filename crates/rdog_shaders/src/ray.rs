@@ -679,6 +679,7 @@ fn hit_transparrent(r: Ray, g: &G) -> Material {
                     dist: t,
                     scattering_weight: 1.0,
                     scattering_color: Vec3::splat(1.0),
+                    specular_scale: 1.0,
                     normal: calc_normal(p, g) * s,
                     albedo: vec3(0.941, 0.0, 0.0),
                     ..Default::default()
@@ -744,7 +745,7 @@ fn hit(r: Ray, g: &G) -> Material {
                     dist: t,
                     scattering_weight: 1.0,
                     scattering_color: Vec3::splat(1.0),
-                    specular_scale: 0.5,
+                    specular_scale: 1.0,
                     normal: calc_normal(p, g) * s,
                     albedo: vec3(0.941, 0.0, 0.0),
                     ..Default::default()
