@@ -2,10 +2,13 @@
 name = "rdog_shaders"
 version = "0.0.0"
 publish = false
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
-crate-type = ["dylib"]
+crate-type = ["lib", "dylib"]
 
 [dependencies]
 spirv-std = { workspace = true }

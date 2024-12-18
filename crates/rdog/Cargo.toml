@@ -3,18 +3,20 @@ name = "rdog"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["lib", "cdylib"]
+
 [dependencies]
 # shared = { path = "crates/shaders/shared" }
-glam = { version = "0.27", default-features = false }
+glam = { version = "0.29", default-features = false }
 cfg-if = "1.0.0"
 bytemuck = { workspace = true }
 spirv-std = { workspace = true }
-wgpu = { version = "0.19.4", features = ["spirv", "vulkan-portability"] }
-winit = { version = "0.30", features = ["rwh_05"] }
+wgpu = { version = "23.0.1", features = ["spirv", "vulkan-portability"] }
+winit = { version = "0.30", features = ["rwh_06"] }
 # Workspace
 rdog_lib = { path = "../rdog_lib" }
 rdog_shaders = { path = "../rdog_shaders" }
-
 strum = { version = "0.26.3", default-features = false, features = [
     "std",
     "derive",
@@ -26,14 +28,10 @@ futures = { version = "0.3", default-features = false, features = [
 log = { workspace = true }
 derivative = "2.2.0"
 guillotiere = "0.6.2"
-bevy = { git = "https://github.com/orderrrr/bevy", branch = "0.14.0", default-features = false, features = [
-    "bevy_winit",
-    "bevy_pbr",
-    "tonemapping_luts",
-    "bevy_dev_tools"
-] }
+bevy = { workspace = true }
+bevy_egui = "0.31"
 rand = "0.8.5"
-# bevy_egui = "0.27.1"
+spirv-builder.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11.0"
@@ -43,3 +41,8 @@ web-sys = "0.3.60"
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
 wasm-bindgen-futures = "0.4.18"
+
+[features]
+default = ["use-compiled-tools"]
+use-installed-tools = ["spirv-builder/use-installed-tools"]
+use-compiled-tools = ["spirv-builder/use-compiled-tools"]

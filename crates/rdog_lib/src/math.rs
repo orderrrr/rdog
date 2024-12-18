@@ -1,7 +1,6 @@
-use glam::{uvec2, uvec3, uvec4, vec2, vec3, vec4, UVec2, UVec3, UVec4};
-use spirv_std::glam::{Vec2, Vec3, Vec4};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
+use spirv_std::glam::{Vec2, Vec3, Vec4, uvec2, uvec3, uvec4, vec2, vec3, vec4, UVec2, UVec3, UVec4, Vec4Swizzles};
 
 /// Linear interpolation between two values, similar to GLSL's mix function
 pub trait Math<T> {
@@ -150,6 +149,74 @@ impl Bits<UVec4> for Vec4 {
             f32::from_bits(input.y),
             f32::from_bits(input.z),
             f32::from_bits(input.w),
+        )
+    }
+}
+
+// Function to rotate a vector using a rotor
+pub fn rotate_vector(q: Vec4, v: Vec3) -> Vec3 {
+    let u = q.xyz();
+    let s = q.w;
+    2.0 * u.dot(v) * u + (s * s - u.dot(u)) * v + 2.0 * s * u.cross(v)
+}
+
+// Function to create a rotor (quaternion) for rotation around y-axis
+pub fn rotor_y(a: f32) -> Vec4 {
+    let ha = a * 0.5;
+    vec4(0.0, ha.sin(), 0.0, ha.cos())
+}
+
+// axis_angle_rotate
+pub fn aar(v: Vec3, axis: Vec3, a: f32) -> Vec3 {
+    let ha = a * 0.5;
+    let sh = ha.sin();
+
+    let s = ha.cos();
+    let b = axis * sh;
+
+    let temp = b.cross(v) + s * v;
+    v + 2.0 * b.cross(temp)
+}
+
+pub trait Clamp {
+    fn c(self, min: Self, max: Self) -> Self;
+}
+
+impl Clamp for f32 {
+    fn c(self, min: Self, max: Self) -> Self {
+        if self < min {
+            min
+        } else if self > max {
+            max
+        } else {
+            self
+        }
+    }
+}
+
+impl Clamp for Vec2 {
+    fn c(self, min: Self, max: Self) -> Self {
+        vec2(self.x.clamp(min.x, max.x), self.y.clamp(min.y, max.y))
+    }
+}
+
+impl Clamp for Vec3 {
+    fn c(self, min: Self, max: Self) -> Self {
+        vec3(
+            self.x.clamp(min.x, max.x),
+            self.y.clamp(min.y, max.y),
+            self.z.clamp(min.z, max.z),
+        )
+    }
+}
+
+impl Clamp for Vec4 {
+    fn c(self, min: Self, max: Self) -> Self {
+        vec4(
+            self.x.clamp(min.x, max.x),
+            self.y.clamp(min.y, max.y),
+            self.z.clamp(min.z, max.z),
+            self.w.clamp(min.w, max.w),
         )
     }
 }

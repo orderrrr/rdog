@@ -25,7 +25,7 @@ const TOTAL_COEFF: Vec3 = Vec3::new(
     RAYLEIGH_COEFF.y + MIE_COEFF.y,
     RAYLEIGH_COEFF.z + MIE_COEFF.z,
 );
-const SUN_BRIGHTNESS: f32 = 3.0;
+const SUN_BRIGHTNESS: f32 = 2.5;
 pub const EARTH_RADIUS: f32 = 6371000.0; // TODO move
 const CLOUD_HEIGHT: f32 = 1600.0;
 const CLOUD_THICKNESS: f32 = 500.0;
@@ -404,13 +404,10 @@ pub fn atmosphere(
 
     #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16,
 ) {
-    let col = calc_atmosphere(
-        global_id.xy().as_vec2(),
-        camera,
-        globals,
-        noise_tx,
-        noise_sampler,
-    );
+    let mut pos = global_id.xy().as_vec2();
+    pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
+
+    let col = calc_atmosphere(pos, camera, globals, noise_tx, noise_sampler);
 
     unsafe {
         out.write(global_id.xy(), col.extend(1.0));

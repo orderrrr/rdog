@@ -2,9 +2,15 @@
 name = "rdog_lib"
 version = "0.0.0"
 publish = false
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["lib", "dylib"]
 
 [dependencies]
 bytemuck = { workspace = true }
 spirv-std = { workspace = true }
-glam = { version = "0.27", default-features = false, features = ["bytemuck"] }
+glam = { version = "0.29", default-features = false, features = ["bytemuck"] }

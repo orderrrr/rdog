@@ -1,10 +1,12 @@
 use std::marker::PhantomData;
 use std::mem;
 
+use bevy::utils::default;
 use bytemuck::{Pod, Zeroable};
 use glam::UVec2;
 use log::debug;
 use rdog_lib::Frame;
+use wgpu::PipelineCompilationOptions;
 
 use crate::{
     bind_group::{BindGroup, BindGroupBuilder},
@@ -133,7 +135,9 @@ where
             label: Some(&pipeline_label),
             layout: Some(&pipeline_layout),
             module,
-            entry_point,
+            entry_point: Some(entry_point),
+            compilation_options: PipelineCompilationOptions::default(),
+            cache: None,
         });
 
         ComputePass {

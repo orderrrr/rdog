@@ -1,17 +1,14 @@
 use bevy::{
-    prelude::*,
-    render::{
+    image::{ImageSampler, ImageSamplerDescriptor}, prelude::*, render::{
         camera::{CameraProjection, CameraRenderGraph},
-        texture::{ImageSampler, ImageSamplerDescriptor},
         Extract,
-    },
-    utils::HashSet,
+    }, utils::HashSet
 };
 
 use crate::plugin::{
     camera::RdogCamera,
     event::RdogEvent,
-    state::{ExtractedCamera, ExtractedImage, ExtractedImageData, ExtractedImages},
+    state::{RdogExtractedCamera, ExtractedImage, ExtractedImageData, ExtractedImages},
 };
 
 pub(crate) fn images(
@@ -116,7 +113,7 @@ pub(crate) fn cameras(
             &Camera,
             &CameraRenderGraph,
             &Projection,
-            &GlobalTransform,
+            &Transform,
             Option<&RdogCamera>,
         )>,
     >,
@@ -129,12 +126,10 @@ pub(crate) fn cameras(
         }
 
         assert!(camera.hdr, "Rdog requires an HDR camera");
-
         
-
-        commands.get_or_spawn(entity).insert(ExtractedCamera {
+        commands.get_or_spawn(entity).insert(RdogExtractedCamera {
             transform: transform.compute_matrix(),
-            projection: projection.get_projection_matrix(),
+            projection: projection.get_clip_from_view(),
             mode: rdog_camera.map(|camera| camera.mode),
         });
     }

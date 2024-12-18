@@ -37,7 +37,7 @@ impl RayPass {
             .build(device);
 
         let bg1 = BindGroup::builder("ray_bg1")
-            // .add(&buffers.atmosphere_tx.bind_sampled())
+            .add(&buffers.atmosphere_tx.bind_sampled())
             .add(&buffers.atmos_noise_tx.bind_sampled())
             .build(device);
 
@@ -52,15 +52,17 @@ impl RayPass {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &engine.shaders.ray_vs.0,
-                entry_point: engine.shaders.ray_vs.1,
+                entry_point: Some(engine.shaders.ray_vs.1),
                 buffers: &[],
+                compilation_options: wgpu::PipelineCompilationOptions::default()
             },
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
                 module: &engine.shaders.ray_fs.0,
-                entry_point: engine.shaders.ray_fs.1,
+                entry_point: Some(engine.shaders.ray_fs.1),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.viewport.format,
                     blend: Some(wgpu::BlendState::REPLACE),
@@ -68,6 +70,7 @@ impl RayPass {
                 })],
             }),
             multiview: None,
+            cache: None,
         });
 
         Self { bg0, bg1, pipeline }

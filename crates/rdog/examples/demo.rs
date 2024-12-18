@@ -1,17 +1,10 @@
-#![feature(inline_const)]
-
-use bevy::{
-    dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
-    prelude::*,
-    render::camera::CameraRenderGraph,
-    window::WindowResolution,
-};
+use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResolution};
 
 use rand::Rng;
 use rdog::RdogPlugin;
 
-pub const W: u32 = 1920;
-pub const H: u32 = 1080;
+pub const W: u32 = 468;
+pub const H: u32 = 468;
 
 fn main() {
     App::new()
@@ -24,23 +17,19 @@ fn main() {
                 ..default()
             }),
             RdogPlugin(rand::thread_rng().gen_range(0..4_294_967_295)),
-            FpsOverlayPlugin {
-                config: FpsOverlayConfig {
-                    ..Default::default()
-                },
-            },
         ))
         .add_systems(Startup, setup_camera)
         .run();
 }
 
 fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        camera_render_graph: CameraRenderGraph::new(rdog::graph::Rdog),
-        camera: Camera {
+    commands.spawn((
+        Camera3d::default(),
+        Camera {
             hdr: true,
+
             ..default()
         },
-        ..default()
-    });
+        CameraRenderGraph::new(rdog::graph::Rdog),
+    ));
 }
