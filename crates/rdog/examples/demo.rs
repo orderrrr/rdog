@@ -3,8 +3,8 @@ use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResoluti
 use rand::Rng;
 use rdog::RdogPlugin;
 
-pub const W: u32 = 468;
-pub const H: u32 = 468;
+pub const W: u32 = 768;
+pub const H: u32 = 768;
 
 fn main() {
     App::new()

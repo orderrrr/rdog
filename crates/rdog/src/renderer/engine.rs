@@ -12,7 +12,6 @@ use rdog_lib as lib;
 #[derive(Debug)]
 pub struct Engine {
     pub shaders: Shaders,
-    // images: Images<P>,
     pub frame: lib::Frame,
     pub time: Vec2,
     pub seed: u32,

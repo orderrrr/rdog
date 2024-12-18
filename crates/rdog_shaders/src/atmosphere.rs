@@ -2,7 +2,7 @@ use coord::{gather_pos, gather_pos_with_coord};
 use rdog_lib::prelude::*;
 use spirv_std::glam::{UVec3, Vec2, Vec3Swizzles};
 
-pub const ATMOS_MULT: f32 = 2.0;
+pub const ATMOS_MULT: f32 = 4.0;
 
 #[inline]
 fn d0(x: Vec3) -> Vec3 {

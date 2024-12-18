@@ -73,6 +73,7 @@ pub struct CameraController {
     pub buffers: Buffers,
     pub passes: Passes,
     pub frame: lib::Frame,
+    pub recompute_static: bool,
 }
 
 impl CameraController {
@@ -87,6 +88,7 @@ impl CameraController {
             buffers,
             passes,
             frame: Default::default(),
+            recompute_static: true,
         }
     }
 
@@ -104,9 +106,12 @@ impl CameraController {
         *self.buffers.curr_camera.deref_mut() = self.camera.serialize();
         *self.buffers.globals.deref_mut() = Globals::from_engine(engine).serialize();
 
+        self.recompute_static = false;
+
         if is_invalidated {
             self.rebuild_buffers(engine, device);
             self.rebuild_passes(engine, device);
+            self.recompute_static = true;
         }
     }
     fn rebuild_buffers(&mut self, engine: &Engine, device: &wgpu::Device) {

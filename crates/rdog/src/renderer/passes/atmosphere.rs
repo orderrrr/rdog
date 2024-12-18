@@ -46,11 +46,11 @@ impl Pass for AtmospherePass {
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
     ) {
-        if engine.frame.get() < 5 {
+        if camera.recompute_static {
             self.0.get(&0).unwrap().run(camera, encoder, NOISE_DIM, ());
         }
         // may need this later but not sure.
-        if engine.frame.get() < 5 {
+        if camera.recompute_static {
             self.0.get(&1).unwrap().run(
                 camera,
                 encoder,
