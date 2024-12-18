@@ -8,8 +8,9 @@ const REALTIME_ATMOS: bool = false;
 
 const RMAX: u32 = 300;
 const TMAX: f32 = 22.0;
-const DIFFUSE_STEPS: u32 = 16;
-const SCATTER_STEPS: u32 = 16;
+const DIFFUSE_STEPS: u32 = 8;
+const SCATTER_STEPS: u32 = 8;
+const BRDF_STEPS: u32 = 8;
 
 const LIGHT_POS: Vec3 = vec3(0.0, 1.5, 2.5);
 const LIGHT_RAD: f32 = 1.0;
@@ -27,6 +28,14 @@ impl G {
             el: g.time.x,
             _dt: g.time.y,
             seed: g.seed,
+        }
+    }
+
+    pub fn with_seed(&self, seed: UVec2) -> Self {
+        G {
+            el: self.el,
+            _dt: self._dt,
+            seed,
         }
     }
 }
@@ -90,6 +99,65 @@ impl Default for Material {
     }
 }
 
+fn checker(v1: Vec3, v2: Vec3, r: Ray, t: f32) -> Vec3 {
+    let pos = r.o + t * r.d;
+
+    let (dpdx, dpdy) = calculate_derivatives(r.d, 0.01);
+    let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
+    if f > 0.0 {
+        v1
+    } else {
+        v2
+    }
+}
+
+fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, g: &G) -> Material {
+    let s = if h.x >= 0.0 { 1.0 } else { 0.0 };
+
+    match h.y {
+        2.0 => Material {
+            id: h.y,
+            dist: t,
+            scattering_weight: 1.0,
+            scattering_color: Vec3::splat(1.0),
+            specular_scale: 1.0,
+            f0: 0.04,
+            normal: calc_normal(p, g) * s,
+            albedo: vec3(0.71, 0.65, 0.26),
+            ..Default::default()
+        },
+        3.0 => Material {
+            id: h.y,
+            dist: t,
+            scattering_weight: 0.0,
+            scattering_color: Vec3::splat(1.0),
+            specular_scale: 1.0,
+            f0: 1.04,
+            roughness: 0.0,
+            normal: calc_normal(p, g) * s,
+            albedo: checker(vec3(0.79, 0.70, 0.77), vec3(0.79, 0.70, 0.77) * 0.5, r, t),
+            ..Default::default()
+        },
+        999.0 => Material {
+            id: h.y,
+            dist: t,
+            emissive: 8.0,
+            normal: calc_normal(p, g) * s,
+            albedo: vec3(1.0, 1.0, 1.0),
+            ..Default::default()
+        },
+        _ => Material {
+            id: h.y,
+            dist: t,
+            albedo: vec3(1.0, 1.0, 1.0),
+            specular_scale: 1.0,
+            f0: 0.04,
+            normal: calc_normal(p, g) * s,
+            ..Default::default()
+        },
+    }
+}
+
 fn light_map(posi: Vec3, _g: &G) -> Light {
     let dist = sphere(posi - LIGHT_POS, LIGHT_RAD);
 
@@ -114,18 +182,27 @@ fn shape(posi: Vec3, g: &G) -> f32 {
     let r = op_smooth_subtraction(v, r, 0.1);
 
     op_smooth_union(o, r, 0.1)
-    // sphere(posi, 0.5)
+}
+
+// float sdPlane( vec3 p, vec4 n )
+// {
+//   // n must be normalized
+//   return dot(p,n.xyz) + n.w;
+// }
+fn plane(pos: Vec3, n: Vec4) -> f32 {
+    pos.dot(n.xyz()) + n.w
 }
 
 fn map(posi: Vec3, g: &G) -> Vec2 {
-    let ld = sphere(posi - LIGHT_POS, LIGHT_RAD);
-    let u = shape(posi, g);
+    let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
+    let s = shape(posi, g);
+    let p = plane(posi, vec4(0.0, 1.0, 0.0, 0.9));
 
-    if ld > u {
-        vec2(u, 2.0)
-    } else {
-        vec2(ld, 999.0)
-    }
+    let l = vec2(l, 999.0);
+    let s = vec2(s, 2.0);
+    let p = vec2(p, 3.0);
+
+    min_sd(min_sd(l, s), p)
 }
 
 fn calc_normal(pos: Vec3, g: &G) -> Vec3 {
@@ -258,14 +335,6 @@ fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
     );
 }
 
-// fn _rand_float(seed: Vec2, g: &Globals) -> f32 {
-//     ((seed + Vec2::splat(g.time.x))
-//         .dot(vec2(12.9898, 78.233))
-//         .sin()
-//         * 43758.5453)
-//         .fract()
-// }
-
 fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, seed: u32) -> Vec3 {
     let u0 = rng01(uv.xy() + vec2(2.0, 3.0), seed, camera.screen.x as u32).c(0.0, 1.0);
     let u1 = rng01(uv.yx() - vec2(1.0, 1.0), seed, camera.screen.x as u32).c(0.0, 1.0);
@@ -332,83 +401,90 @@ fn spec_brdf(
     camera: &Camera,
     g: &G,
 ) -> Vec3 {
-    let mut in_radiance;
     let mut specular_light = Vec3::ZERO;
-    let mut f_term = 0.0;
-    let mut g_term;
-    let d_term;
 
     let alpha = roughness * roughness;
     let alpha2 = alpha * alpha;
     let k_direct = (alpha2 + 1.0) / 8.0;
     let k_ibl = alpha / 2.0;
 
-    let h = sample_brdf(n, alpha2, uv + vec2(1.320, 2.130), camera, g);
-    let v_dot_h = n.dot(v).max(0.0);
-    let l = 2.0 * v_dot_h * h - v;
-    let n_dot_v = n.dot(v).max(0.0);
-    let n_dot_l = n.dot(l);
-    let n_dot_h = n.dot(h).max(0.0);
+    for i in 0..BRDF_STEPS {
+        let h = sample_brdf(
+            n,
+            alpha2,
+            uv + vec2(1.220, 2.530),
+            camera,
+            &g.with_seed(g.seed + i + 5),
+        );
+        let v_dot_h = v.dot(h).max(0.000001);
+        let l = (2.0 * v_dot_h) * (h - v);
+        let n_dot_v = n.dot(v).max(0.0);
+        let n_dot_l = n.dot(l);
+        let n_dot_h = n.dot(h).max(0.0);
 
-    if n_dot_l > 0.0 {
-        let sr = Ray::new(pos, l);
+        if n_dot_l > 0.0 {
+            let sr = Ray::new(pos, l);
 
-        let hit = hit(sr, g);
+            let hit = hit(sr, g);
 
-        in_radiance = if hit.dist >= TMAX {
-            sample_atmos(
-                sr,
-                uv,
-                atmos_tx,
-                atmos_sampler,
-                noise_tx,
-                noise_sampler,
-                camera,
-                g,
-            )
-        } else {
-            hit.albedo
-                * (sample_direct_diff_spherical(pos, hit.normal, uv, camera, g)
-                    + sample_indirect_diff(
-                        pos,
-                        v,
+            let in_radiance = if hit.dist >= TMAX || hit.emissive > 0.0 {
+                sample_atmos(
+                    sr,
+                    uv,
+                    atmos_tx,
+                    atmos_sampler,
+                    noise_tx,
+                    noise_sampler,
+                    camera,
+                    g,
+                )
+            } else {
+                hit.albedo
+                    * (sample_direct_diff_spherical(
+                        pos + (l * hit.dist),
                         hit.normal,
-                        uv,
+                        uv + vec2(1.2377, 1.2377),
                         camera,
-                        g,
+                        &g.with_seed(g.seed + i + 10),
+                    ) + sample_indirect_diff(
+                        pos + (l * hit.dist),
+                        hit.normal,
+                        uv + vec2(3.223, 3.225),
+                        camera,
+                        &g.with_seed(g.seed + i + 10),
                         atmos_tx,
                         atmos_sampler,
                         noise_tx,
                         noise_sampler,
                     ))
-        };
+            };
 
-        f_term = f0 + (1.0 - f0) * (1.0 - n_dot_v).pow(5.0);
-        *fresnel = f_term;
-        g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_ibl);
-        specular_light = in_radiance * (g_term * f_term * v_dot_h / (n_dot_h * n_dot_v));
-    }
+            *fresnel = f0 + (1.0 - f0) * (1.0 - n_dot_v).pow(5.0);
+            let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_ibl);
+            specular_light += in_radiance * (g_term * *fresnel * v_dot_h / (n_dot_h * n_dot_v));
+        }
 
-    let cl = light_map(pos, g);
-    let l = spherical_light_sample(cl, pos, uv, camera, g.seed.y);
-    let h = (v + l) / (v + l).length();
-    let n_dot_l = n.dot(l);
-    let n_dot_h = n.dot(h).max(0.0);
+        let cl = light_map(pos, g);
+        let l = spherical_light_sample(cl, pos, uv, camera, g.seed.y + i);
+        let h = (v + l) / (v + l).length();
+        let n_dot_l = n.dot(l);
+        let n_dot_h = n.dot(h).max(0.0);
 
-    if n_dot_l > 0.0 {
-        let sr = Ray::new(pos, l);
-        let hit = hit(sr, g);
+        if n_dot_l > 0.0 {
+            let sr = Ray::new(pos, l);
+            let hit = hit(sr, g);
 
-        if hit.emissive > 0.0 {
-            let attn = 1.0 / (hit.dist * hit.dist);
-            in_radiance = hit.albedo * hit.emissive * attn;
-            d_term = d_term_ggxtr(n_dot_h, alpha);
-            g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_direct);
-            specular_light += in_radiance * g_term * f_term * d_term / (4.0 / n_dot_v);
+            if hit.emissive > 0.0 {
+                let attn = 1.0 / (hit.dist * hit.dist);
+                let in_radiance = hit.albedo * hit.emissive * attn;
+                let d_term = d_term_ggxtr(n_dot_h, alpha);
+                let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_direct);
+                specular_light += in_radiance * g_term * *fresnel * d_term / (4.0 / n_dot_v);
+            }
         }
     }
 
-    return specular_light;
+    specular_light / BRDF_STEPS as f32
 }
 
 fn d_term_ggxtr(n_dot_h: f32, alpha: f32) -> f32 {
@@ -454,7 +530,7 @@ fn sample_atmos(
 }
 
 fn sample_brdf(normal: Vec3, alpha2: f32, uv: Vec2, camera: &Camera, g: &G) -> Vec3 {
-    let u0 = rng01(uv.xy(), g.seed.y, camera.screen.y as u32);
+    let u0 = rng01(uv.xy() + vec2(0.0, 0.0), g.seed.y, camera.screen.y as u32);
     let u1 = rng01(uv.yx() + vec2(1.3, 2.7), g.seed.y, camera.screen.y as u32);
 
     let cos_theta = ((1.0 - u0) / ((alpha2 - 1.0) * u0 + 1.0)).sqrt();
@@ -507,7 +583,6 @@ fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &G) -> Ve
 
 fn sample_indirect_diff(
     p: Vec3,
-    _v: Vec3,
     n: Vec3,
     uv: Vec2,
     camera: &Camera,
@@ -613,7 +688,6 @@ fn get_color(
             * (sample_direct_diff_spherical(pos, res.normal, uv, camera, g)
                 + sample_indirect_diff(
                     pos,
-                    v,
                     res.normal,
                     uv,
                     camera,
@@ -656,6 +730,7 @@ fn get_color(
     // // col = calc_normal(pos, time);
     // let norm = res.normal;
     return (1.0 - fresnel) * (scattering + diffuse) + specular;
+    // return specular;
 }
 
 fn hit_transparrent(r: Ray, g: &G) -> Material {
@@ -671,35 +746,7 @@ fn hit_transparrent(r: Ray, g: &G) -> Material {
         h.x *= -1.0;
 
         if h.x < 0.002 {
-            let s = if h.x >= 0.0 { 1.0 } else { 0.0 };
-
-            return match h.y {
-                2.0 => Material {
-                    id: h.y,
-                    dist: t,
-                    scattering_weight: 1.0,
-                    scattering_color: Vec3::splat(1.0),
-                    specular_scale: 1.0,
-                    normal: calc_normal(p, g) * s,
-                    albedo: vec3(0.941, 0.0, 0.0),
-                    ..Default::default()
-                },
-                999.0 => Material {
-                    id: h.y,
-                    dist: t,
-                    emissive: 8.0,
-                    normal: calc_normal(p, g) * s,
-                    albedo: vec3(1.0, 1.0, 1.0),
-                    ..Default::default()
-                },
-                _ => Material {
-                    id: h.y,
-                    dist: t,
-                    albedo: vec3(1.0, 1.0, 1.0),
-                    normal: calc_normal(p, g) * s,
-                    ..Default::default()
-                },
-            };
+            return lookup_mat(r, p, h, t, g);
         }
 
         if t > TMAX {
@@ -729,7 +776,7 @@ fn hit(r: Ray, g: &G) -> Material {
     // TODO - change to a Material struct
     let mut t = 0.0;
 
-    let mut res = Material::default();
+    let res = Material::default();
 
     for _ in 0..RMAX {
         let p = r.o + t * r.d;
@@ -737,35 +784,7 @@ fn hit(r: Ray, g: &G) -> Material {
         let h = map(p, g);
 
         if h.x < 0.001 {
-            let s = if h.x >= 0.0 { 1.0 } else { 0.0 };
-
-            return match h.y {
-                2.0 => Material {
-                    id: h.y,
-                    dist: t,
-                    scattering_weight: 1.0,
-                    scattering_color: Vec3::splat(1.0),
-                    specular_scale: 1.0,
-                    normal: calc_normal(p, g) * s,
-                    albedo: vec3(0.941, 0.0, 0.0),
-                    ..Default::default()
-                },
-                999.0 => Material {
-                    id: h.y,
-                    dist: t,
-                    emissive: 5.0,
-                    normal: calc_normal(p, g) * s,
-                    albedo: vec3(1.0, 1.0, 1.0),
-                    ..Default::default()
-                },
-                _ => Material {
-                    id: h.y,
-                    dist: t,
-                    albedo: vec3(1.0, 1.0, 1.0),
-                    normal: calc_normal(p, g) * s,
-                    ..Default::default()
-                },
-            };
+            return lookup_mat(r, p, h, t, g);
         }
 
         if t > TMAX {
@@ -773,19 +792,6 @@ fn hit(r: Ray, g: &G) -> Material {
         }
 
         t += h.x
-    }
-
-    // check if we hit the floor
-    let tp1 = (-0.9 - r.o.y) / r.d.y;
-    if tp1 > 0.0 {
-        res.dist = tp1;
-        res.normal = vec3(0.0, 1.0, 0.0);
-        let pos = r.o + res.dist * r.d;
-
-        let (dpdx, dpdy) = calculate_derivatives(r.d, 0.01);
-
-        let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
-        res.albedo = 0.15 + f * Vec3::splat(0.05);
     }
 
     res

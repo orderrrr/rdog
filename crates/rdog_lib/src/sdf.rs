@@ -23,3 +23,11 @@ pub fn op_smooth_subtraction(d1: f32, d2: f32, k: f32) -> f32 {
     let h = (0.5 - 0.5 * (d2 + d1) / k).c(0.0, 1.0);
     d2.lerp(-d1, h) + k * h * (1.0 - h)
 }
+
+pub fn min_sd(d1: Vec2, d2: Vec2) -> Vec2 {
+    if d1.x < d2.x {
+        d1
+    } else {
+        d2
+    }
+}
