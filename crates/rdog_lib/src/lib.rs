@@ -15,6 +15,7 @@ pub mod sdf;
 pub mod shader;
 pub mod smoothstep;
 pub mod util;
+pub mod ray;
 
 pub use self::camera::*;
 pub use self::frame::*;
@@ -26,6 +27,7 @@ pub use self::sdf::*;
 pub use self::shader::*;
 pub use self::smoothstep::*;
 pub use self::util::*;
+pub use self::ray::*;
 
 pub mod prelude {
     pub use core::f32::consts::PI;

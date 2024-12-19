@@ -18,7 +18,8 @@ pub struct Buffers {
 
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
 
-    pub sub_ray_tx: Texture,
+    pub trace_tx: Texture,
+
     pub atmosphere_tx: Texture,
     pub atmos_noise_tx: Texture,
 }
@@ -32,9 +33,9 @@ impl Buffers {
         let globals =
             MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
 
-        let sub_ray_tx = Texture::builder("sub_ray")
+        let trace_tx = Texture::builder("trace")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba8Unorm)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -61,7 +62,7 @@ impl Buffers {
             curr_camera,
             atmos_noise_tx,
             globals,
-            sub_ray_tx,
+            trace_tx,
             atmosphere_tx,
         }
     }

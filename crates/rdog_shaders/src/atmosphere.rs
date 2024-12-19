@@ -1,4 +1,4 @@
-use coord::{gather_pos, gather_pos_with_coord};
+use coord::gather_pos;
 use rdog_lib::prelude::*;
 use spirv_std::glam::{UVec3, Vec2, Vec3Swizzles};
 
@@ -48,8 +48,7 @@ pub struct PositionStruct {
 
 pub mod coord {
     use super::{PositionStruct, HPI};
-    use rdog_lib::{math::Math, prelude::*};
-    use spirv_std::glam::{vec3, Vec2};
+    use rdog_lib::prelude::*;
 
     fn sphere_to_cart(sc: Vec3) -> Vec3 {
         let c = sc.xy().cos();
@@ -168,7 +167,7 @@ fn calculate_scatter_integral(optical_depth: f32, coeff: f32) -> f32 {
     return (a * optical_depth).exp2() * b + c;
 }
 
-pub fn calc_atmospheric_scatter(pos: &PositionStruct, absorb_light: &mut Vec3) -> Vec3 {
+fn calc_atmospheric_scatter(pos: &PositionStruct, absorb_light: &mut Vec3) -> Vec3 {
     let ln2 = f32::ln(2.0);
 
     let l_dot_w = pos.sun_vector.dot(pos.world_vector);
@@ -220,7 +219,7 @@ fn calc_atmospheric_scatter_top(pos: &PositionStruct) -> Vec3 {
     return (scatter_sun * absorb_sun) * SUN_BRIGHTNESS;
 }
 
-fn get_3d_noise(pos: Vec3, tx: Tex, smp: &Sampler) -> f32 {
+fn get_3d_noise(pos: Vec3, tx: Tex<'_>, smp: &Sampler) -> f32 {
     let p = pos.z.floor();
     let f = pos.z - p;
 
@@ -238,7 +237,7 @@ fn get_3d_noise(pos: Vec3, tx: Tex, smp: &Sampler) -> f32 {
     noise.x.mix(noise.y, f)
 }
 
-fn get_clouds(p: Vec3, globals: &Globals, tx: Tex, sampler: &Sampler) -> f32 {
+fn get_clouds(p: Vec3, globals: &Globals, tx: Tex<'_>, sampler: &Sampler) -> f32 {
     let p = vec3(
         p.x,
         (p + vec3(0.0, EARTH_RADIUS, 0.0)).length() - EARTH_RADIUS,
@@ -273,7 +272,7 @@ fn get_sun_visibility(
     p: Vec3,
     pos: &PositionStruct,
     globals: &Globals,
-    tx: Tex,
+    tx: Tex<'_>,
     smp: &Sampler,
 ) -> f32 {
     let steps = CLOUD_SHADOWING_STEPS;
@@ -309,7 +308,7 @@ fn get_volumetric_clouds_scattering(
     sky_light: Vec3,
     pos: &PositionStruct,
     globals: &Globals,
-    tx: Tex,
+    tx: Tex<'_>,
     smp: &Sampler,
 ) -> Vec3 {
     let integral = calculate_scatter_integral(optical_depth, 1.11);
@@ -325,13 +324,13 @@ fn get_volumetric_clouds_scattering(
     return (sun_lighting + sky_lighting) * integral * PI;
 }
 
-pub fn calculate_volumetric_clouds(
+fn calculate_volumetric_clouds(
     pos: &PositionStruct,
     color: Vec3,
     dither: f32,
     sun_color: Vec3,
     globals: &Globals,
-    tx: Tex,
+    tx: Tex<'_>,
     sampler: &Sampler,
 ) -> Vec3 {
     let steps = VOLUMETRIC_CLOUD_STEPS;
@@ -393,61 +392,12 @@ pub fn calculate_volumetric_clouds(
         .mix(color, (start_position.length() * 0.00001).clamp(0.0, 1.0));
 }
 
-#[spirv(compute(threads(1)))]
-pub fn atmosphere(
-    #[spirv(global_invocation_id)] global_id: UVec3,
-    #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-
-    #[spirv(descriptor_set = 0, binding = 2)] noise_tx: Tex,
-    #[spirv(descriptor_set = 0, binding = 3)] noise_sampler: &Sampler,
-
-    #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16,
-) {
-    let mut pos = global_id.xy().as_vec2();
-    pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
-
-    let col = calc_atmosphere(pos, camera, globals, noise_tx, noise_sampler);
-
-    unsafe {
-        out.write(global_id.xy(), col.extend(1.0));
-    }
-}
-
-pub fn calc_atmosphere2(
-    coord: Vec3,
-    uv: Vec2,
-    globals: &Globals,
-
-    noise_tx: Tex,
-    noise_sampler: &Sampler,
-) -> Vec3 {
-    let pos = gather_pos_with_coord(false, coord, globals);
-
-    let dither = bayer_16(uv);
-
-    let mut light_absorb = Vec3::ZERO;
-
-    let mut col = calc_atmospheric_scatter(&pos, &mut light_absorb);
-    col = calculate_volumetric_clouds(
-        &pos,
-        col,
-        dither,
-        light_absorb,
-        globals,
-        noise_tx,
-        noise_sampler,
-    );
-
-    col
-}
-
-pub fn calc_atmosphere(
+fn calc_atmosphere(
     coord: Vec2,
     camera: &Camera,
     globals: &Globals,
 
-    noise_tx: Tex,
+    noise_tx: Tex<'_>,
     noise_sampler: &Sampler,
 ) -> Vec3 {
     let pos = gather_pos(SPHERICAL_PROJECTION, coord, camera.screen.xy() * ATMOS_MULT);
@@ -471,10 +421,31 @@ pub fn calc_atmosphere(
 }
 
 #[spirv(compute(threads(1)))]
+pub fn atmosphere(
+    #[spirv(global_invocation_id)] global_id: UVec3,
+    #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
+
+    #[spirv(descriptor_set = 0, binding = 2)] noise_tx: Tex<'_>,
+    #[spirv(descriptor_set = 0, binding = 3)] noise_sampler: &Sampler,
+
+    #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16<'_>,
+) {
+    let mut pos = global_id.xy().as_vec2();
+    pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
+
+    let col = calc_atmosphere(pos, camera, globals, noise_tx, noise_sampler);
+
+    unsafe {
+        out.write(global_id.xy(), col.extend(1.0));
+    }
+}
+
+#[spirv(compute(threads(1)))]
 pub fn noise(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 1)] out: TexRgba8,
+    #[spirv(descriptor_set = 0, binding = 1)] out: TexRgba8<'_>,
 ) {
     let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 0.97;
 

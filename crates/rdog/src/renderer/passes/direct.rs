@@ -1,32 +1,28 @@
-use glam::uvec2;
-
 use crate::{
     compute_pass::ComputePass,
+    passes::Pass,
     render::{Buffers, CameraController},
     Camera, Engine,
 };
 
-use super::Pass;
-
 #[derive(Debug)]
-pub struct SubRayPass(ComputePass<()>);
+pub struct DirectPass(ComputePass<()>);
 
-impl SubRayPass {
+impl DirectPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
-        let sub_ray_pass = ComputePass::builder("sub_ray")
+        let direct_pass = ComputePass::builder("direct")
             .bind([
                 &buffers.curr_camera.bind_readable(),
                 &buffers.globals.bind_readable(),
-                &buffers.sub_ray.bind_writable(),
+                &buffers.trace_tx.bind_writable(),
             ])
-            // .bind([])
-            .build(device, &engine.shaders.sub_ray);
+            .build(device, &engine.shaders.direct);
 
-        Self(sub_ray_pass)
+        Self(direct_pass)
     }
 }
 
-impl Pass for SubRayPass {
+impl Pass for DirectPass {
     fn run(
         &self,
         _engine: &Engine,
@@ -34,11 +30,6 @@ impl Pass for SubRayPass {
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
     ) {
-        self.0.run(
-            camera,
-            encoder,
-            uvec2(1080, 1080), // TODO fix this, share it with the actual texture creation
-            (),
-        );
+        self.0.run(camera, encoder, camera.camera.viewport.size, ());
     }
 }

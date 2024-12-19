@@ -16,8 +16,8 @@ repository = ""
 
 [workspace.dependencies]
 bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
-spirv-std = { git = "https://github.com/LykenSol/rust-gpu/", branch = "rustup" }
-spirv-builder = { git = "https://github.com/LykenSol/rust-gpu/", branch = "rustup", features = [
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu" }
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", features = [
     "watch",
 ] }
 log = "0.4.22"
@@ -35,3 +35,23 @@ bevy = { version = "0.15.0", default-features = false, features = [
     "bevy_core_pipeline",
 ] }
 
+# Enable incremental by default in release mode.
+[profile.release]
+incremental = true
+# HACK(eddyb) this is the default but without explicitly specifying it, Cargo
+# will treat the identical settings in `[profile.release.build-override]` below
+# as different sets of `rustc` flags and will not reuse artifacts between them.
+codegen-units = 256
+
+
+# Compile build-dependencies in release mode with
+# the same settings as regular dependencies.
+[profile.release.build-override]
+opt-level = 3
+codegen-units = 16
+
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.dev]
+codegen-units = 1

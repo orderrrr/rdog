@@ -7,9 +7,6 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[lib]
-crate-type = ["lib", "dylib"]
-
 [dependencies]
 bytemuck = { workspace = true }
 spirv-std = { workspace = true }

@@ -1,5 +1,4 @@
 use log::debug;
-use ray::RayPass;
 
 use crate::renderer::config::Camera;
 use crate::renderer::engine::Engine;
@@ -67,6 +66,8 @@ macro_rules! passes {
 
 passes!([
     atmosphere => AtmospherePass,
-    // sub_ray => SubRayPass,
-    ray => RayPass,
+    trace => TracePass,
+    direct => DirectPass,
+    raster => RasterPass,
+    // ray => RayPass,
 ]);

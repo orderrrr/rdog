@@ -1,4 +1,4 @@
-use glam::{UVec3, Vec2, Vec3};
+use crate::prelude::*;
 
 pub fn rng01(s: Vec2, seed: u32, width: u32) -> f32 {
     let x = (s.x as u32).wrapping_mul(seed);

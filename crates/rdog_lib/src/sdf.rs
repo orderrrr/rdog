@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{prelude::*, Clamp};
 
 pub fn sd_round_box(p: Vec3, b: Vec3, r: f32) -> f32 {
     let q = p.abs() - b + r;
@@ -30,4 +30,8 @@ pub fn min_sd(d1: Vec2, d2: Vec2) -> Vec2 {
     } else {
         d2
     }
+}
+
+pub fn plane(pos: Vec3, n: Vec4) -> f32 {
+    pos.dot(n.xyz()) + n.w
 }

@@ -1,4 +1,4 @@
-use spirv_std::glam::{Vec2, Vec3, Vec4};
+use crate::prelude::*;
 
 /// Linear interpolation between two values, similar to GLSL's mix function
 pub trait Mix<T> {

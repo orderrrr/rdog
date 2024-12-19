@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("SPIRV BUILD...");
     println!("path to crate: {:?}", crate_path);
 
-    let result = SpirvBuilder::new(crate_path, "spirv-unknown-spv1.3")
+    let result = SpirvBuilder::new(crate_path, "spirv-unknown-spv1.5")
         .multimodule(true)
         .print_metadata(MetadataPrintout::DependencyOnly)
         .capability(Capability::Int8)

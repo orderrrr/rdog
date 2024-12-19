@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec4};
+use crate::prelude::*;
 use spirv_std::Sampler;
 
 use crate::{Tex, Wrap};

@@ -38,4 +38,11 @@ macro_rules! shaders {
     };
 }
 
-shaders!([sub_ray, atmosphere_noise, atmosphere_atmosphere, ray_vs, ray_fs,]);
+shaders!([
+    atmosphere_noise,
+    atmosphere_atmosphere,
+    trace,
+    direct,
+    raster_vs,
+    raster_fs,
+]);
