@@ -67,10 +67,12 @@ pub mod coord {
         world_space_position
     }
 
-    pub fn gather_pos_with_coord(sphere: bool, uv: Vec3, globals: &Globals) -> PositionStruct {
+    pub fn gather_pos_with_coord(sphere: bool, uv: Vec3, el: f32, seed: UVec2) -> PositionStruct {
         let mouse_coord = vec2(
-            ((globals.time.x * 0.2).sin() * 0.5) + 0.5,
-            (((globals.time.x.cos() * 0.5) + 0.5) * 0.5) + 0.5,
+            0.0,
+            0.0,
+            // ((globals.time.x * 0.2).sin() * 0.5) + 0.5,
+            // (((globals.time.x.cos() * 0.5) + 0.5) * 0.5) + 0.5,
         );
 
         // sun position
@@ -237,7 +239,7 @@ fn get_3d_noise(pos: Vec3, tx: Tex<'_>, smp: &Sampler) -> f32 {
     noise.x.mix(noise.y, f)
 }
 
-fn get_clouds(p: Vec3, globals: &Globals, tx: Tex<'_>, sampler: &Sampler) -> f32 {
+fn get_clouds(p: Vec3, el: f32, seed: UVec2, tx: Tex<'_>, sampler: &Sampler) -> f32 {
     let p = vec3(
         p.x,
         (p + vec3(0.0, EARTH_RADIUS, 0.0)).length() - EARTH_RADIUS,
@@ -248,7 +250,7 @@ fn get_clouds(p: Vec3, globals: &Globals, tx: Tex<'_>, sampler: &Sampler) -> f32
         return 0.0;
     }
 
-    let time = globals.time.x * CLOUD_SPEED;
+    let time = el * CLOUD_SPEED;
     let movement = vec3(time, 0.0, time);
     let cloud_coord = (p * 0.001) + movement;
 
@@ -271,7 +273,8 @@ fn get_clouds(p: Vec3, globals: &Globals, tx: Tex<'_>, sampler: &Sampler) -> f32
 fn get_sun_visibility(
     p: Vec3,
     pos: &PositionStruct,
-    globals: &Globals,
+    el: f32,
+    seed: UVec2,
     tx: Tex<'_>,
     smp: &Sampler,
 ) -> f32 {
@@ -284,7 +287,7 @@ fn get_sun_visibility(
     let mut transmittance = 0.0;
 
     for _ in 0..CLOUD_SHADOWING_STEPS {
-        transmittance += get_clouds(position, globals, tx, smp);
+        transmittance += get_clouds(position, el, seed, tx, smp);
     }
 
     return (-transmittance * r_steps).exp2();
@@ -307,7 +310,8 @@ fn get_volumetric_clouds_scattering(
     sun_color: Vec3,
     sky_light: Vec3,
     pos: &PositionStruct,
-    globals: &Globals,
+    el: f32,
+    seed: UVec2,
     tx: Tex<'_>,
     smp: &Sampler,
 ) -> Vec3 {
@@ -315,7 +319,7 @@ fn get_volumetric_clouds_scattering(
 
     let beers_powder = powder(optical_depth * f32::ln(2.0));
 
-    let sun_lighting = (sun_color * get_sun_visibility(p, pos, globals, tx, smp) * beers_powder)
+    let sun_lighting = (sun_color * get_sun_visibility(p, pos, el, seed, tx, smp) * beers_powder)
         * phase
         * HPI
         * SUN_BRIGHTNESS;
@@ -329,7 +333,8 @@ fn calculate_volumetric_clouds(
     color: Vec3,
     dither: f32,
     sun_color: Vec3,
-    globals: &Globals,
+    el: f32,
+    seed: UVec2,
     tx: Tex<'_>,
     sampler: &Sampler,
 ) -> Vec3 {
@@ -366,7 +371,7 @@ fn calculate_volumetric_clouds(
     let sky_light = calc_atmospheric_scatter_top(pos);
 
     for _ in 0..steps {
-        let optical_depth = get_clouds(cloud_pos, globals, tx, sampler) * step_len;
+        let optical_depth = get_clouds(cloud_pos, el, seed, tx, sampler) * step_len;
 
         if optical_depth <= 0.0 {
             continue;
@@ -379,7 +384,8 @@ fn calculate_volumetric_clouds(
             sun_color,
             sky_light,
             &pos,
-            globals,
+            el,
+            seed,
             tx,
             sampler,
         ) * transmittance;
@@ -395,7 +401,8 @@ fn calculate_volumetric_clouds(
 fn calc_atmosphere(
     coord: Vec2,
     camera: &Camera,
-    globals: &Globals,
+    el: f32,
+    seed: UVec2,
 
     noise_tx: Tex<'_>,
     noise_sampler: &Sampler,
@@ -412,7 +419,8 @@ fn calc_atmosphere(
         col,
         dither,
         light_absorb,
-        globals,
+        el,
+        seed,
         noise_tx,
         noise_sampler,
     );
@@ -434,7 +442,14 @@ pub fn atmosphere(
     let mut pos = global_id.xy().as_vec2();
     pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
 
-    let col = calc_atmosphere(pos, camera, globals, noise_tx, noise_sampler);
+    let col = calc_atmosphere(
+        pos,
+        camera,
+        globals.time.x,
+        globals.seed,
+        noise_tx,
+        noise_sampler,
+    );
 
     unsafe {
         out.write(global_id.xy(), col.extend(1.0));

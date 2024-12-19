@@ -3,9 +3,72 @@ use spirv_std::num_traits::Pow;
 
 pub const HPI: f32 = PI * 0.5; // TODO move out
 
+const RMAX: u32 = 300;
+const TMAX: f32 = 22.0;
 const DIFFUSE_STEPS: u32 = 8;
 const SCATTER_STEPS: u32 = 8;
 const BRDF_STEPS: u32 = 8;
+
+const LIGHT_POS: Vec3 = vec3(0.0, 1.5, 2.5);
+const LIGHT_RAD: f32 = 1.0;
+
+#[derive(Copy, Clone)]
+struct Ray {
+    o: Vec3,
+    d: Vec3,
+}
+
+impl Ray {
+    fn new(o: Vec3, d: Vec3) -> Self {
+        Ray { o, d }
+    }
+}
+
+#[derive(Copy, Clone)]
+struct Light {
+    _dist: f32,
+    pos: Vec3,
+    radius: f32,
+}
+
+#[allow(unused)]
+struct Material {
+    id: f32,
+    dist: f32,
+    normal: Vec3,
+    metallic: bool,
+    refractive: bool,
+    albedo: Vec3,
+    scattering_color: Vec3,
+    diffuse_scale: f32,
+    specular_scale: f32,
+    emissive: f32,
+    ior: f32,
+    f0: f32,
+    roughness: f32,
+    scattering_weight: f32,
+}
+
+impl Default for Material {
+    fn default() -> Self {
+        Self {
+            id: 0.0,
+            dist: TMAX,
+            normal: Vec3::ZERO,
+            metallic: false,
+            refractive: false,
+            albedo: Vec3::ZERO,
+            scattering_color: Vec3::ZERO,
+            diffuse_scale: 1.0,
+            specular_scale: 1.0,
+            emissive: 0.0,
+            ior: 1.0,
+            f0: 0.04,
+            roughness: 0.0,
+            scattering_weight: 0.0,
+        }
+    }
+}
 
 fn checker(v1: Vec3, v2: Vec3, r: Ray, t: f32) -> Vec3 {
     let pos = r.o + t * r.d;
@@ -19,7 +82,7 @@ fn checker(v1: Vec3, v2: Vec3, r: Ray, t: f32) -> Vec3 {
     }
 }
 
-fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, g: &Globals) -> Material {
+fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, el: f32, seed: UVec2) -> Material {
     let s = if h.x >= 0.0 { 1.0 } else { 0.0 };
 
     match h.y {
@@ -30,7 +93,7 @@ fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, g: &Globals) -> Material {
             scattering_color: Vec3::splat(1.0),
             specular_scale: 1.0,
             f0: 0.04,
-            normal: calc_normal(p, g) * s,
+            normal: calc_normal(p, el, seed) * s,
             albedo: vec3(0.71, 0.65, 0.26),
             ..Default::default()
         },
@@ -42,7 +105,7 @@ fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, g: &Globals) -> Material {
             specular_scale: 1.0,
             f0: 1.04,
             roughness: 0.0,
-            normal: calc_normal(p, g) * s,
+            normal: calc_normal(p, el, seed) * s,
             albedo: checker(vec3(0.79, 0.70, 0.77), vec3(0.79, 0.70, 0.77) * 0.5, r, t),
             ..Default::default()
         },
@@ -50,7 +113,7 @@ fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, g: &Globals) -> Material {
             id: h.y,
             dist: t,
             emissive: 8.0,
-            normal: calc_normal(p, g) * s,
+            normal: calc_normal(p, el, seed) * s,
             albedo: vec3(1.0, 1.0, 1.0),
             ..Default::default()
         },
@@ -60,27 +123,27 @@ fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, g: &Globals) -> Material {
             albedo: vec3(1.0, 1.0, 1.0),
             specular_scale: 1.0,
             f0: 0.04,
-            normal: calc_normal(p, g) * s,
+            normal: calc_normal(p, el, seed) * s,
             ..Default::default()
         },
     }
 }
 
-fn light_map(posi: Vec3, _g: &Globals) -> Light {
+fn light_map(posi: Vec3, _el: f32, seed: UVec2) -> Light {
     let dist = sphere(posi - LIGHT_POS, LIGHT_RAD);
 
     Light {
-        dist,
+        _dist: dist,
         pos: LIGHT_POS,
         radius: LIGHT_RAD,
     }
 }
 
-fn shape(posi: Vec3, g: &Globals) -> f32 {
+fn shape(posi: Vec3, el: f32, seed: UVec2) -> f32 {
     let pos = aar(
         posi + Vec3::NEG_Y,
         vec3(0.0, 0.8, 1.0).normalize(),
-        g.time.x * 0.5,
+        el * 0.5,
     );
 
     let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
@@ -99,9 +162,9 @@ fn plane(pos: Vec3, n: Vec4) -> f32 {
     pos.dot(n.xyz()) + n.w
 }
 
-fn map(posi: Vec3, g: &Globals) -> Vec2 {
+fn map(posi: Vec3, el: f32, seed: UVec2) -> Vec2 {
     let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
-    let s = shape(posi, g);
+    let s = shape(posi, el, seed);
     let p = plane(posi, vec4(0.0, 1.0, 0.0, 0.9));
 
     let l = vec2(l, 999.0);
@@ -111,14 +174,14 @@ fn map(posi: Vec3, g: &Globals) -> Vec2 {
     min_sd(min_sd(l, s), p)
 }
 
-fn calc_normal(pos: Vec3, g: &Globals) -> Vec3 {
+fn calc_normal(pos: Vec3, el: f32, seed: UVec2) -> Vec3 {
     let ep = 0.0001;
     let e = Vec2::new(1.0, -1.0) * 0.5773;
 
-    (0. + e.xyy() * map(pos + ep * e.xyy(), g).x
-        + e.yyx() * map(pos + ep * e.yyx(), g).x
-        + e.yxy() * map(pos + ep * e.yxy(), g).x
-        + e.xxx() * map(pos + ep * e.xxx(), g).x)
+    (0. + e.xyy() * map(pos + ep * e.xyy(), el, seed).x
+        + e.yyx() * map(pos + ep * e.yyx(), el, seed).x
+        + e.yxy() * map(pos + ep * e.yxy(), el, seed).x
+        + e.xxx() * map(pos + ep * e.xxx(), el, seed).x)
         .normalize()
 }
 
@@ -184,7 +247,8 @@ fn render(
 
     camera: &Camera,
 
-    globals: &Globals,
+    el: f32,
+    seed: UVec2,
 
     atmos_tx: Tex<'_>,
     atmos_sampler: &Sampler,
@@ -193,7 +257,7 @@ fn render(
 
     let uv = (2.0 * p - camera.screen.xy()) / camera.screen.y;
 
-    let time = globals.time.x * 0.5;
+    let time = el * 0.5;
 
     let rotation_angle = time;
     let rotor = rotor_y(rotation_angle);
@@ -208,7 +272,7 @@ fn render(
 
     let r = Ray::new(ro, rd);
 
-    get_color(r, pos.xy(), camera, globals, atmos_tx, atmos_sampler)
+    get_color(r, pos.xy(), camera, el, seed, atmos_tx, atmos_sampler)
 }
 
 fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
@@ -255,11 +319,18 @@ fn t(s: f32) -> Vec3 {
         + Vec3::new(0.078, 0.0, 0.0) * (-s * s / 7.41).exp()
 }
 
-fn sample_direct_diff_spherical(p: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
-    let cl = light_map(p, g);
+fn sample_direct_diff_spherical(
+    p: Vec3,
+    n: Vec3,
+    uv: Vec2,
+    camera: &Camera,
+    el: f32,
+    seed: UVec2,
+) -> Vec3 {
+    let cl = light_map(p, el, seed);
 
     // assumed spherical
-    let l = spherical_light_sample(cl, p, uv, camera, g.seed.y);
+    let l = spherical_light_sample(cl, p, uv, camera, seed.y);
 
     let cos_theta = n.dot(l);
     if cos_theta < 0.0 {
@@ -267,7 +338,7 @@ fn sample_direct_diff_spherical(p: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: 
     }
 
     let lsr = Ray::new(p + l, l);
-    let hit = hit(lsr, g);
+    let hit = hit(lsr, el, seed);
 
     let attenuation = hit.dist / cl.radius + 0.5; // direct light attenuation factor
 
@@ -289,7 +360,8 @@ fn spec_brdf(
     atmos_tx: Tex<'_>,
     atmos_sampler: &Sampler,
     camera: &Camera,
-    g: &Globals,
+    el: f32,
+    seed: UVec2,
 ) -> Vec3 {
     let mut specular_light = Vec3::ZERO;
 
@@ -299,13 +371,7 @@ fn spec_brdf(
     let k_ibl = alpha / 2.0;
 
     for i in 0..BRDF_STEPS {
-        let h = sample_brdf(
-            n,
-            alpha2,
-            uv + vec2(1.220, 2.530),
-            camera,
-            &g.with_seed(g.seed + i + 5),
-        );
+        let h = sample_brdf(n, alpha2, uv + vec2(1.220, 2.530), camera, el, seed + i + 5);
         let v_dot_h = v.dot(h).max(0.000001);
         let l = (2.0 * v_dot_h) * (h - v);
         let n_dot_v = n.dot(v).max(0.0);
@@ -315,7 +381,7 @@ fn spec_brdf(
         if n_dot_l > 0.0 {
             let sr = Ray::new(pos, l);
 
-            let hit = hit(sr, g);
+            let hit = hit(sr, el, seed);
 
             let in_radiance = if hit.dist >= TMAX || hit.emissive > 0.0 {
                 sample_atmos(sr, atmos_tx, atmos_sampler)
@@ -326,13 +392,15 @@ fn spec_brdf(
                         hit.normal,
                         uv + vec2(1.2377, 1.2377),
                         camera,
-                        &g.with_seed(g.seed + i + 10),
+                        el,
+                        seed + i + 10,
                     ) + sample_indirect_diff(
                         pos + (l * hit.dist),
                         hit.normal,
                         uv + vec2(3.223, 3.225),
                         camera,
-                        &g.with_seed(g.seed + i + 10),
+                        el,
+                        seed + i + 10,
                         atmos_tx,
                         atmos_sampler,
                     ))
@@ -343,15 +411,15 @@ fn spec_brdf(
             specular_light += in_radiance * (g_term * *fresnel * v_dot_h / (n_dot_h * n_dot_v));
         }
 
-        let cl = light_map(pos, g);
-        let l = spherical_light_sample(cl, pos, uv, camera, g.seed.y + i);
+        let cl = light_map(pos, el, seed);
+        let l = spherical_light_sample(cl, pos, uv, camera, seed.y + i);
         let h = (v + l) / (v + l).length();
         let n_dot_l = n.dot(l);
         let n_dot_h = n.dot(h).max(0.0);
 
         if n_dot_l > 0.0 {
             let sr = Ray::new(pos, l);
-            let hit = hit(sr, g);
+            let hit = hit(sr, el, seed);
 
             if hit.emissive > 0.0 {
                 let attn = 1.0 / (hit.dist * hit.dist);
@@ -387,9 +455,9 @@ fn sample_atmos(sr: Ray, atmos_tx: Tex<'_>, atmos_sampler: &Sampler) -> Vec3 {
     .xyz()
 }
 
-fn sample_brdf(normal: Vec3, alpha2: f32, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
-    let u0 = rng01(uv.xy() + vec2(0.0, 0.0), g.seed.y, camera.screen.y as u32);
-    let u1 = rng01(uv.yx() + vec2(1.3, 2.7), g.seed.y, camera.screen.y as u32);
+fn sample_brdf(normal: Vec3, alpha2: f32, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
+    let u0 = rng01(uv.xy() + vec2(0.0, 0.0), seed.y, camera.screen.y as u32);
+    let u1 = rng01(uv.yx() + vec2(1.3, 2.7), seed.y, camera.screen.y as u32);
 
     let cos_theta = ((1.0 - u0) / ((alpha2 - 1.0) * u0 + 1.0)).sqrt();
     let sin_theta = ((1.0 - (cos_theta * cos_theta)).max(0.0)).sqrt();
@@ -401,24 +469,24 @@ fn sample_brdf(normal: Vec3, alpha2: f32, uv: Vec2, camera: &Camera, g: &Globals
     )
 }
 
-fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
+fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
     let p1 = pos - (n * 0.02);
 
-    let cl = light_map(p1, g);
+    let cl = light_map(p1, el, seed);
 
     let mut out = Vec3::ZERO;
 
     for i in 0..SCATTER_STEPS {
-        let l = spherical_light_sample(cl, p1, uv, camera, g.seed.y + i);
+        let l = spherical_light_sample(cl, p1, uv, camera, seed.y + i);
 
         // let p1 = p1 + l;
 
         let sr = Ray::new(p1, l);
-        let h = hit_transparrent(sr, g);
+        let h = hit_transparrent(sr, el, seed);
 
         let sr = Ray::new(p1 + (l * h.dist) + (0.03 * l), l);
 
-        let h1 = hit(sr, g);
+        let h1 = hit(sr, el, seed);
 
         if h1.emissive > 0.0 {
             let scale = 3.0;
@@ -444,7 +512,8 @@ fn sample_indirect_diff(
     n: Vec3,
     uv: Vec2,
     camera: &Camera,
-    g: &Globals,
+    el: f32,
+    seed: UVec2,
     atmos_tx: Tex<'_>,
     atmos_sampler: &Sampler,
 ) -> Vec3 {
@@ -454,10 +523,10 @@ fn sample_indirect_diff(
     let mut n = n;
 
     for i in 0..DIFFUSE_STEPS {
-        let l = translate_to_ws(get_random_sample(uv + (i as f32), camera, g), n);
+        let l = translate_to_ws(get_random_sample(uv + (i as f32), camera, el, seed), n);
         let cos_theta = n.dot(l);
         let sr = Ray::new(p + l, l);
-        let h = hit(sr, g);
+        let h = hit(sr, el, seed);
 
         // TODO put sampling into some kind of helper
         if h.dist >= TMAX {
@@ -476,17 +545,17 @@ fn sample_indirect_diff(
         albedo *= h.albedo;
         n = h.normal;
         p = sr.o + sr.d * h.dist;
-        t += albedo * cos_theta * sample_direct_diff_spherical(p, n, uv, camera, g);
+        t += albedo * cos_theta * sample_direct_diff_spherical(p, n, uv, camera, el, seed);
     }
 
     return t;
 }
 
-fn get_random_sample(uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 // cosine weighted uniform distribution
+fn get_random_sample(uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 // cosine weighted uniform distribution
 {
-    let cos_theta = (1.0 - rng01(uv.xy(), g.seed.y, camera.screen.y as u32)).sqrt();
+    let cos_theta = (1.0 - rng01(uv.xy(), seed.y, camera.screen.y as u32)).sqrt();
     let sin_theta = (1.0 - (cos_theta * cos_theta)).max(0.0).sqrt();
-    let phi = rng01(uv.yx(), g.seed.y, camera.screen.y as u32) * 2.0 * PI;
+    let phi = rng01(uv.yx(), seed.y, camera.screen.y as u32) * 2.0 * PI;
 
     return vec3((phi).cos() * sin_theta, cos_theta, (phi).sin() * sin_theta);
 }
@@ -495,11 +564,12 @@ fn get_color(
     r: Ray,
     uv: Vec2,
     camera: &Camera,
-    g: &Globals,
+    el: f32,
+    seed: UVec2,
     atmos_tx: Tex<'_>,
     atmos_sampler: &Sampler,
 ) -> Vec3 {
-    let res = hit(r, g);
+    let res = hit(r, el, seed);
 
     if res.dist >= TMAX {
         return sample_atmos(r, atmos_tx, atmos_sampler);
@@ -520,14 +590,23 @@ fn get_color(
     if res.diffuse_scale > 0.0 {
         diffuse = res.diffuse_scale
             * res.albedo
-            * (sample_direct_diff_spherical(pos, res.normal, uv, camera, g)
-                + sample_indirect_diff(pos, res.normal, uv, camera, g, atmos_tx, atmos_sampler));
+            * (sample_direct_diff_spherical(pos, res.normal, uv, camera, el, seed)
+                + sample_indirect_diff(
+                    pos,
+                    res.normal,
+                    uv,
+                    camera,
+                    el,
+                    seed,
+                    atmos_tx,
+                    atmos_sampler,
+                ));
     }
 
     if res.scattering_weight > 0.0 {
         scattering = res.scattering_weight
             * res.scattering_color
-            * sample_scattering(pos, res.normal, uv + vec2(1.325, 2.4), camera, g);
+            * sample_scattering(pos, res.normal, uv + vec2(1.325, 2.4), camera, el, seed);
     }
 
     if res.specular_scale > 0.0 {
@@ -543,25 +622,26 @@ fn get_color(
                 atmos_tx,
                 atmos_sampler,
                 camera,
-                g,
+                el,
+                seed,
             );
     }
 
     return (1.0 - fresnel) * (scattering + diffuse) + specular;
 }
 
-fn hit_transparrent(r: Ray, g: &Globals) -> Material {
+fn hit_transparrent(r: Ray, el: f32, seed: UVec2) -> Material {
     // TODO - change to a Material struct
     let mut t = 0.0;
 
     for _ in 0..RMAX {
         let p = r.o + t * r.d;
 
-        let mut h = map(p, g);
+        let mut h = map(p, el, seed);
         h.x *= -1.0;
 
         if h.x < 0.002 {
-            return lookup_mat(r, p, h, t, g);
+            return lookup_mat(r, p, h, t, el, seed);
         }
 
         if t > TMAX {
@@ -574,17 +654,17 @@ fn hit_transparrent(r: Ray, g: &Globals) -> Material {
     Material::default()
 }
 
-fn hit(r: Ray, g: &Globals) -> Material {
+fn hit(r: Ray, el: f32, seed: UVec2) -> Material {
     // TODO - change to a Material struct
     let mut t = 0.0;
 
     for _ in 0..RMAX {
         let p = r.o + t * r.d;
 
-        let h = map(p, g);
+        let h = map(p, el, seed);
 
         if h.x < 0.001 {
-            return lookup_mat(r, p, h, t, g);
+            return lookup_mat(r, p, h, t, el, seed);
         }
 
         if t > TMAX {
@@ -611,14 +691,20 @@ pub fn fs(
 
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-
     #[spirv(descriptor_set = 1, binding = 0)] atmos_tx: Tex<'_>,
     #[spirv(descriptor_set = 1, binding = 1)] atmos_sampler: &Sampler,
     output: &mut Vec4,
 ) {
-    let mut col: Vec3 = render(pos, camera, globals, atmos_tx, atmos_sampler);
+    let mut col: Vec3 = render(
+        pos,
+        camera,
+        globals.time.x,
+        globals.seed,
+        atmos_tx,
+        atmos_sampler,
+    );
 
-    col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+    // col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
     // todo figure out how to improve tone mapping
     // col = col.pow(1.0 / 2.2);
     // col = robobo_1221_tonemap(col);

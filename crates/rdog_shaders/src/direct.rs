@@ -167,10 +167,67 @@ fn get_color(r: Ray, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
     let pos = r.o + r.d * res.dist;
 
     if res.diffuse_scale > 0.0 {
-        sample_direct_diff_spherical(pos, res.normal, uv, camera, g)
+        res.diffuse_scale * res.albedo * sample_indirect_diff(pos, res.normal, uv, camera, g)
     } else {
         Vec3::ZERO
     }
+}
+
+fn get_random_sample(uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
+    let cos_theta = (1.0 - rng01(uv.xy(), g.seed.y, camera.screen.y as u32)).sqrt();
+    let sin_theta = (1.0 - (cos_theta * cos_theta)).max(0.0).sqrt();
+    let phi = rng01(uv.yx(), g.seed.y, camera.screen.y as u32) * 2.0 * PI;
+
+    return vec3((phi).cos() * sin_theta, cos_theta, (phi).sin() * sin_theta);
+}
+
+fn sample_atmos(_sr: Ray) -> Vec3 {
+    Vec3::splat(0.1)
+    // sample(
+    //     atmos_tx,
+    //     atmos_sampler,
+    //     world_space_to_uv(sr.o + sr.d * 1000.0) + vec2(0.0, 0.02),
+    // )
+    // .xyz()
+}
+
+fn sample_indirect_diff(p: Vec3, n: Vec3, uv: Vec2, camera: &Camera, g: &Globals) -> Vec3 {
+    let mut t = Vec3::ZERO;
+    let mut albedo = Vec3::splat(1.0);
+    let mut p = p;
+    let mut n = n;
+
+    for i in 0..DIFFUSE_STEPS + 1 {
+        if i == 0 {
+            t += sample_direct_diff_spherical(p, n, uv, camera, g);
+        }
+
+        let l = translate_to_ws(get_random_sample(uv + (i as f32), camera, g), n);
+        let cos_theta = n.dot(l);
+        let sr = Ray::new(p + l, l);
+        let h = hit(sr, g);
+
+        // TODO put sampling into some kind of helper
+        if h.dist >= TMAX {
+            t += albedo * sample_atmos(sr);
+            // continue;
+            break;
+        }
+
+        // // todo && i > 0??
+        if h.emissive > 0.0 && i > 0 {
+            t += albedo * cos_theta;
+            // continue;
+            break;
+        }
+
+        albedo *= h.albedo;
+        n = h.normal;
+        p = sr.o + sr.d * h.dist;
+        t += albedo * cos_theta * sample_direct_diff_spherical(p, n, uv, camera, g);
+    }
+
+    return t;
 }
 
 fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, seed: u32) -> Vec3 {
@@ -227,12 +284,12 @@ pub fn main(
     // Calculate rd, rotating the view direction
     let rd = (rotate_vector(rotor, vec3(uv.x, uv.y, f))).normalize();
 
-    let dist = out.read(global_id.xy().as_ivec2()).w;
+    // let dist = out.read(global_id.xy().as_ivec2()).w;
 
     // start the ray right at the object
-    let r = Ray::new(ro, rd);
+    let r = Ray::new(ro + rd, rd);
 
-    let col = get_color(r, uv, camera, globals).extend(dist);
+    let col = get_color(r, uv, camera, globals).extend(1.0);
 
     unsafe {
         out.write(global_id.xy(), col);

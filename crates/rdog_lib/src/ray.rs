@@ -4,6 +4,7 @@ pub const TMAX: f32 = 22.0;
 pub const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, 1.5, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
+pub const DIFFUSE_STEPS: u32 = 8;
 
 #[derive(Copy, Clone)]
 pub struct Ray {
@@ -62,12 +63,8 @@ impl Default for Material {
     }
 }
 
-fn shape(posi: Vec3, g: &Globals) -> f32 {
-    let pos = aar(
-        posi + Vec3::NEG_Y,
-        vec3(0.0, 0.8, 1.0).normalize(),
-        g.time.x * 0.5,
-    );
+fn shape(posi: Vec3, _g: &Globals) -> f32 {
+    let pos = aar(posi + Vec3::NEG_Y, vec3(0.0, 0.8, 1.0).normalize(), 0.5);
 
     let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
     let pp = aar(pos, vec3(1.0, 0.0, 0.0).normalize(), 45.0_f32.to_radians());

@@ -43,6 +43,8 @@ shaders!([
     atmosphere_atmosphere,
     trace,
     direct,
+    ray_vs,
+    ray_fs,
     raster_vs,
     raster_fs,
 ]);
