@@ -6,6 +6,7 @@ pub trait Math<T> {
     fn sin(&self) -> T;
     fn exp2(&self) -> T;
     fn sqrt(&self) -> T;
+    fn saturate(&self) -> T;
 }
 
 // Implementation for Vec2
@@ -24,6 +25,10 @@ impl Math<Vec2> for Vec2 {
 
     fn sqrt(&self) -> Vec2 {
         vec2(self.x.sqrt(), self.y.sqrt())
+    }
+
+    fn saturate(&self) -> Vec2 {
+        self.min(Vec2::ONE).max(Vec2::ZERO)
     }
 }
 
@@ -44,6 +49,10 @@ impl Math<Vec3> for Vec3 {
     fn sqrt(&self) -> Vec3 {
         vec3(self.x.sqrt(), self.y.sqrt(), self.z.sqrt())
     }
+
+    fn saturate(&self) -> Vec3 {
+        self.min(Vec3::ONE).max(Vec3::ZERO)
+    }
 }
 
 // Implementation for Vec4
@@ -62,6 +71,10 @@ impl Math<Vec4> for Vec4 {
 
     fn sqrt(&self) -> Vec4 {
         vec4(self.x.sqrt(), self.y.sqrt(), self.z.sqrt(), self.w.sqrt())
+    }
+
+    fn saturate(&self) -> Vec4 {
+        self.min(Vec4::ONE).max(Vec4::ZERO)
     }
 }
 

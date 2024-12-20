@@ -1,4 +1,13 @@
 use rdog_lib::prelude::*;
+use spirv_std::num_traits::Pow;
+
+fn srgb(c: f32) -> f32 {
+    if c <= 0.00031308 {
+        c * 12.92
+    } else {
+        1.055 * c.pow(1.0 / 2.4) - 0.055
+    }
+}
 
 #[spirv(fragment)]
 pub fn fs(
@@ -9,13 +18,26 @@ pub fn fs(
 
     #[spirv(descriptor_set = 1, binding = 0)] trace_tx: Tex<'_>,
     #[spirv(descriptor_set = 1, binding = 1)] trace_sm: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 2)] prev_tx: TexRgba16<'_>,
     output: &mut Vec4,
 ) {
     let uv = pos.xy() / camera.screen.xy();
 
     let col = sample(trace_tx, trace_sm, uv).xyz();
+    // let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+    //
+    // let prv = prev_tx.read(pos.xy().as_uvec2());
+    //
+    // let a = prv.w + 1.0;
+    //
+    // let col = col.mix(prv.xyz(), 1.0 - (1.0 / a)).saturate().extend(a);
+    let col = col.extend(1.0);
 
-    *output = col.extend(1.0);
+    unsafe {
+        prev_tx.write(pos.xy().as_uvec2(), col);
+    }
+
+    *output = col;
 }
 
 #[spirv(vertex)]

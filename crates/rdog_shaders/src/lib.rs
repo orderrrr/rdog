@@ -3,7 +3,9 @@
 
 // pub mod ray;
 pub mod atmosphere;
-pub mod trace;
 pub mod direct;
 pub mod raster;
-pub mod ray;
+// pub mod ray;
+pub mod scatter;
+pub mod specular;
+pub mod trace;

@@ -66,8 +66,7 @@ macro_rules! passes {
 
 passes!([
     atmosphere => AtmospherePass,
-    // trace => TracePass,
-    // direct => DirectPass,
-    // raster => RasterPass,
-    ray => RayPass,
+    rt => RTPass,
+    raster => RasterPass,
+    // ray => RayPass,
 ]);

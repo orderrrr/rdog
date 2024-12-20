@@ -19,6 +19,7 @@ pub struct Buffers {
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
 
     pub trace_tx: Texture,
+    pub prev_tx: Texture,
 
     pub atmosphere_tx: Texture,
     pub atmos_noise_tx: Texture,
@@ -34,6 +35,14 @@ impl Buffers {
             MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
 
         let trace_tx = Texture::builder("trace")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_linear_filtering_sampler()
+            .build(device);
+
+        let prev_tx = Texture::builder("prev_tx")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -63,6 +72,7 @@ impl Buffers {
             atmos_noise_tx,
             globals,
             trace_tx,
+            prev_tx,
             atmosphere_tx,
         }
     }
