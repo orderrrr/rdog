@@ -48,7 +48,7 @@ pub fn sample_indirect_diff(
 
         // TODO put sampling into some kind of helper
         if h.dist >= TMAX {
-            t += albedo * Vec3::splat(0.01);
+            t += albedo * sample_atmos(sr);
             // continue;
             break;
         }
@@ -104,7 +104,7 @@ fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
 
     if res.dist >= TMAX {
         // TODO - back to atmos
-        return Vec3::splat(0.01);
+        return sample_atmos(r);
     }
 
     if res.id > 900.0 {

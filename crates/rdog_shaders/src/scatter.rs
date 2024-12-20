@@ -23,7 +23,7 @@ fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
     let res = hit(r, el, seed);
 
     if res.dist >= TMAX {
-        return Vec3::splat(0.01);
+        return sample_atmos(r);
     }
 
     if res.id > 900.0 {

@@ -68,7 +68,7 @@ fn spec_brdf(
             let hit = hit(sr, el, seed);
 
             let in_radiance = if hit.dist >= TMAX {
-                Vec3::splat(0.1)
+                sample_atmos(sr)
             } else if hit.emissive > 0.0 {
                 hit.albedo
             } else {
@@ -117,7 +117,7 @@ fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2, fresnel: &
 
     if res.dist >= TMAX {
         // TODO - back to atmos
-        return Vec3::splat(0.01);
+        return sample_atmos(r);
     }
 
     if res.id > 900.0 {

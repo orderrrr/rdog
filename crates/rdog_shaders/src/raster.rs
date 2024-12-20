@@ -24,13 +24,13 @@ pub fn fs(
     let uv = pos.xy() / camera.screen.xy();
 
     let col = sample(trace_tx, trace_sm, uv).xyz();
+
+    // let prv = prev_tx.read(pos.xy().as_uvec2());
+    // let a = prv.w + 1.0;
+    // let col = col.mix(prv.xyz(), 1.0 - (1.0 / a));
+
     let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
-
-    let prv = prev_tx.read(pos.xy().as_uvec2());
-
-    let a = prv.w + 1.0;
-
-    let col = col.mix(prv.xyz(), 1.0 - (1.0 / a)).saturate().extend(a);
+    let col = col.saturate().extend(1.0);
 
     unsafe {
         prev_tx.write(pos.xy().as_uvec2(), col);

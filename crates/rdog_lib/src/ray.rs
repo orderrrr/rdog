@@ -69,9 +69,9 @@ impl Default for Material {
     }
 }
 
-pub fn shape(posi: Vec3, _el: f32, _seed: UVec2) -> f32 {
-    // let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), el);
-    let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), 0.5);
+pub fn shape(posi: Vec3, el: f32, _seed: UVec2) -> f32 {
+    let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), el);
+    // let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), 0.5);
     let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
     let pp = aar(pos, vec3(1.0, 0.0, 0.0).normalize(), 45.0_f32.to_radians());
     let o = sd_rounded_cylinder(pp + vec3(0.0, 0.0, -0.35), 0.3, 0.1, 0.1);
@@ -272,4 +272,17 @@ pub fn get_camera_ray(pos: Vec2, camera: &Camera, el: f32) -> Ray {
 
     // start the ray right at the object
     Ray::new(ro + rd, rd)
+}
+
+// right now not using atmos tex.
+pub fn sample_atmos(sr: Ray /* , atmos_tx: Tex<'_>, atmos_sampler: &Sampler */) -> Vec3 {
+    let o = sr.o.normalize();
+    let o = o.length();
+    vec3(o, o, o) * 0.001
+    // sample(
+    //     atmos_tx,
+    //     atmos_sampler,
+    //     world_space_to_uv(sr.o + sr.d * 1000.0) + vec2(0.0, 0.02),
+    // )
+    // .xyz()
 }
