@@ -134,7 +134,7 @@ pub fn lookup_mat(_r: Ray, p: Vec3, h: Vec2, t: f32, el: f32, seed: UVec2) -> Ma
             roughness: 1.0,
             ior: 1.04,
             normal: calc_normal(p, el, seed) * s,
-            albedo: vec3(0.71, 0.65, 0.26),
+            albedo: vec3(0.71, 0.05, 0.1),
             ..Default::default()
         },
         3.0 => Material {
@@ -270,7 +270,7 @@ pub fn get_camera_ray(pos: Vec2, camera: &Camera, el: f32) -> Ray {
     // Calculate rd, rotating the view direction
     let rd = (rotate_vector(rotor, vec3(uv.x, uv.y, f))).normalize();
 
-    // start the ray right at the object
+    // start the ray right at the objec
     Ray::new(ro + rd, rd)
 }
 

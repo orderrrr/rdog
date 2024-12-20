@@ -1,4 +1,4 @@
-use bevy::utils::HashMap;
+use bevy::{log, utils::HashMap};
 use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 use crate::{
@@ -47,6 +47,7 @@ impl Pass for AtmospherePass {
         _view: &wgpu::TextureView,
     ) {
         if camera.recompute_static {
+            log::info!("Rocomputing atmosphere");
             self.0.get(&0).unwrap().run(camera, encoder, NOISE_DIM, ());
         }
         // may need this later but not sure.

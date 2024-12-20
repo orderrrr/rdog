@@ -138,7 +138,8 @@ pub fn main(
     }
 
     let pos = global_id.xy().as_vec2();
-    let r = get_camera_ray(global_id.xy().as_vec2(), camera, globals.time.x);
+    let mut r = get_camera_ray(global_id.xy().as_vec2(), camera, globals.time.x);
+    r.o = (inp.w * r.d) + r.o;
     let col = get_color(r, pos, camera, globals.time.x, globals.seed).extend(inp.w);
 
     unsafe {

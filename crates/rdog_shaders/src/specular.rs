@@ -164,7 +164,8 @@ pub fn main(
 
     let pos = global_id.xy().as_vec2();
 
-    let r = get_camera_ray(pos, camera, globals.time.x);
+    let mut r = get_camera_ray(pos, camera, globals.time.x);
+    r.o = (inp.w * r.d) + r.o;
 
     let mut fresnel = 0.0;
     let col = get_color(r, pos, camera, globals.time.x, globals.seed, &mut fresnel);
