@@ -30,6 +30,7 @@ pub fn sample_indirect_diff(
     p: Vec3,
     n: Vec3,
     uv: Vec2,
+    steps: u32,
     camera: &Camera,
     el: f32,
     seed: UVec2,
@@ -39,7 +40,7 @@ pub fn sample_indirect_diff(
     let mut p = p;
     let mut n = n;
 
-    for i in 0..DIFFUSE_STEPS {
+    for i in 0..steps + 1 {
         let l = translate_to_ws(get_random_sample(uv + (i as f32), camera, el, seed), n);
         let cos_theta = n.dot(l);
         let sr = Ray::new(p + l, l);
@@ -115,7 +116,7 @@ fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
     if res.diffuse_scale > 0.0 {
         res.diffuse_scale
             * res.albedo
-            * (sample_indirect_diff(pos, res.normal, uv, camera, el, seed))
+            * (sample_indirect_diff(pos, res.normal, uv, DIFFUSE_STEPS, camera, el, seed))
     } else {
         Vec3::ZERO
     }

@@ -55,7 +55,7 @@ fn spec_brdf(
     let k_direct = (alpha2 + 1.0) / 8.0;
     let k_ibl = alpha / 2.0;
 
-    for i in 0..BRDF_STEPS {
+    for i in 0..BRDF_STEPS + 1 {
         let h = sample_brdf(n, alpha2, uv + vec2(1.220, 2.530), camera, el, seed + i + 5);
         let v_dot_h = v.dot(h).max(0.000001);
         let l = (2.0 * (v_dot_h * h)) - v;
@@ -77,6 +77,7 @@ fn spec_brdf(
                         pos + (l * hit.dist),
                         hit.normal,
                         uv,
+                        1,
                         camera,
                         el,
                         seed + i + 30,

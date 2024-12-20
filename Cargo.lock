@@ -1253,9 +1253,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.4"
+version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9157bbaa6b165880c27a4293a474c91cdcf265cc68cc829bf10be0964a391caf"
+checksum = "c31a0499c1dc64f458ad13872de75c0eb7e3fdb0e67964610c914b034fc5956e"
 dependencies = [
  "jobserver",
  "libc",
@@ -1878,9 +1878,9 @@ dependencies = [
 
 [[package]]
 name = "foldhash"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81ec6369c545a7d40e4589b5597581fa1c441fe1cce96dd1de43159910a36a2"
+checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
 
 [[package]]
 name = "foreign-types"
@@ -2134,13 +2134,13 @@ dependencies = [
 
 [[package]]
 name = "gpu-descriptor"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c08c1f623a8d0b722b8b99f821eb0ba672a1618f0d3b16ddbee1cedd2dd8557"
+checksum = "dcf29e94d6d243368b7a56caa16bc213e4f9f8ed38c4d9557069527b5d5281ca"
 dependencies = [
  "bitflags 2.6.0",
  "gpu-descriptor-types",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.2",
 ]
 
 [[package]]
@@ -2562,9 +2562,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
-version = "0.2.168"
+version = "0.2.169"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aaeb2981e0606ca11d79718f8bb01164f1d6ed75080182d3abf017e6d244b6d"
+checksum = "b5aba8db14291edd000dfcc4d620c7ebfb122c613afb886ca8803fa4e128a20a"
 
 [[package]]
 name = "libloading"
@@ -3263,9 +3263,9 @@ checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
 
 [[package]]
 name = "png"
-version = "0.17.15"
+version = "0.17.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b67582bd5b65bdff614270e2ea89a1cf15bef71245cc1e5f7ea126977144211d"
+checksum = "82151a2fc869e011c153adc57cf2789ccb8d9906ce52c0b39a6b5697749d7526"
 dependencies = [
  "bitflags 1.3.2",
  "crc32fast",
@@ -3586,7 +3586,7 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 [[package]]
 name = "rustc_codegen_spirv"
 version = "0.9.0"
-source = "git+https://github.com/Rust-GPU/rust-gpu#f069c58c0c06d7ba6f72ec0f4e482cc217bc36c4"
+source = "git+https://github.com/Rust-GPU/rust-gpu#0750b3059ae7b4c3709adbcd238ab1e9f62026a6"
 dependencies = [
  "ahash",
  "ar",
@@ -3613,7 +3613,7 @@ dependencies = [
 [[package]]
 name = "rustc_codegen_spirv-types"
 version = "0.9.0"
-source = "git+https://github.com/Rust-GPU/rust-gpu#f069c58c0c06d7ba6f72ec0f4e482cc217bc36c4"
+source = "git+https://github.com/Rust-GPU/rust-gpu#0750b3059ae7b4c3709adbcd238ab1e9f62026a6"
 dependencies = [
  "rspirv",
  "serde",
@@ -3868,7 +3868,7 @@ dependencies = [
 [[package]]
 name = "spirv-builder"
 version = "0.9.0"
-source = "git+https://github.com/Rust-GPU/rust-gpu#f069c58c0c06d7ba6f72ec0f4e482cc217bc36c4"
+source = "git+https://github.com/Rust-GPU/rust-gpu#0750b3059ae7b4c3709adbcd238ab1e9f62026a6"
 dependencies = [
  "memchr",
  "notify",
@@ -3882,7 +3882,7 @@ dependencies = [
 [[package]]
 name = "spirv-std"
 version = "0.9.0"
-source = "git+https://github.com/Rust-GPU/rust-gpu#f069c58c0c06d7ba6f72ec0f4e482cc217bc36c4"
+source = "git+https://github.com/Rust-GPU/rust-gpu#0750b3059ae7b4c3709adbcd238ab1e9f62026a6"
 dependencies = [
  "bitflags 1.3.2",
  "glam",
@@ -3894,7 +3894,7 @@ dependencies = [
 [[package]]
 name = "spirv-std-macros"
 version = "0.9.0"
-source = "git+https://github.com/Rust-GPU/rust-gpu#f069c58c0c06d7ba6f72ec0f4e482cc217bc36c4"
+source = "git+https://github.com/Rust-GPU/rust-gpu#0750b3059ae7b4c3709adbcd238ab1e9f62026a6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3905,7 +3905,7 @@ dependencies = [
 [[package]]
 name = "spirv-std-types"
 version = "0.9.0"
-source = "git+https://github.com/Rust-GPU/rust-gpu#f069c58c0c06d7ba6f72ec0f4e482cc217bc36c4"
+source = "git+https://github.com/Rust-GPU/rust-gpu#0750b3059ae7b4c3709adbcd238ab1e9f62026a6"
 
 [[package]]
 name = "spirv-tools"

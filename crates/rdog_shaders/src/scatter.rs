@@ -72,7 +72,7 @@ fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, el: f32, see
 
     let mut out = Vec3::ZERO;
 
-    for i in 0..SCATTER_STEPS {
+    for i in 0..SCATTER_STEPS + 1 {
         let l = spherical_light_sample(cl, p1, uv, camera, seed.y + i);
 
         // let p1 = p1 + l;
