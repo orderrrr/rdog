@@ -36,6 +36,6 @@ pub fn main(
     let hit = hit_simple(r, globals.time.x, globals.seed);
 
     unsafe {
-        out.write(global_id.xy(), Vec4::splat(hit));
+        out.write(global_id.xy(), Vec3::ZERO.extend(hit));
     }
 }

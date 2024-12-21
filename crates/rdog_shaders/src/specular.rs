@@ -77,7 +77,7 @@ fn spec_brdf(
                         pos + (l * hit.dist),
                         hit.normal,
                         uv,
-                        1,
+                        DIFFUSE_BOUNCES,
                         camera,
                         el,
                         seed + i + 30,
@@ -143,6 +143,7 @@ fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2, fresnel: &
                 seed,
             )
     } else {
+        // vec3(1.0, 0.0, 1.0)
         Vec3::ZERO
     }
 }
@@ -156,23 +157,23 @@ pub fn main(
 ) {
     let inp = out.read(global_id.xy().as_ivec2());
 
-    if inp.w >= TMAX {
-        unsafe {
-            out.write(global_id.xy(), Vec3::splat(0.01).extend(inp.w));
-        }
-    }
-
     let pos = global_id.xy().as_vec2();
 
     let mut r = get_camera_ray(pos, camera, globals.time.x);
     r.o = (inp.w * r.d) + r.o;
 
+    if inp.w >= TMAX {
+        unsafe {
+            out.write(global_id.xy(), sample_atmos(r).extend(inp.w));
+        }
+        return;
+    }
+
     let mut fresnel = 0.0;
     let col = get_color(r, pos, camera, globals.time.x, globals.seed, &mut fresnel);
     let col = (1.0 - fresnel) * inp.xyz() + col;
-    let col = col.extend(1.0);
 
     unsafe {
-        out.write(global_id.xy(), col);
+        out.write(global_id.xy(), col.extend(1.0));
     }
 }

@@ -41,7 +41,7 @@ impl AtmospherePass {
 impl Pass for AtmospherePass {
     fn run(
         &self,
-        engine: &Engine,
+        _engine: &Engine,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,

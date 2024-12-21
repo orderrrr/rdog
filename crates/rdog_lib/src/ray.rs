@@ -5,7 +5,7 @@ pub const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, 1.5, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
 
-pub const DIFFUSE_STEPS: u32 = 8;
+pub const DIFFUSE_BOUNCES: u32 = 8;
 pub const SCATTER_STEPS: u32 = 8;
 pub const BRDF_STEPS: u32 = 8;
 
@@ -70,8 +70,8 @@ impl Default for Material {
 }
 
 pub fn shape(posi: Vec3, el: f32, _seed: UVec2) -> f32 {
-    let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), el);
-    // let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), 0.5);
+    // let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), el);
+    let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), 0.5);
     let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
     let pp = aar(pos, vec3(1.0, 0.0, 0.0).normalize(), 45.0_f32.to_radians());
     let o = sd_rounded_cylinder(pp + vec3(0.0, 0.0, -0.35), 0.3, 0.1, 0.1);
@@ -91,7 +91,7 @@ pub fn map(posi: Vec3, el: f32, seed: UVec2) -> Vec2 {
     let s = vec2(s, 2.0);
     let p = vec2(p, 3.0);
 
-    let s2 = vec2(sphere(posi - vec3(-1.0, 1.0, 0.0), 0.6), 3.0);
+    let s2 = vec2(sphere(posi - vec3(-1.0, 1.0, 0.0), 0.6), 4.0);
 
     min_sd(min_sd(min_sd(l, s), p), s2)
 }
@@ -120,7 +120,7 @@ pub fn hit(r: Ray, el: f32, seed: UVec2) -> Material {
 }
 
 // TODO - currently very hacky, move this out of the shader.
-pub fn lookup_mat(_r: Ray, p: Vec3, h: Vec2, t: f32, el: f32, seed: UVec2) -> Material {
+pub fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, el: f32, seed: UVec2) -> Material {
     let s = if h.x >= 0.0 { 1.0 } else { 0.0 };
 
     match h.y {
@@ -143,14 +143,27 @@ pub fn lookup_mat(_r: Ray, p: Vec3, h: Vec2, t: f32, el: f32, seed: UVec2) -> Ma
             metallic: true,
             scattering_scale: 0.0,
             scattering_color: Vec3::splat(1.0),
-            specular_scale: 1.0,
+            specular_scale: 0.2,
             f0: 0.95,
             ior: 1.4,
-            diffuse_scale: 0.0,
-            roughness: 0.2,
+            diffuse_scale: 1.0,
+            roughness: 1.0,
             normal: calc_normal(p, el, seed) * s,
-            // albedo: checker(vec3(0.79, 0.70, 0.77), vec3(0.79, 0.70, 0.77) * 0.5, r, t),
-            albedo: vec3(0.71, 0.65, 0.26),
+            albedo: checker(vec3(0.79, 0.70, 0.77), vec3(0.79, 0.70, 0.77) * 0.5, r, t),
+            // albedo: vec3(0.71, 0.65, 0.26),
+            ..Default::default()
+        },
+        4.0 => Material {
+            id: h.y,
+            dist: t,
+            scattering_scale: 0.3,
+            scattering_color: Vec3::splat(1.0),
+            specular_scale: 1.0,
+            f0: 1.04,
+            roughness: 0.3,
+            ior: 1.04,
+            normal: calc_normal(p, el, seed) * s,
+            albedo: vec3(0.71, 0.55, 0.1),
             ..Default::default()
         },
         999.0 => Material {
@@ -207,7 +220,7 @@ pub fn checker(v1: Vec3, v2: Vec3, r: Ray, t: f32) -> Vec3 {
 
     let (dpdx, dpdy) = calculate_derivatives(r.d, 0.01);
     let f = checkers_grad_box(3.0 * pos.xz(), 3.0 * dpdx.xz(), 3.0 * dpdy.xz());
-    if f > 0.0 {
+    if f > 0.5 {
         v1
     } else {
         v2
@@ -251,13 +264,13 @@ pub fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
     );
 }
 
-pub fn get_camera_ray(pos: Vec2, camera: &Camera, el: f32) -> Ray {
+pub fn get_camera_ray(pos: Vec2, camera: &Camera, _el: f32) -> Ray {
     let p = vec2(pos.x, camera.screen.y - pos.y);
 
     let uv = (2.0 * p - camera.screen.xy()) / camera.screen.y;
 
-    // let time = 4.0;
-    let time = el * 0.5;
+    let time = 4.0;
+    // let time = el * 0.5;
 
     let rotation_angle = time;
     let rotor = rotor_y(rotation_angle);
@@ -276,9 +289,7 @@ pub fn get_camera_ray(pos: Vec2, camera: &Camera, el: f32) -> Ray {
 
 // right now not using atmos tex.
 pub fn sample_atmos(sr: Ray /* , atmos_tx: Tex<'_>, atmos_sampler: &Sampler */) -> Vec3 {
-    let o = sr.o.normalize();
-    let o = o.length();
-    vec3(o, o, o) * 0.001
+    vec3(0.03, 0.02, 0.03)
     // sample(
     //     atmos_tx,
     //     atmos_sampler,

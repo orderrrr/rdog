@@ -45,8 +45,10 @@ impl Pass for RTPass {
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
     ) {
-        for pass in &self.0 {
-            pass.run(camera, encoder, camera.camera.viewport.size, ());
-        }
+
+        self.0[0].run(camera, encoder, camera.camera.viewport.size, ());
+        self.0[1].run(camera, encoder, camera.camera.viewport.size, ());
+        self.0[2].run(camera, encoder, camera.camera.viewport.size, ());
+        self.0[3].run(camera, encoder, camera.camera.viewport.size, ());
     }
 }

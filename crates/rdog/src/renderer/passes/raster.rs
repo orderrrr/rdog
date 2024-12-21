@@ -23,21 +23,13 @@ impl RasterPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, config: &Camera, buffers: &Buffers) -> Self {
         debug!("Initializing pass: raster");
 
-        fn _a_or_b<'a>(a: &'a Texture, b: &'a Texture, select_a: bool) -> impl Bindable + 'a {
-            if select_a {
-                a.bind_readable()
-            } else {
-                b.bind_readable()
-            }
-        }
-
         let bg0 = BindGroup::builder("raster_bg0")
             .add(&buffers.curr_camera.bind_readable())
             .add(&buffers.globals.bind_readable())
             .build(device);
 
         let bg1 = BindGroup::builder("raster_bg1")
-            .add(&buffers.trace_tx.bind_sampled())
+            .add(&buffers.trace_tx.bind_readable())
             .add(&buffers.prev_tx.bind_writable())
             .build(device);
 

@@ -94,7 +94,7 @@ fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, el: f32, see
 
             let e = (0.3 + cos_theta).max(0.0);
 
-            let a = 1.0 / (h1.dist * h1.dist);
+            let a = 0.2 / (h1.dist * h1.dist);
 
             out += t(s) * e * a * (h1.albedo * h1.emissive);
         }
@@ -122,9 +122,7 @@ pub fn main(
     let inp = out.read(global_id.xy().as_ivec2());
 
     if inp.w >= TMAX {
-        unsafe {
-            out.write(global_id.xy(), Vec3::splat(0.01).extend(inp.w));
-        }
+        return;
     }
 
     let pos = global_id.xy().as_vec2();
@@ -132,9 +130,8 @@ pub fn main(
     r.o = (inp.w * r.d) + r.o;
 
     let col = inp.xyz() + get_color(r, pos, camera, globals.time.x, globals.seed);
-    let col = col.extend(inp.w);
 
     unsafe {
-        out.write(global_id.xy(), col);
+        out.write(global_id.xy(), col.extend(inp.w));
     }
 }
