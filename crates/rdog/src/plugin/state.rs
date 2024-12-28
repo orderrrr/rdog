@@ -33,7 +33,6 @@ pub(crate) struct RdogExtractedCamera {
     pub mode: Option<crate::CameraMode>,
 }
 
-
 #[derive(Debug, Resource)]
 pub struct ExtractedImages {
     pub changed: Vec<ExtractedImage>,

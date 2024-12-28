@@ -7,6 +7,10 @@ use rdog_lib as gpu;
 use super::Engine;
 
 #[derive(Clone, Debug)]
+pub struct Config {
+}
+
+#[derive(Clone, Debug)]
 pub struct Camera {
     pub mode: CameraMode,
     pub viewport: CameraViewport,
