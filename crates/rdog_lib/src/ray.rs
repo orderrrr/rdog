@@ -274,3 +274,15 @@ pub fn sample_atmos(_sr: Ray /* , atmos_tx: Tex<'_>, atmos_sampler: &Sampler */)
     // )
     // .xyz()
 }
+
+pub fn ray(ss: Vec2, ndc_to_world: Mat4, screen_pos: UVec2) -> Ray {
+    let sp = screen_pos.as_vec2() + vec2(0.5, 0.5);
+
+    let ndc = sp * 2.0 / ss - Vec2::ONE;
+    let ndc = vec2(ndc.x, ndc.y);
+
+    let far_plane = ndc_to_world.project_point3(ndc.extend(f32::EPSILON));
+    let near_plane = ndc_to_world.project_point3(ndc.extend(1.0));
+
+    Ray::new(near_plane, (far_plane - near_plane).normalize())
+}

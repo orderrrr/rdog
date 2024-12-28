@@ -134,7 +134,7 @@ pub fn main(
     }
 
     let pos = global_id.xy().as_vec2();
-    let mut r = camera.ray(global_id.xy());
+    let mut r = ray(camera.screen.xy(), camera.ndc_to_world, global_id.xy());
     r.o = (r.d * inp.w) + r.o;
     let col = get_color(r, pos, camera, globals.time.x, globals.seed);
 
