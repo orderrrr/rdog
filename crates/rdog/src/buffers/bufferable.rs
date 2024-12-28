@@ -1,6 +1,6 @@
-use std::slice;
 use bytemuck::Pod;
-use rdog_lib::{self as gpu, camera::Camera};
+use rdog_lib::{self as gpu, camera::Camera, PassParams};
+use std::slice;
 
 /// Object that can be sent into the GPU
 pub trait Bufferable {
@@ -30,6 +30,12 @@ impl Bufferable for f32 {
 }
 
 impl Bufferable for Camera {
+    fn data(&self) -> &[u8] {
+        bytemuck::cast_slice(slice::from_ref(self))
+    }
+}
+
+impl Bufferable for PassParams {
     fn data(&self) -> &[u8] {
         bytemuck::cast_slice(slice::from_ref(self))
     }

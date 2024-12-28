@@ -13,8 +13,9 @@ fn srgb(channel: f32) -> f32 {
 pub fn fs(
     #[spirv(frag_coord)] pos: Vec4,
 
-    #[spirv(descriptor_set = 0, binding = 0, uniform)] _camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1, uniform)] _globals: &Globals,
+    #[spirv(descriptor_set = 0, binding = 0, uniform)] config: &PassParams,
+    #[spirv(descriptor_set = 0, binding = 1, uniform)] _camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 2, uniform)] _globals: &Globals,
 
     #[spirv(descriptor_set = 1, binding = 0)] trace_tx: TexRgba16,
     #[spirv(descriptor_set = 1, binding = 1)] prev_tx: TexRgba16,
@@ -27,12 +28,18 @@ pub fn fs(
 
     let col = col.mix(prv.xyz(), 1.0 - (1.0 / a)).extend(a);
 
+    let multi_frame: bool = ((config.flags >> 3) & 1) == 1;
+
     unsafe {
-        // prev_tx.write(pos.xy().as_uvec2(), col);
+        if multi_frame {
+            prev_tx.write(pos.xy().as_uvec2(), col);
+        } else {
+            prev_tx.write(pos.xy().as_uvec2(), Vec4::splat(0.0));
+        }
     }
 
     let col = col.xyz();
-    // let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+    let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
     let col = col.saturate();
 
     *output = col.extend(1.0);

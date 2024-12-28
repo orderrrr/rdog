@@ -1,8 +1,6 @@
-use bevy::{
-    color::palettes::css::PURPLE, gizmos::GizmoPlugin, prelude::*,
-    render::camera::CameraRenderGraph, window::WindowResolution,
-};
+use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResolution};
 
+use bevy_egui::EguiPlugin;
 use rand::Rng;
 use rdog::{
     interface::orbit::{pan_orbit_camera, PanOrbitState},
@@ -22,12 +20,13 @@ fn main() {
                 }),
                 ..default()
             }),
+            EguiPlugin,
             RdogPlugin(rand::thread_rng().gen_range(0..4_294_967_295)),
         ))
         .add_systems(Startup, setup_camera)
         .add_systems(
             Update,
-            pan_orbit_camera.run_if(any_with_component::<PanOrbitState>),
+            (pan_orbit_camera.run_if(any_with_component::<PanOrbitState>),),
         )
         .run();
 }

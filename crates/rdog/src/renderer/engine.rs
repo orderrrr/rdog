@@ -1,6 +1,6 @@
 use super::{
     camera_controllers::RenderControllers, images::Images, render::CameraController,
-    shaders::Shaders, utils, Camera, CameraHandle, Image,
+    shaders::Shaders, utils, Camera, CameraHandle, Config, Image,
 };
 use bevy::{asset::AssetId, prelude::Image as BevyImage};
 use glam::Vec2;
@@ -15,6 +15,7 @@ pub struct Engine {
     pub frame: lib::Frame,
     pub time: Vec2,
     pub seed: u32,
+    pub config: Config,
     // world: MappedUniformBuffer<gpu::World>,
     cameras: RenderControllers,
     images: Images,
@@ -33,6 +34,7 @@ impl Engine {
             time: Default::default(),
             has_dirty_images: false,
             seed,
+            config: Config::default(),
         }
     }
 

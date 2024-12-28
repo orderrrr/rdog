@@ -1,3 +1,5 @@
+use rdog_lib::PassParams;
+
 use crate::{
     bindable::DoubleBufferedBindable,
     compute_pass::ComputePass,
@@ -40,14 +42,21 @@ impl RTPass {
 impl Pass for RTPass {
     fn run(
         &self,
-        _engine: &Engine,
+        engine: &Engine,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
+        _pp: &PassParams,
     ) {
         self.0[0].run(camera, encoder, camera.camera.viewport.size, ());
-        self.0[1].run(camera, encoder, camera.camera.viewport.size, ());
-        self.0[2].run(camera, encoder, camera.camera.viewport.size, ());
-        self.0[3].run(camera, encoder, camera.camera.viewport.size, ());
+        if engine.config.direct_pass {
+            self.0[1].run(camera, encoder, camera.camera.viewport.size, ());
+        }
+        if engine.config.scatter_pass {
+            self.0[2].run(camera, encoder, camera.camera.viewport.size, ());
+        }
+        if engine.config.specular_pass {
+            self.0[3].run(camera, encoder, camera.camera.viewport.size, ());
+        }
     }
 }

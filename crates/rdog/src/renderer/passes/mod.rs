@@ -1,4 +1,5 @@
 use log::debug;
+use rdog_lib::PassParams;
 
 use crate::renderer::config::Camera;
 use crate::renderer::engine::Engine;
@@ -13,6 +14,7 @@ pub trait Pass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        pp: &PassParams,
     );
 }
 
@@ -34,9 +36,10 @@ macro_rules! passes {
                 camera: &CameraController,
                 encoder: &mut wgpu::CommandEncoder,
                 view: &wgpu::TextureView,
+                pp: &PassParams,
             ) {
                 match self {
-                    $( PassTypes::$class(pass) => pass.run(engine, camera, encoder, view), )*
+                    $( PassTypes::$class(pass) => pass.run(engine, camera, encoder, view, pp), )*
                 }
             }
         }

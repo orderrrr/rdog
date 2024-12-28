@@ -1,13 +1,42 @@
 use std::fmt::{Display, Formatter};
 
+use bevy::prelude::Resource;
 use glam::{uvec2, Mat4, UVec2, Vec2};
 use log::info;
-use rdog_lib as gpu;
+use rdog_lib::{self as gpu, PassParams};
 
 use super::Engine;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Resource)]
 pub struct Config {
+    pub direct_pass: bool,
+    pub specular_pass: bool,
+    pub scatter_pass: bool,
+    pub multi_frame: bool,
+}
+
+impl Config {
+    pub(crate) fn to_pass_params(&self) -> PassParams {
+        let mut flags: u32 = 0;
+
+        flags |= self.direct_pass as u32;
+        flags |= (self.scatter_pass as u32) << 1;
+        flags |= (self.specular_pass as u32) << 2;
+        flags |= (self.multi_frame as u32) << 3;
+
+        PassParams { flags }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            direct_pass: true,
+            specular_pass: true,
+            scatter_pass: true,
+            multi_frame: true,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

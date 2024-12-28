@@ -1,14 +1,21 @@
 use bevy::{
-    image::{ImageSampler, ImageSamplerDescriptor}, prelude::*, render::{
+    image::{ImageSampler, ImageSamplerDescriptor},
+    prelude::*,
+    render::{
         camera::{CameraProjection, CameraRenderGraph},
         Extract,
-    }, utils::HashSet
+    },
+    utils::HashSet,
 };
 
-use crate::plugin::{
-    camera::RdogCamera,
-    event::RdogEvent,
-    state::{RdogExtractedCamera, ExtractedImage, ExtractedImageData, ExtractedImages},
+use crate::{
+    plugin::{
+        camera::RdogCamera,
+        event::RdogEvent,
+        state::{ExtractedImage, ExtractedImageData, ExtractedImages, RdogExtractedCamera},
+    },
+    state::ExtractedConfig,
+    Config,
 };
 
 pub(crate) fn images(
@@ -126,11 +133,16 @@ pub(crate) fn cameras(
         }
 
         assert!(camera.hdr, "Rdog requires an HDR camera");
-        
+
         commands.get_or_spawn(entity).insert(RdogExtractedCamera {
             transform: transform.compute_matrix(),
             projection: projection.get_clip_from_view(),
             mode: rdog_camera.map(|camera| camera.mode),
         });
     }
+}
+
+#[allow(clippy::type_complexity)]
+pub(crate) fn config(mut commands: Commands, config: Extract<Res<Config>>) {
+    commands.insert_resource(ExtractedConfig(config.clone()));
 }

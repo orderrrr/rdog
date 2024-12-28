@@ -67,7 +67,7 @@ pub mod coord {
         world_space_position
     }
 
-    pub fn gather_pos_with_coord(sphere: bool, uv: Vec3, el: f32, seed: UVec2) -> PositionStruct {
+    pub fn gather_pos_with_coord(sphere: bool, uv: Vec3, _el: f32, _seed: UVec2) -> PositionStruct {
         let mouse_coord = vec2(
             0.0,
             0.0,
@@ -239,7 +239,7 @@ fn get_3d_noise(pos: Vec3, tx: Tex<'_>, smp: &Sampler) -> f32 {
     noise.x.mix(noise.y, f)
 }
 
-fn get_clouds(p: Vec3, el: f32, seed: UVec2, tx: Tex<'_>, sampler: &Sampler) -> f32 {
+fn get_clouds(p: Vec3, el: f32, _seed: UVec2, tx: Tex<'_>, sampler: &Sampler) -> f32 {
     let p = vec3(
         p.x,
         (p + vec3(0.0, EARTH_RADIUS, 0.0)).length() - EARTH_RADIUS,

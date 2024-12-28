@@ -5,6 +5,7 @@
 #![allow(clippy::manual_range_contains)]
 #![allow(clippy::too_many_arguments)]
 
+pub mod pass;
 pub mod camera;
 pub mod frame;
 pub mod math;
@@ -17,6 +18,7 @@ pub mod smoothstep;
 pub mod util;
 pub mod ray;
 
+pub use self::pass::*;
 pub use self::camera::*;
 pub use self::frame::*;
 pub use self::math::*;

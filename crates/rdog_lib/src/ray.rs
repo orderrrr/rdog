@@ -5,9 +5,9 @@ pub const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, -2.0, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
 
-pub const DIFFUSE_BOUNCES: u32 = 8;
-pub const SCATTER_STEPS: u32 = 8;
-pub const BRDF_STEPS: u32 = 8;
+pub const DIFFUSE_BOUNCES: u32 = 4;
+pub const SCATTER_STEPS: u32 = 2;
+pub const BRDF_STEPS: u32 = 1;
 
 #[derive(Copy, Clone)]
 pub struct Ray {
@@ -285,4 +285,28 @@ pub fn ray(ss: Vec2, ndc_to_world: Mat4, screen_pos: UVec2) -> Ray {
     let near_plane = ndc_to_world.project_point3(ndc.extend(1.0));
 
     Ray::new(near_plane, (far_plane - near_plane).normalize())
+}
+
+// todo maybe remove
+pub fn get_camera_ray(pos: Vec2, camera: &Camera, _el: f32) -> Ray {
+    let p = vec2(pos.x, camera.screen.y - pos.y);
+
+    let uv = (2.0 * p - camera.screen.xy()) / camera.screen.y;
+
+    let time = 4.0;
+    // let time = el * 0.5;
+
+    let rotation_angle = time;
+    let rotor = rotor_y(rotation_angle);
+
+    // Calculate ro, rotating around y-axis
+    let ro = rotate_vector(rotor, vec3(0.0, 1.0, -3.0));
+
+    let f = 1.5;
+
+    // Calculate rd, rotating the view direction
+    let rd = (rotate_vector(rotor, vec3(uv.x, uv.y, f))).normalize();
+
+    // start the ray right at the objec
+    Ray::new(ro + rd, rd)
 }

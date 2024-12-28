@@ -5,7 +5,7 @@ use bevy::utils::default;
 use bytemuck::{Pod, Zeroable};
 use glam::UVec2;
 use log::debug;
-use rdog_lib::Frame;
+use rdog_lib::{Frame, PassParams};
 use wgpu::PipelineCompilationOptions;
 
 use crate::{
@@ -14,14 +14,6 @@ use crate::{
 };
 
 use super::render::CameraController;
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct PassParams {
-    pub seed: u32,
-    pub frame: Frame,
-}
 
 #[derive(Debug)]
 pub struct ComputePass<P = PassParams> {

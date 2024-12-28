@@ -1,5 +1,3 @@
-use core::f32;
-
 use crate::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4};

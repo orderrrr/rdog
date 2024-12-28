@@ -16,9 +16,10 @@ use glam::vec2;
 
 use crate::images::ImageData;
 use crate::plugin::state::{
-    RdogExtractedCamera, ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState,
+    ExtractedImageData, ExtractedImages, RdogExtractedCamera, SyncedCamera, SyncedState,
 };
 use crate::plugin::EngineResource;
+use crate::state::ExtractedConfig;
 use crate::CameraMode;
 
 pub fn flush(
@@ -141,9 +142,10 @@ pub(crate) fn cameras(
 
 pub(crate) fn extras(
     mut engine: ResMut<EngineResource>,
+    config: ResMut<ExtractedConfig>,
     time: Res<Time>,
 ) {
     let engine = &mut *engine;
-
     engine.time = vec2(time.elapsed_secs(), time.delta_secs());
+    engine.config = config.clone();
 }

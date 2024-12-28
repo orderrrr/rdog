@@ -151,6 +151,7 @@ fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2, fresnel: &
 #[spirv(compute(threads(1)))]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
+    #[spirv(push_constant)] _params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
     #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,

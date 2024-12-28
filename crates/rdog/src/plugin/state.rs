@@ -4,6 +4,8 @@ use bevy::{
     utils::HashMap,
 };
 
+use crate::Config;
+
 #[derive(Default, Resource)]
 pub struct SyncedState {
     pub cameras: HashMap<Entity, SyncedCamera>,
@@ -38,6 +40,9 @@ pub struct ExtractedImages {
     pub changed: Vec<ExtractedImage>,
     pub removed: Vec<AssetId<Image>>,
 }
+
+#[derive(Debug, Resource, Deref)]
+pub struct ExtractedConfig(pub Config);
 
 #[derive(Debug)]
 pub struct ExtractedImage {

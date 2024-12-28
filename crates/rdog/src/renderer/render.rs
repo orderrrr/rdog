@@ -8,7 +8,7 @@ use super::{
     passes::{Pass, Passes},
 };
 use log::{debug, info};
-use rdog_lib as lib;
+use rdog_lib::{self as lib};
 use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 #[derive(Debug)]
@@ -23,6 +23,8 @@ pub struct Buffers {
 
     pub atmosphere_tx: Texture,
     pub atmos_noise_tx: Texture,
+
+    pub config: MappedUniformBuffer<lib::PassParams>,
 }
 
 impl Buffers {
@@ -33,6 +35,7 @@ impl Buffers {
         let prev_camera = MappedUniformBuffer::new(device, "prev_camera", camera.serialize());
         let globals =
             MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
+        let config = MappedUniformBuffer::new(device, "config", engine.config.to_pass_params());
 
         let trace_tx = Texture::builder("trace")
             .with_size(camera.viewport.size)
@@ -74,6 +77,7 @@ impl Buffers {
             trace_tx,
             prev_tx,
             atmosphere_tx,
+            config,
         }
     }
 }
@@ -116,6 +120,7 @@ impl CameraController {
         *self.buffers.prev_camera.deref_mut() = *self.buffers.curr_camera;
         *self.buffers.curr_camera.deref_mut() = self.camera.serialize();
         *self.buffers.globals.deref_mut() = Globals::from_engine(engine).serialize();
+        *self.buffers.config.deref_mut() = engine.config.to_pass_params();
 
         self.recompute_static = false;
 
@@ -125,6 +130,7 @@ impl CameraController {
             self.recompute_static = true;
         }
     }
+
     fn rebuild_buffers(&mut self, engine: &Engine, device: &wgpu::Device) {
         debug!("Rebuilding buffers for camera `{}`", self.camera);
 
@@ -143,8 +149,10 @@ impl CameraController {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) {
+        let pp = engine.config.to_pass_params();
+
         for pass in &self.passes.0 {
-            pass.run(engine, self, encoder, view);
+            pass.run(engine, self, encoder, view, &pp);
         }
     }
 
@@ -157,6 +165,7 @@ impl CameraController {
         self.buffers.curr_camera.flush(queue);
         self.buffers.prev_camera.flush(queue);
         self.buffers.globals.flush(queue);
+        self.buffers.config.flush(queue);
     }
 }
 
