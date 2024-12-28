@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 pub const TMAX: f32 = 22.0;
 pub const RMAX: u32 = 300;
-pub const LIGHT_POS: Vec3 = vec3(0.0, 1.5, 2.5);
+pub const LIGHT_POS: Vec3 = vec3(0.0, -2.0, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
 
 pub const DIFFUSE_BOUNCES: u32 = 8;
@@ -69,7 +69,7 @@ impl Default for Material {
     }
 }
 
-pub fn shape(posi: Vec3, el: f32, _seed: UVec2) -> f32 {
+pub fn shape(posi: Vec3, _el: f32, _seed: UVec2) -> f32 {
     // let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), el);
     let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), 0.5);
     let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), 90.0_f32.to_radians());
@@ -85,7 +85,7 @@ pub fn shape(posi: Vec3, el: f32, _seed: UVec2) -> f32 {
 pub fn map(posi: Vec3, el: f32, seed: UVec2) -> Vec2 {
     let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
     let s = shape(posi, el, seed);
-    let p = plane(posi, vec4(0.0, 1.0, 0.0, 0.9));
+    let p = plane(posi, vec4(0.0, -1.0, 0.0, 3.0));
 
     let l = vec2(l, 999.0);
     let s = vec2(s, 2.0);
@@ -264,31 +264,8 @@ pub fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
     );
 }
 
-pub fn get_camera_ray(pos: Vec2, camera: &Camera, _el: f32) -> Ray {
-    let p = vec2(pos.x, camera.screen.y - pos.y);
-
-    let uv = (2.0 * p - camera.screen.xy()) / camera.screen.y;
-
-    let time = 4.0;
-    // let time = el * 0.5;
-
-    let rotation_angle = time;
-    let rotor = rotor_y(rotation_angle);
-
-    // Calculate ro, rotating around y-axis
-    let ro = rotate_vector(rotor, vec3(0.0, 1.0, -3.0));
-
-    let f = 1.5;
-
-    // Calculate rd, rotating the view direction
-    let rd = (rotate_vector(rotor, vec3(uv.x, uv.y, f))).normalize();
-
-    // start the ray right at the objec
-    Ray::new(ro + rd, rd)
-}
-
 // right now not using atmos tex.
-pub fn sample_atmos(sr: Ray /* , atmos_tx: Tex<'_>, atmos_sampler: &Sampler */) -> Vec3 {
+pub fn sample_atmos(_sr: Ray /* , atmos_tx: Tex<'_>, atmos_sampler: &Sampler */) -> Vec3 {
     vec3(0.03, 0.02, 0.03)
     // sample(
     //     atmos_tx,

@@ -22,6 +22,7 @@ spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", features = [
 ] }
 log = "0.4.22"
 bevy = { version = "0.15.0", default-features = false, features = [
+    "bevy_gizmos",
     "bevy_winit",
     "bevy_window",
 

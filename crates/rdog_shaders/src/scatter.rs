@@ -117,7 +117,7 @@ pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16<'_>,
+    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,
 ) {
     let inp = out.read(global_id.xy().as_ivec2());
 
@@ -126,7 +126,7 @@ pub fn main(
     }
 
     let pos = global_id.xy().as_vec2();
-    let mut r = get_camera_ray(global_id.xy().as_vec2(), camera, globals.time.x);
+    let mut r = camera.ray(global_id.xy());
     r.o = (inp.w * r.d) + r.o;
 
     let col = inp.xyz() + get_color(r, pos, camera, globals.time.x, globals.seed);

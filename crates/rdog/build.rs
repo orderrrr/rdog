@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dir = dir.join("shader-builder");
 
     let status = Command::new("cargo")
-        .args(["run", "--release", "-p", "rdog_builder", "--target-dir"])
+        .args(["run", "-p", "rdog_builder", "--target-dir"])
         // .args(["run", "-p", "rdog_builder", "--target-dir"])
         .arg(dir)
         .env_remove("CARGO_ENCODED_RUSTFLAGS")

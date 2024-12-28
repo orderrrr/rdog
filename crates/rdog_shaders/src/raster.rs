@@ -16,8 +16,8 @@ pub fn fs(
     #[spirv(descriptor_set = 0, binding = 0, uniform)] _camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] _globals: &Globals,
 
-    #[spirv(descriptor_set = 1, binding = 0)] trace_tx: TexRgba16<'_>,
-    #[spirv(descriptor_set = 1, binding = 1)] prev_tx: TexRgba16<'_>,
+    #[spirv(descriptor_set = 1, binding = 0)] trace_tx: TexRgba16,
+    #[spirv(descriptor_set = 1, binding = 1)] prev_tx: TexRgba16,
     output: &mut Vec4,
 ) {
     let col = trace_tx.read(pos.xy().as_uvec2()).xyz();
@@ -28,7 +28,7 @@ pub fn fs(
     let col = col.mix(prv.xyz(), 1.0 - (1.0 / a)).extend(a);
 
     unsafe {
-        prev_tx.write(pos.xy().as_uvec2(), col);
+        // prev_tx.write(pos.xy().as_uvec2(), col);
     }
 
     let col = col.xyz();

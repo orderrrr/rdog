@@ -30,9 +30,9 @@ pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16<'_>,
+    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,
 ) {
-    let r = get_camera_ray(global_id.xy().as_vec2(), camera, globals.time.x);
+    let r = camera.ray(global_id.xy());
     let hit = hit_simple(r, globals.time.x, globals.seed);
 
     unsafe {
