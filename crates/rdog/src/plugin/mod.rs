@@ -4,9 +4,9 @@ use bevy::{
     prelude::*,
     render::{renderer::RenderDevice, RenderApp},
 };
-use bevy_egui::{egui, EguiContexts};
 use event::RdogEvent;
 use state::SyncedState;
+use ui::ui_system;
 
 use crate::Config;
 
@@ -16,6 +16,7 @@ pub mod graph;
 pub mod rendering;
 pub mod stages;
 pub mod state;
+pub mod ui;
 
 pub struct RdogPlugin(pub u32);
 
@@ -59,20 +60,4 @@ impl ops::DerefMut for EngineResource {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
-}
-
-fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
-    let ctx = contexts.ctx_mut();
-    // println!("state direct: {}", ui_state.direct_pass);
-    egui::Window::new("Window")
-        .vscroll(true)
-        .default_open(true)
-        .show(ctx, |ui| {
-            ui.heading("Config Panel");
-            ui.separator();
-            ui.heading("Passes");
-            ui.checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting");
-            ui.checkbox(&mut ui_state.scatter_pass, "Scatter Lighting");
-            ui.checkbox(&mut ui_state.specular_pass, "Specular Lighting");
-        });
 }

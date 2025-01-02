@@ -1,3 +1,5 @@
+use bytemuck::{Pod, Zeroable};
+
 use crate::prelude::*;
 
 pub const TMAX: f32 = 22.0;
@@ -31,41 +33,153 @@ pub struct Light {
     pub radius: f32,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Material {
-    pub id: f32,
-    pub dist: f32,
-    pub normal: Vec3,
-    pub metallic: bool,
-    pub refractive: bool,
-    pub albedo: Vec3,
-    pub scattering_color: Vec3,
-    pub diffuse_scale: f32,
-    pub specular_scale: f32,
-    pub emissive: f32,
-    pub ior: f32,
-    pub f0: f32,
-    pub roughness: f32,
-    pub scattering_scale: f32,
+    ifrs: Vec4,
+    nd: Vec4,
+    albedo: Vec4,
+    scattering_color: Vec4,
+    dsei: Vec4,
 }
 
 impl Default for Material {
     fn default() -> Self {
         Self {
-            id: 0.0,
-            dist: TMAX,
-            normal: Vec3::ZERO,
-            metallic: false,
-            refractive: false,
-            albedo: Vec3::ZERO,
-            scattering_color: Vec3::ZERO,
-            diffuse_scale: 1.0,
-            specular_scale: 1.0,
-            emissive: 0.0,
-            ior: 1.0,
-            f0: 0.04,
-            roughness: 0.0,
-            scattering_scale: 0.0,
+            // ifrs: (index, f0, roughness, scattering_scale)
+            ifrs: Vec4::new(0.0, 0.04, 0.0, 0.0),
+
+            // nd: (normal.xyz, dist)
+            nd: Vec4::new(0.0, 0.0, 0.0, TMAX),
+
+            // albedo: (albedo.xyz, w unused)
+            albedo: Vec4::new(0.0, 0.0, 0.0, 0.0),
+
+            // scattering_color: (scattering_color.xyz, w unused)
+            scattering_color: Vec4::new(0.0, 0.0, 0.0, 0.0),
+
+            // dsei: (diffuse_scale, specular_scale, emissive, ior)
+            dsei: Vec4::new(1.0, 1.0, 0.0, 1.0),
         }
+    }
+}
+
+impl Material {
+    pub fn index(&self) -> f32 {
+        self.ifrs.x
+    }
+
+    pub fn f0(&self) -> f32 {
+        self.ifrs.y
+    }
+
+    pub fn roughness(&self) -> f32 {
+        self.ifrs.z
+    }
+
+    pub fn scattering_scale(&self) -> f32 {
+        self.ifrs.w
+    }
+
+    pub fn normal(&self) -> Vec3 {
+        self.nd.xyz()
+    }
+
+    pub fn dist(&self) -> f32 {
+        self.nd.w
+    }
+
+    pub fn albedo(&self) -> Vec3 {
+        self.albedo.xyz()
+    }
+
+    pub fn scattering_color(&self) -> Vec3 {
+        self.scattering_color.xyz()
+    }
+
+    pub fn diffuse(&self) -> f32 {
+        self.dsei.x
+    }
+
+    pub fn specular(&self) -> f32 {
+        self.dsei.y
+    }
+
+    pub fn emissive(&self) -> f32 {
+        self.dsei.z
+    }
+
+    pub fn ior(&self) -> f32 {
+        self.dsei.w
+    }
+}
+
+impl Material {
+    pub fn with_index(mut self, index: f32) -> Self {
+        self.ifrs.x = index;
+        self
+    }
+
+    pub fn with_f0(mut self, f0: f32) -> Self {
+        self.ifrs.y = f0;
+        self
+    }
+
+    pub fn with_roughness(mut self, roughness: f32) -> Self {
+        self.ifrs.z = roughness;
+        self
+    }
+
+    pub fn with_scattering_scale(mut self, scale: f32) -> Self {
+        self.ifrs.w = scale;
+        self
+    }
+
+    pub fn with_normal(mut self, normal: Vec3) -> Self {
+        self.nd.x = normal.x;
+        self.nd.y = normal.y;
+        self.nd.z = normal.z;
+        self
+    }
+
+    pub fn with_dist(mut self, dist: f32) -> Self {
+        self.nd.w = dist;
+        self
+    }
+
+    pub fn with_albedo(mut self, albedo: Vec3) -> Self {
+        self.albedo.x = albedo.x;
+        self.albedo.y = albedo.y;
+        self.albedo.z = albedo.z;
+        self
+    }
+
+    pub fn with_scattering_color(mut self, color: Vec3) -> Self {
+        self.scattering_color.x = color.x;
+        self.scattering_color.y = color.y;
+        self.scattering_color.z = color.z;
+        self
+    }
+
+    pub fn with_diffuse(mut self, diffuse: f32) -> Self {
+        self.dsei.x = diffuse;
+        self
+    }
+
+    pub fn with_specular(mut self, specular: f32) -> Self {
+        self.dsei.y = specular;
+        self
+    }
+
+    pub fn with_emissive(mut self, emissive: f32) -> Self {
+        self.dsei.z = emissive;
+        self
+    }
+
+    pub fn with_ior(mut self, ior: f32) -> Self {
+        self.dsei.w = ior;
+        self
     }
 }
 
@@ -87,16 +201,17 @@ pub fn map(posi: Vec3, el: f32, seed: UVec2) -> Vec2 {
     let s = shape(posi, el, seed);
     let p = plane(posi, vec4(0.0, -1.0, 0.0, 3.0));
 
-    let l = vec2(l, 999.0);
-    let s = vec2(s, 2.0);
-    let p = vec2(p, 3.0);
+    let l = vec2(l, 0.0);
+    let s = vec2(s, 1.0);
+    // let p = vec2(p, 2.0);
+    //
+    // let s2 = vec2(sphere(posi - vec3(-1.0, 1.0, 0.0), 0.6), 3.0);
 
-    let s2 = vec2(sphere(posi - vec3(-1.0, 1.0, 0.0), 0.6), 4.0);
-
-    min_sd(min_sd(min_sd(l, s), p), s2)
+    // min_sd(min_sd(min_sd(l, s), p), s2)
+    min_sd(l, s)
 }
 
-pub fn hit(r: Ray, el: f32, seed: UVec2) -> Material {
+pub fn hit(r: Ray, el: f32, seed: UVec2, materials: &[Material]) -> Material {
     // TODO - change to a Material struct
     let mut t = 0.0;
 
@@ -106,7 +221,7 @@ pub fn hit(r: Ray, el: f32, seed: UVec2) -> Material {
         let h = map(p, el, seed);
 
         if h.x < 0.001 {
-            return lookup_mat(r, p, h, t, el, seed);
+            return lookup_mat(r, p, h, t, el, seed, materials);
         }
 
         if t > TMAX {
@@ -119,71 +234,26 @@ pub fn hit(r: Ray, el: f32, seed: UVec2) -> Material {
     Material::default()
 }
 
-// TODO - currently very hacky, move this out of the shader.
-pub fn lookup_mat(r: Ray, p: Vec3, h: Vec2, t: f32, el: f32, seed: UVec2) -> Material {
+// TODO move these materials to egui
+pub fn lookup_mat(
+    _r: Ray,
+    p: Vec3,
+    h: Vec2,
+    t: f32,
+    el: f32,
+    seed: UVec2,
+    materials: &[Material],
+) -> Material {
     let s = if h.x >= 0.0 { 1.0 } else { 0.0 };
+    let normal = calc_normal(p, el, seed) * s;
 
-    match h.y {
-        2.0 => Material {
-            id: h.y,
-            dist: t,
-            scattering_scale: 1.0,
-            scattering_color: Vec3::splat(1.0),
-            specular_scale: 1.0,
-            f0: 0.04,
-            roughness: 1.0,
-            ior: 1.04,
-            normal: calc_normal(p, el, seed) * s,
-            albedo: vec3(0.71, 0.05, 0.1),
-            ..Default::default()
-        },
-        3.0 => Material {
-            id: h.y,
-            dist: t,
-            metallic: true,
-            scattering_scale: 0.0,
-            scattering_color: Vec3::splat(1.0),
-            specular_scale: 0.2,
-            f0: 0.95,
-            ior: 1.4,
-            diffuse_scale: 1.0,
-            roughness: 1.0,
-            normal: calc_normal(p, el, seed) * s,
-            albedo: checker(vec3(0.79, 0.70, 0.77), vec3(0.79, 0.70, 0.77) * 0.5, r, t),
-            // albedo: vec3(0.71, 0.65, 0.26),
-            ..Default::default()
-        },
-        4.0 => Material {
-            id: h.y,
-            dist: t,
-            scattering_scale: 0.3,
-            scattering_color: Vec3::splat(1.0),
-            specular_scale: 1.0,
-            f0: 1.04,
-            roughness: 0.3,
-            ior: 1.04,
-            normal: calc_normal(p, el, seed) * s,
-            albedo: vec3(0.71, 0.55, 0.1),
-            ..Default::default()
-        },
-        999.0 => Material {
-            id: h.y,
-            dist: t,
-            emissive: 8.0,
-            normal: calc_normal(p, el, seed) * s,
-            albedo: vec3(1.0, 1.0, 1.0),
-            ..Default::default()
-        },
-        _ => Material {
-            id: h.y,
-            dist: t,
-            albedo: vec3(1.0, 1.0, 1.0),
-            specular_scale: 1.0,
-            f0: 0.04,
-            normal: calc_normal(p, el, seed) * s,
-            ..Default::default()
-        },
+    let i = h.y as usize;
+
+    if i > materials.len() - 1 {
+        return Material::default().with_normal(normal).with_dist(t);
     }
+
+    materials[i].with_normal(normal).with_dist(t)
 }
 
 pub fn calculate_derivatives(rd: Vec3, step_size: f32) -> (Vec3, Vec3) {

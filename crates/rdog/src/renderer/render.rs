@@ -1,6 +1,9 @@
 use std::ops::DerefMut;
 
-use crate::{buffers::mapped_uniform_buffer::MappedUniformBuffer, texture::Texture, Globals};
+use crate::{
+    buffers::mapped_uniform_buffer::MappedUniformBuffer, storage_buffer::StorageBuffer,
+    texture::Texture, Globals,
+};
 
 use super::{
     config::Camera,
@@ -8,7 +11,7 @@ use super::{
     passes::{Pass, Passes},
 };
 use log::{debug, info};
-use rdog_lib::{self as lib};
+use rdog_lib::{self as lib, Material};
 use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 #[derive(Debug)]
@@ -16,9 +19,11 @@ pub struct Buffers {
     pub curr_camera: MappedUniformBuffer<lib::camera::Camera>,
     pub prev_camera: MappedUniformBuffer<lib::camera::Camera>,
 
+    pub materials: StorageBuffer<Material>,
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
 
-    pub trace_tx: Texture,
+    pub render_tx: Texture,
+    pub render_alt_tx: Texture,
     pub prev_tx: Texture,
 
     pub atmosphere_tx: Texture,
@@ -36,8 +41,17 @@ impl Buffers {
         let globals =
             MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
         let config = MappedUniformBuffer::new(device, "config", engine.config.to_pass_params());
+        let materials = StorageBuffer::new(device, "materials", engine.config.material_pass());
 
-        let trace_tx = Texture::builder("trace")
+        let render_tx = Texture::builder("render")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_linear_filtering_sampler()
+            .build(device);
+
+        let render_alt_tx = Texture::builder("renderalt")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -74,10 +88,12 @@ impl Buffers {
             curr_camera,
             atmos_noise_tx,
             globals,
-            trace_tx,
+            render_tx,
+            render_alt_tx,
             prev_tx,
             atmosphere_tx,
             config,
+            materials,
         }
     }
 }
@@ -121,6 +137,7 @@ impl CameraController {
         *self.buffers.curr_camera.deref_mut() = self.camera.serialize();
         *self.buffers.globals.deref_mut() = Globals::from_engine(engine).serialize();
         *self.buffers.config.deref_mut() = engine.config.to_pass_params();
+        *self.buffers.materials.deref_mut() = engine.config.material_pass();
 
         self.recompute_static = false;
 
@@ -128,6 +145,11 @@ impl CameraController {
             self.rebuild_buffers(engine, device);
             self.rebuild_passes(engine, device);
             self.recompute_static = true;
+        }
+
+        if engine.config.material_tree.changed {
+            self.buffers.materials =
+                StorageBuffer::new(device, "materials", engine.config.material_pass());
         }
     }
 
@@ -166,6 +188,7 @@ impl CameraController {
         self.buffers.prev_camera.flush(queue);
         self.buffers.globals.flush(queue);
         self.buffers.config.flush(queue);
+        self.buffers.materials.flush(queue);
     }
 }
 

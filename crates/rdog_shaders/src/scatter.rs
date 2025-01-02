@@ -19,29 +19,44 @@ fn spherical_light_sample(cl: Light, p: Vec3, uv: Vec2, camera: &Camera, seed: u
     translate_to_ws(sample_direction, lv)
 }
 
-fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
-    let res = hit(r, el, seed);
+fn get_color(
+    r: Ray,
+    uv: Vec2,
+    camera: &Camera,
+    el: f32,
+    seed: UVec2,
+    materials: &[Material],
+) -> Vec3 {
+    let res = hit(r, el, seed, materials);
 
-    if res.dist >= TMAX {
+    if res.dist() >= TMAX {
         return sample_atmos(r);
     }
 
-    if res.id > 900.0 {
-        return res.albedo;
+    if res.index() > 900.0 {
+        return res.albedo();
     }
 
-    let pos = r.o + r.d * res.dist;
+    let pos = r.o + r.d * res.dist();
 
-    if res.scattering_scale > 0.0 {
-        res.scattering_scale
-            * res.scattering_color
-            * sample_scattering(pos, res.normal, uv + vec2(1.325, 2.4), camera, el, seed)
+    if res.scattering_scale() > 0.0 {
+        res.scattering_scale()
+            * res.scattering_color()
+            * sample_scattering(
+                pos,
+                res.normal(),
+                uv + vec2(1.325, 2.4),
+                camera,
+                el,
+                seed,
+                materials,
+            )
     } else {
         Vec3::ZERO
     }
 }
 
-fn hit_transparrent(r: Ray, el: f32, seed: UVec2) -> Material {
+fn hit_transparrent(r: Ray, el: f32, seed: UVec2, materials: &[Material]) -> Material {
     // TODO - change to a Material struct
     let mut t = 0.0;
 
@@ -52,7 +67,7 @@ fn hit_transparrent(r: Ray, el: f32, seed: UVec2) -> Material {
         h.x *= -1.0;
 
         if h.x < 0.002 {
-            return lookup_mat(r, p, h, t, el, seed);
+            return lookup_mat(r, p, h, t, el, seed, materials);
         }
 
         if t > TMAX {
@@ -65,7 +80,15 @@ fn hit_transparrent(r: Ray, el: f32, seed: UVec2) -> Material {
     Material::default()
 }
 
-fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
+fn sample_scattering(
+    pos: Vec3,
+    n: Vec3,
+    uv: Vec2,
+    camera: &Camera,
+    el: f32,
+    seed: UVec2,
+    materials: &[Material],
+) -> Vec3 {
     let p1 = pos - (n * 0.02);
 
     let cl = light_map(p1, el, seed);
@@ -78,25 +101,25 @@ fn sample_scattering(pos: Vec3, n: Vec3, uv: Vec2, camera: &Camera, el: f32, see
         // let p1 = p1 + l;
 
         let sr = Ray::new(p1, l);
-        let h = hit_transparrent(sr, el, seed);
+        let h = hit_transparrent(sr, el, seed, materials);
 
-        let sr = Ray::new(p1 + (l * h.dist) + (0.03 * l), l);
+        let sr = Ray::new(p1 + (l * h.dist()) + (0.03 * l), l);
 
-        let h1 = hit(sr, el, seed);
+        let h1 = hit(sr, el, seed, materials);
 
-        if h1.emissive > 0.0 {
+        if h1.emissive() > 0.0 {
             let scale = 3.0;
             let bias = 0.01;
 
-            let n1 = -h1.normal;
+            let n1 = -h1.normal();
             let cos_theta = n1.dot(l);
-            let s = scale * (h.dist + bias);
+            let s = scale * (h.dist() + bias);
 
             let e = (0.3 + cos_theta).max(0.0);
 
-            let a = 0.2 / (h1.dist * h1.dist);
+            let a = 0.2 / (h1.dist() * h1.dist());
 
-            out += t(s) * e * a * (h1.albedo * h1.emissive);
+            out += t(s) * e * a * (h1.albedo() * h1.emissive());
         }
     }
 
@@ -118,7 +141,8 @@ pub fn main(
     #[spirv(push_constant)] _params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] material: &[Material],
+    #[spirv(descriptor_set = 0, binding = 3)] out: TexRgba16,
 ) {
     let inp = out.read(global_id.xy().as_ivec2());
 
@@ -130,7 +154,7 @@ pub fn main(
     let mut r = ray(camera.screen.xy(), camera.ndc_to_world, global_id.xy());
     r.o = (inp.w * r.d) + r.o;
 
-    let col = inp.xyz() + get_color(r, pos, camera, globals.time.x, globals.seed);
+    let col = inp.xyz() + get_color(r, pos, camera, globals.time.x, globals.seed, material);
 
     unsafe {
         out.write(global_id.xy(), col.extend(inp.w));

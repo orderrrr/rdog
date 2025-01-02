@@ -1,5 +1,11 @@
 pub use rdog_lib::prelude::*;
 
+type V3 = Vec3;
+
+pub fn mmap(p: V3, _el: f32, _seed: UVec2) -> f32 {
+    (p - V3::Y).length() - 0.5
+}
+
 fn hit_simple(r: Ray, el: f32, seed: UVec2) -> f32 {
     // TODO - change to a Material struct
     let mut t = 0.0;
@@ -7,20 +13,20 @@ fn hit_simple(r: Ray, el: f32, seed: UVec2) -> f32 {
     for _ in 0..RMAX {
         let p = r.o + t * r.d;
 
-        let h = map(p, el, seed);
+        let h = mmap(p, el, seed);
 
-        if h.x < 0.001 {
-            return t;
+        if h < 0.001 {
+            return 0.0;
         }
 
         if t > TMAX {
             break;
         }
 
-        t += h.x
+        t += h
     }
 
-    TMAX
+    return 1.0;
 }
 
 // TODO - currently trace is a bit of a useless step since we don't keep the texture after direct is called.
@@ -31,13 +37,12 @@ pub fn main(
     #[spirv(push_constant)] _params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] _material: &[Material],
-    #[spirv(descriptor_set = 0, binding = 3)] out: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,
 ) {
     let r = ray(camera.screen.xy(), camera.ndc_to_world, global_id.xy());
     let hit = hit_simple(r, globals.time.x, globals.seed);
 
     unsafe {
-        out.write(global_id.xy(), Vec3::ZERO.extend(hit));
+        out.write(global_id.xy(), Vec4::splat(hit));
     }
 }

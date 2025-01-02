@@ -31,7 +31,7 @@ impl RasterPass {
             .build(device);
 
         let bg1 = BindGroup::builder("raster_bg1")
-            .add(&buffers.trace_tx.bind_readable())
+            .add(&buffers.render_tx.bind_readable())
             .add(&buffers.prev_tx.bind_writable())
             .build(device);
 

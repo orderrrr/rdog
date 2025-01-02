@@ -13,10 +13,11 @@ pub struct RTPass([ComputePass<()>; 4]);
 
 impl RTPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
-        let bindings: [&dyn DoubleBufferedBindable; 3] = [
+        let bindings: [&dyn DoubleBufferedBindable; 4] = [
             &buffers.curr_camera.bind_readable(),
             &buffers.globals.bind_readable(),
-            &buffers.trace_tx.bind_writable(),
+            &buffers.materials.bind_readable(),
+            &buffers.render_tx.bind_writable(),
         ];
 
         let trace_pass = ComputePass::builder("trace")

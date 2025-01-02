@@ -4,6 +4,7 @@ use bevy::{
     input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
     prelude::*,
 };
+use glam::vec2;
 
 use crate::Config;
 
@@ -117,7 +118,7 @@ pub fn pan_orbit_camera(
             .map(|key| kbd.pressed(key))
             .unwrap_or(false)
         {
-            total_pan -= total_motion * settings.pan_sensitivity;
+            total_pan -= (total_motion * settings.pan_sensitivity) * vec2(1.0, -1.0);
         }
         if settings.scroll_action == Some(PanOrbitAction::Pan) {
             total_pan -=

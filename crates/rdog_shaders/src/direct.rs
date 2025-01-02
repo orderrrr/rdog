@@ -34,8 +34,10 @@ pub fn sample_indirect_diff(
     camera: &Camera,
     el: f32,
     seed: UVec2,
+    materials: &[Material],
 ) -> Vec3 {
-    let mut t = sample_direct_diff_spherical(p, n, uv + vec2(1.2233, 2.111), camera, el, seed);
+    let mut t =
+        sample_direct_diff_spherical(p, n, uv + vec2(1.2233, 2.111), camera, el, seed, materials);
     let mut albedo = Vec3::splat(1.0);
     let mut p = p;
     let mut n = n;
@@ -44,24 +46,26 @@ pub fn sample_indirect_diff(
         let l = translate_to_ws(get_random_sample(uv, camera, el, seed + (i * 2)), n);
         let cos_theta = n.dot(l).max(0.0); // TODO - this can sometimes be negative...
         let sr = Ray::new(p, l);
-        let h = hit(sr, el, seed);
+        let h = hit(sr, el, seed, materials);
 
         // TODO put sampling into some kind of helper
-        if h.dist >= TMAX {
+        if h.dist() >= TMAX {
             t += albedo * cos_theta * sample_atmos(sr);
             break;
         }
 
         // // todo && i > 0??
-        if h.emissive > 0.0 {
+        if h.emissive() > 0.0 {
             t += albedo * cos_theta;
             break;
         }
 
-        albedo *= h.albedo;
-        n = h.normal;
-        p = sr.pd(h.dist);
-        t += albedo * cos_theta * sample_direct_diff_spherical(p, n, uv, camera, el, seed);
+        albedo *= h.albedo();
+        n = h.normal();
+        p = sr.pd(h.dist());
+        t += albedo
+            * cos_theta
+            * sample_direct_diff_spherical(p, n, uv, camera, el, seed, materials);
     }
 
     return t;
@@ -74,6 +78,7 @@ fn sample_direct_diff_spherical(
     camera: &Camera,
     el: f32,
     seed: UVec2,
+    materials: &[Material],
 ) -> Vec3 {
     let cl = light_map(p, el, seed);
 
@@ -86,35 +91,51 @@ fn sample_direct_diff_spherical(
     }
 
     let lsr = Ray::new(p + l, l);
-    let hit = hit(lsr, el, seed);
+    let hit = hit(lsr, el, seed, materials);
 
-    let attenuation = hit.dist / cl.radius + 1.0; // direct light attenuation factor
+    let attenuation = hit.dist() / cl.radius + 1.0; // direct light attenuation factor
 
-    if hit.emissive > 0.0 {
-        hit.albedo * cos_theta / (attenuation * attenuation)
+    if hit.emissive() > 0.0 {
+        hit.albedo() * cos_theta / (attenuation * attenuation)
     } else {
         Vec3::ZERO
     }
 }
 
-fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2) -> Vec3 {
-    let res = hit(r, el, seed);
+fn get_color(
+    r: Ray,
+    uv: Vec2,
+    camera: &Camera,
+    el: f32,
+    seed: UVec2,
+    materials: &[Material],
+) -> Vec3 {
+    let res = hit(r, el, seed, materials);
 
-    if res.dist >= TMAX {
+    if res.dist() >= TMAX {
         // TODO - back to atmos
         return sample_atmos(r);
     }
 
-    if res.id > 900.0 {
-        return res.albedo;
+    if res.index() > 900.0 {
+        return res.albedo();
     }
 
-    let pos = r.o + r.d * res.dist;
+    let pos = r.o + r.d * res.dist();
 
-    if res.diffuse_scale > 0.0 {
-        res.diffuse_scale
-            * res.albedo
-            * (sample_indirect_diff(pos, res.normal, uv, DIFFUSE_BOUNCES, camera, el, seed))
+    if res.diffuse() > 0.0 {
+        res.diffuse()
+            * res.albedo()
+            * (sample_indirect_diff(
+                pos,
+                res.normal(),
+                uv,
+                DIFFUSE_BOUNCES,
+                camera,
+                el,
+                seed,
+                materials,
+            ))
     } else {
         vec3(1.0, 0.0, 1.0)
     }
@@ -126,7 +147,8 @@ pub fn main(
     #[spirv(push_constant)] _params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] material: &[Material],
+    #[spirv(descriptor_set = 0, binding = 3)] out: TexRgba16,
 ) {
     let inp = out.read(global_id.xy().as_ivec2());
 
@@ -137,7 +159,7 @@ pub fn main(
     let pos = global_id.xy().as_vec2();
     let mut r = ray(camera.screen.xy(), camera.ndc_to_world, global_id.xy());
     r.o = (r.d * inp.w) + r.o;
-    let col = get_color(r, pos, camera, globals.time.x, globals.seed);
+    let col = get_color(r, pos, camera, globals.time.x, globals.seed, material);
 
     unsafe {
         out.write(global_id.xy(), col.extend(inp.w));

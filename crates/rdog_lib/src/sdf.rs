@@ -35,3 +35,87 @@ pub fn min_sd(d1: Vec2, d2: Vec2) -> Vec2 {
 pub fn plane(pos: Vec3, n: Vec4) -> f32 {
     pos.dot(n.xyz()) + n.w
 }
+
+pub struct SdSphere {
+    pub r: f32,
+    pub p: Vec3,
+    pub m: f32,
+}
+
+impl SdSphere {
+    pub fn new(p: Vec3, r: f32, m: f32) -> Self {
+        Self { p, r, m }
+    }
+}
+
+pub struct SdRoundedCylinder {
+    pub p: Vec3,
+    pub ra: f32,
+    pub rb: f32,
+    pub h: f32,
+    pub m: f32, // TODO - should probably be a u32...
+}
+
+impl SdRoundedCylinder {
+    pub fn new(p: Vec3, ra: f32, rb: f32, h: f32, m: f32) -> Self {
+        Self { p, ra, rb, h, m }
+    }
+}
+
+pub struct SdPlane {
+    pub n: Vec4,
+    pub p: Vec3,
+    pub m: f32,
+}
+
+impl SdPlane {
+    pub fn new(p: Vec3, n: Vec4, m: f32) -> Self {
+        Self { p, n, m }
+    }
+}
+
+pub enum Prim {
+    Sphere(SdSphere),
+    Plane(SdPlane),
+    RoundedCylinder,
+    Op(((usize, usize), Op)),
+}
+
+impl Prim {
+    pub fn sphere(p: Vec3, r: f32, m: f32) -> Self {
+        Prim::Sphere(SdSphere::new(p, r, m))
+    }
+
+    pub fn plane(p: Vec3, n: Vec4, m: f32) -> Self {
+        Prim::Plane(SdPlane::new(p, n, m))
+    }
+
+    pub fn op(p: (usize, usize), op: Op) -> Self {
+        Prim::Op((p, op))
+    }
+}
+
+pub struct SdOp {
+    pub k: f32,
+}
+
+impl SdOp {
+    pub fn new(k: f32) -> Self {
+        Self { k }
+    }
+}
+
+pub enum Op {
+    SmoothUnion(SdOp),
+    SmoothSubtraction(SdOp),
+}
+
+impl Op {
+    pub fn smooth_union(k: f32) -> Self {
+        Self::SmoothUnion(SdOp::new(k))
+    }
+
+    pub fn smooth_subtraction(k: f32) -> Self {
+        Self::SmoothSubtraction(SdOp::new(k))
+    }
+}

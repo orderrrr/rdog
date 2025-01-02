@@ -47,6 +47,9 @@ shaders!([
     specular,
     // ray_vs,
     // ray_fs,
+    z_trace,
+    z_gaussian,
+    z_motion,
     raster_vs,
     raster_fs,
 ]);

@@ -3,7 +3,9 @@ use std::fmt::{Display, Formatter};
 use bevy::prelude::Resource;
 use glam::{uvec2, Mat4, UVec2, Vec2};
 use log::info;
-use rdog_lib::{self as gpu, PassParams};
+use rdog_lib::{self as gpu, Material, PassParams};
+
+use crate::ui::MaterialList;
 
 use super::Engine;
 
@@ -12,6 +14,7 @@ pub struct Config {
     pub direct_pass: bool,
     pub specular_pass: bool,
     pub scatter_pass: bool,
+    pub material_tree: MaterialList,
     pub multi_frame: bool,
 }
 
@@ -26,6 +29,15 @@ impl Config {
 
         PassParams { flags }
     }
+
+    pub(crate) fn material_pass(&self) -> Vec<Material> {
+        let mut m: Vec<rdog_lib::Material> = vec![];
+        for mat in self.material_tree.mats.iter() {
+            m.push(mat.to_shader());
+        }
+
+        m
+    }
 }
 
 impl Default for Config {
@@ -35,6 +47,7 @@ impl Default for Config {
             specular_pass: true,
             scatter_pass: true,
             multi_frame: true,
+            material_tree: MaterialList::demo(), // TODO not demo, serialize from a file
         }
     }
 }
