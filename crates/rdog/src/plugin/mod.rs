@@ -5,6 +5,7 @@ use bevy::{
     render::{renderer::RenderDevice, RenderApp},
 };
 use event::RdogEvent;
+use shader::{RdogShaderAsset, RdogShaderAssetLoader};
 use state::SyncedState;
 use ui::ui_system;
 
@@ -14,6 +15,7 @@ pub mod camera;
 pub mod event;
 pub mod graph;
 pub mod rendering;
+pub mod shader;
 pub mod stages;
 pub mod state;
 pub mod ui;
@@ -22,8 +24,11 @@ pub struct RdogPlugin(pub u32);
 
 impl Plugin for RdogPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<RdogEvent>();
-        app.insert_resource(Config::default());
+        app.add_event::<RdogEvent>()
+            .insert_resource(Config::default())
+            .init_asset::<RdogShaderAsset>()
+            .init_asset_loader::<RdogShaderAssetLoader>();
+
         app.add_systems(Update, ui_system);
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.insert_resource(SyncedState::default());

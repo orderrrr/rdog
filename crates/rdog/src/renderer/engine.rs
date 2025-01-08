@@ -1,6 +1,6 @@
 use super::{
     camera_controllers::RenderControllers, images::Images, render::CameraController,
-    shaders::Shaders, utils, Camera, CameraHandle, Config, Image,
+    shaders::ShaderCache, utils, Camera, CameraHandle, Config, Image,
 };
 use bevy::{asset::AssetId, prelude::Image as BevyImage};
 use glam::Vec2;
@@ -11,7 +11,7 @@ use rdog_lib as lib;
 
 #[derive(Debug)]
 pub struct Engine {
-    pub shaders: Shaders,
+    pub shaders: ShaderCache,
     pub frame: lib::Frame,
     pub time: Vec2,
     pub seed: u32,
@@ -27,7 +27,7 @@ impl Engine {
         info!("Initializing");
 
         Self {
-            shaders: Shaders::new(device),
+            shaders: ShaderCache::new_cache(),
             frame: lib::Frame::new(1),
             cameras: Default::default(),
             images: Images::new(device),
