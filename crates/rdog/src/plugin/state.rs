@@ -3,9 +3,8 @@ use bevy::{
     render::renderer::{RenderDevice, RenderQueue},
     utils::HashMap,
 };
-use wgpu::core::device::queue;
 
-use crate::{shaders::{RdogShader, ShaderCache}, Config};
+use crate::Config;
 
 use super::shader::RdogShaderAsset;
 
@@ -20,13 +19,17 @@ impl SyncedState {
     }
 
     pub fn tick(&mut self, engine: &mut crate::Engine, device: &RenderDevice, queue: &RenderQueue) {
-
         if self.is_active() {
             engine.tick(device.wgpu_device(), queue);
         }
     }
 
-    pub fn compute_shaders(&mut self, engine: &mut crate::Engine, device: &RenderDevice, shaders: &HashMap<String, RdogShaderAsset>) {
+    pub fn compute_shaders(
+        &mut self,
+        engine: &mut crate::Engine,
+        device: &RenderDevice,
+        shaders: &Vec<RdogShaderAsset>,
+    ) {
         engine.compute_shaders(device.wgpu_device(), shaders);
     }
 }
@@ -37,7 +40,7 @@ pub struct SyncedCamera {
 }
 
 #[derive(Debug, Component)]
-pub(crate) struct RdogExtractedCamera {
+pub struct RdogExtractedCamera {
     pub transform: Mat4,
     pub projection: Mat4,
     pub mode: Option<crate::CameraMode>,

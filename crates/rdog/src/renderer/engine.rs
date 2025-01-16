@@ -7,7 +7,7 @@ use super::{
     shaders::{RdogShader, ShaderCache},
     utils, Camera, CameraHandle, Config, Image,
 };
-use bevy::{asset::AssetId, log::info_once, prelude::Image as BevyImage, utils::HashMap};
+use bevy::{asset::AssetId, prelude::Image as BevyImage};
 use glam::Vec2;
 use std::{mem, time::Instant};
 
@@ -74,16 +74,18 @@ impl Engine {
         utils::metric("tick", tt);
     }
 
-    pub fn compute_shaders(
-        &mut self,
-        device: &wgpu::Device,
-        shaders: &HashMap<String, RdogShaderAsset>, // TODO - this does not need to be a hash map.
-    ) {
+    pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
         for shader in shaders {
-            log::info!("Computing shader: {}", shader.1.name);
-            let comp = RdogShader::new(device, shader.1);
-            self.shaders.entry(shader.1.name.to_string()).insert(comp);
+            log::info!("Computing shader: {}", shader.name);
+            let comp = RdogShader::new(device, shader);
+            self.shaders.entry(shader.name.to_string()).insert(comp);
         }
+
+        let mut cameras = mem::take(&mut self.cameras);
+        for camera in cameras.iter_mut() {
+            camera.invalidate(self, device);
+        }
+        self.cameras = cameras;
     }
 }
 

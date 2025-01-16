@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use bevy::{
     asset::{
-        io::Reader, Asset, AssetEvent, AssetLoader, AssetServer, Assets, Handle, LoadContext,
+        io::Reader, Asset, AssetEvent, AssetLoader, AssetServer, Handle, LoadContext,
         LoadedFolder,
     },
     prelude::{Commands, Deref, DerefMut, EventReader, NextState, Res, ResMut, Resource, States},

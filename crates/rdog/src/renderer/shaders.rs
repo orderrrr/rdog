@@ -19,7 +19,10 @@ impl RdogShader {
             source: spv,
         };
         let module = unsafe { device.create_shader_module_unchecked(desc) };
-        let entry_point = format!("rdog_shaders::{}.entry_point", asset.name);
+        let entry_point = asset
+            .name
+            .rsplit_once('_')
+            .map_or(asset.name.to_string(), |(f, l)| format!("{}::{}", f, l));
 
         RdogShader {
             module,
@@ -44,54 +47,3 @@ impl ShaderCache {
         Self(HashMap::new())
     }
 }
-
-macro_rules! shaders {
-    ([ $( $name:ident, )* ]) => {
-        impl ShaderCache {
-            pub fn new(device: &wgpu::Device) -> Self {
-
-                let mut h = HashMap::new();
-
-                $(
-                    info!("Initializing shader: {}", stringify!($name));
-
-                    let module = wgpu::include_spirv!(
-                        env!(concat!("rdog_shaders::", stringify!($name), ".path"))
-                    );
-
-                    // Safety: fingers crossed™
-                    //
-                    // We do our best, but our shaders are so array-intensive
-                    // that adding the checks decreases performance by 33%, so
-                    // it's pretty much a no-go.
-                    let module = unsafe {
-                        device.create_shader_module_unchecked(module)
-                    };
-
-                    let entry_point = env!(concat!("rdog_shaders::", stringify!($name), ".entry_point"));
-
-
-                    h.insert("$name".to_string(), RdogShader::new(module, entry_point));
-                )*
-
-                Self(h)
-            }
-        }
-    };
-}
-
-// shaders!([
-//     atmosphere_noise,
-//     atmosphere_atmosphere,
-//     trace,
-//     direct,
-//     scatter,
-//     specular,
-//     // ray_vs,
-//     // ray_fs,
-//     z_trace,
-//     z_gaussian,
-//     z_motion,
-//     raster_vs,
-//     raster_fs,
-// ]);

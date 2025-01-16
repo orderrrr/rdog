@@ -5,7 +5,6 @@ use std::{
 
 use bytemuck::Pod;
 use log::debug;
-use rdog_lib::Material;
 
 use super::{bindable::Bindable, bufferable::Bufferable};
 use crate::utils;
@@ -16,7 +15,7 @@ use crate::utils;
 /// have to be accessed on the host machine.
 #[derive(Debug)]
 pub struct StorageBuffer<T> {
-    buffer: wgpu::Buffer,
+    pub buffer: wgpu::Buffer,
     data: Vec<T>,
     dirty: bool,
 }

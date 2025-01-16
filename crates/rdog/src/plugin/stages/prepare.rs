@@ -29,9 +29,9 @@ pub fn flush(
     cache: ResMut<RdogShaderCache>,
     mut state: ResMut<SyncedState>,
 ) {
-    if !cache.shader_cache.is_empty() {
+    if !cache.is_empty() {
         log::info!("computing shaders");
-        state.compute_shaders(&mut engine, &device, &cache.shader_cache);
+        state.compute_shaders(&mut engine, &device, &cache);
     }
 
     state.tick(&mut engine, &device, &queue);

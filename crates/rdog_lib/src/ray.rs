@@ -199,7 +199,7 @@ pub fn shape(posi: Vec3, _el: f32, _seed: UVec2) -> f32 {
 pub fn map(posi: Vec3, el: f32, seed: UVec2) -> Vec2 {
     let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
     let s = shape(posi, el, seed);
-    let p = plane(posi, vec4(0.0, -1.0, 0.0, 3.0));
+    let _p = plane(posi, vec4(0.0, -1.0, 0.0, 3.0)); // TODO - readd
 
     let l = vec2(l, 0.0);
     let s = vec2(s, 1.0);

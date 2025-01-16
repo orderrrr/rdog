@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 #![cfg_attr(target_arch = "spirv", no_std)]
 // #![deny(warnings)] // meh
 

@@ -22,19 +22,19 @@ impl RTPass {
 
         let trace_pass = ComputePass::builder("trace")
             .bind(bindings)
-            .build(device, engine.shaders.get("trace").unwrap()); // TODO - proper error handling
+            .build(device, engine.shaders.get("trace_main").unwrap()); // TODO - proper error handling
 
         let direct_pass = ComputePass::builder("direct")
             .bind(bindings)
-            .build(device, &engine.shaders.get("direct").unwrap());
+            .build(device, &engine.shaders.get("direct_main").unwrap());
 
         let scatter_pass = ComputePass::builder("scatter")
             .bind(bindings)
-            .build(device, &engine.shaders.get("scatter").unwrap());
+            .build(device, &engine.shaders.get("scatter_main").unwrap());
 
         let specular_pass = ComputePass::builder("specular")
             .bind(bindings)
-            .build(device, &engine.shaders.get("specular").unwrap());
+            .build(device, &engine.shaders.get("specular_main").unwrap());
 
         Self([trace_pass, direct_pass, scatter_pass, specular_pass])
     }

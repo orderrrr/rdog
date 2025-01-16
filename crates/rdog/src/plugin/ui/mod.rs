@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, CollapsingHeader, Color32, RichText, Ui},
+    egui::{self, CollapsingHeader, Color32, Pos2, RichText, Ui},
     EguiContexts,
 };
 use glam::vec3;
@@ -9,11 +9,15 @@ use rdog_lib::TMAX;
 use crate::Config;
 
 pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
+    let mut c = false;
+
     let ctx = contexts.ctx_mut();
 
     egui::Window::new("Config")
         .vscroll(true)
-        .default_open(true)
+        .default_open(false)
+        .default_pos(Pos2::new(10.0, 10.0))
+        .current_pos(Pos2::new(10.0, 10.0))
         .show(ctx, |ui| {
             ui.heading("Config Panel");
 
@@ -21,13 +25,13 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
 
             CollapsingHeader::new("Passes")
                 .default_open(true)
-                .show(ui, |ui| passes(&mut ui_state, ui));
+                .show(ui, |ui| c = c || passes(&mut ui_state, ui));
 
             ui.separator();
 
             CollapsingHeader::new("Material Tree")
                 .default_open(false)
-                .show(ui, |ui| ui_state.material_tree.ui(ui));
+                .show(ui, |ui| c = c || ui_state.material_tree.ui(ui));
 
             ui.separator();
 
@@ -35,16 +39,31 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
                 // TODO - do something you fuck
             }
         });
+
+    ui_state.multi_frame = !c;
 }
 
-fn passes(ui_state: &mut Config, ui: &mut Ui) {
-    ui.checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting");
-    ui.checkbox(&mut ui_state.scatter_pass, "Scatter Lighting");
-    ui.checkbox(&mut ui_state.specular_pass, "Specular Lighting");
+fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
+    let mut c = false;
+
+    c = c
+        || ui
+            .checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting")
+            .changed;
+    c = c
+        || ui
+            .checkbox(&mut ui_state.scatter_pass, "Scatter Lighting")
+            .changed;
+    c = c
+        || ui
+            .checkbox(&mut ui_state.specular_pass, "Specular Lighting")
+            .changed;
+
+    c
 }
 
 pub trait TUi {
-    fn ui(&mut self, ui: &mut Ui);
+    fn ui(&mut self, ui: &mut Ui) -> bool;
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -79,13 +98,13 @@ impl MaterialList {
 }
 
 impl TUi for MaterialList {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui) -> bool {
         self.changed = false;
 
         let mut removed = None;
         let le = self.mats.len();
         for (i, material) in &mut self.mats.iter_mut().enumerate() {
-            material.ui(ui);
+            self.changed = self.changed || material.ui(ui);
 
             if ui
                 .button(RichText::new("delete").color(ui.visuals().warn_fg_color))
@@ -114,18 +133,26 @@ impl TUi for MaterialList {
                 ui.label("New Material");
                 if ui.button("+").clicked() {
                     self.mats.push(Material {
-                        id: self.mats.len() as f32,
+                        id: (self.mats.len() - 1) as f32,
                         ..default()
                     });
                     self.changed = true;
                 }
                 ui.end_row();
             });
+
+        for (i, material) in &mut self.mats.iter_mut().enumerate() {
+            material.id = i as f32;
+        }
+
+        self.changed
     }
 }
 
 impl TUi for Material {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui) -> bool {
+        let mut c = false;
+
         ui.heading("Material Instance");
         egui::Grid::new("")
             .num_columns(2)
@@ -139,72 +166,80 @@ impl TUi for Material {
 
                 let mut albedo = self.albedo.to_c32();
                 ui.label("Albedo");
-                ui.color_edit_button_srgba(&mut albedo);
+                c = ui.color_edit_button_srgba(&mut albedo).changed || c;
                 self.albedo = Vec3::from_c32(albedo);
                 ui.end_row();
 
                 let mut scattering_col = self.scattering_color.to_c32();
                 ui.label("Scatter Col");
-                ui.color_edit_button_srgba(&mut scattering_col);
+                c = ui.color_edit_button_srgba(&mut scattering_col).changed || c;
                 self.scattering_color = Vec3::from_c32(scattering_col);
                 ui.end_row();
 
                 ui.label("Diffuse Scale");
-                ui.add(
-                    egui::DragValue::new(&mut self.diffuse_scale)
-                        .speed(0.01)
-                        .range(0.0..=1.0),
-                );
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.diffuse_scale)
+                            .speed(0.01)
+                            .range(0.0..=1.0),
+                    )
+                    .changed
+                    || c;
                 ui.end_row();
 
                 ui.label("Specular Scale");
-                ui.add(
-                    egui::DragValue::new(&mut self.specular_scale)
-                        .speed(0.01)
-                        .range(0.0..=1.0),
-                );
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.specular_scale)
+                            .speed(0.01)
+                            .range(0.0..=1.0),
+                    )
+                    .changed
+                    || c;
                 ui.end_row();
 
                 ui.label("Scatter Scale");
-                ui.add(
+                c = ui.add(
                     egui::DragValue::new(&mut self.scattering_scale)
                         .speed(0.01)
                         .range(0.0..=1.0),
-                );
+                ).changed || c;
                 ui.end_row();
 
                 ui.label("Emmissive");
-                ui.add(
+                c = ui.add(
                     egui::DragValue::new(&mut self.emissive)
                         .speed(0.01)
                         .range(0.0..=10.0),
-                );
+                ).changed || c;
                 ui.end_row();
 
                 ui.label("Ior");
-                ui.add(
+                c = ui.add(
                     egui::DragValue::new(&mut self.ior)
                         .speed(0.01)
                         .range(0.0..=10.0),
-                );
+                ).changed || c;
                 ui.end_row();
 
                 ui.label("F0");
-                ui.add(
+                c = ui.add(
                     egui::DragValue::new(&mut self.f0)
                         .speed(0.01)
                         .range(0.0..=10.0),
-                );
+                ).changed || c;
                 ui.end_row();
 
                 ui.label("Roughness");
-                ui.add(
+                c = ui.add(
                     egui::DragValue::new(&mut self.roughness)
                         .speed(0.01)
                         .range(0.0..=10.0),
-                );
+                ).changed || c;
                 ui.end_row();
             });
+
+        c
     }
 }
 

@@ -5,7 +5,9 @@ use bevy::{
     render::{renderer::RenderDevice, RenderApp},
 };
 use event::RdogEvent;
-use shader::{check_textures, load_shaders, RdogShaderAsset, RdogShaderAssetLoader, RdogShaderState};
+use shader::{
+    check_textures, load_shaders, RdogShaderAsset, RdogShaderAssetLoader, RdogShaderState,
+};
 use stages::cache::RdogShaderCache;
 use state::SyncedState;
 use ui::ui_system;
@@ -55,10 +57,7 @@ impl Plugin for RdogPlugin {
 
         let engine = crate::Engine::new(render_device.wgpu_device(), self.0);
         render_app
-            .insert_resource(RdogShaderCache {
-                device: render_device.clone(),
-                shader_cache: default(),
-            })
+            .insert_resource(RdogShaderCache::default())
             .insert_resource(EngineResource(engine));
     }
 }

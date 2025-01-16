@@ -1,16 +1,20 @@
-use std::ops::DerefMut;
+use std::{
+    borrow::BorrowMut,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{
-    buffers::mapped_uniform_buffer::MappedUniformBuffer, storage_buffer::StorageBuffer,
-    texture::Texture, Globals,
+    bufferable::Bufferable, buffers::mapped_uniform_buffer::MappedUniformBuffer,
+    storage_buffer::StorageBuffer, texture::Texture, Globals,
 };
 
 use super::{
     config::Camera,
     engine::Engine,
-    passes::{Pass, Passes}, shaders::RdogShader,
+    passes::{Pass, Passes},
+    utils,
 };
-use bevy::utils::HashMap;
+use futures::SinkExt;
 use log::{debug, info};
 use rdog_lib::{self as lib, Material};
 use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
@@ -140,17 +144,18 @@ impl CameraController {
         *self.buffers.config.deref_mut() = engine.config.to_pass_params();
         *self.buffers.materials.deref_mut() = engine.config.material_pass();
 
+        if engine.config.material_tree.changed {
+            self.buffers.materials =
+                StorageBuffer::new(device, "materials", engine.config.material_pass());
+            self.rebuild_passes(engine, device);
+        }
+
         self.recompute_static = false;
 
         if is_invalidated {
             self.rebuild_buffers(engine, device);
             self.rebuild_passes(engine, device);
             self.recompute_static = true;
-        }
-
-        if engine.config.material_tree.changed {
-            self.buffers.materials =
-                StorageBuffer::new(device, "materials", engine.config.material_pass());
         }
     }
 

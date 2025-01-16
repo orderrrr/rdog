@@ -3,7 +3,9 @@ use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResoluti
 use bevy_egui::EguiPlugin;
 use rand::Rng;
 use rdog::{
-    interface::orbit::{pan_orbit_camera, PanOrbitState}, shader::RdogShaderState, RdogPlugin
+    interface::orbit::{pan_orbit_camera, PanOrbitState},
+    shader::RdogShaderState,
+    RdogPlugin,
 };
 
 pub const W: u32 = 480;

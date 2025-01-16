@@ -233,8 +233,6 @@ pub fn pan_orbit_camera(
             // To position the camera, get the backward direction vector
             // and place the camera at the desired radius from the center.
             transform.translation = state.center + transform.back() * state.radius;
-        } else {
-            config.multi_frame = true;
-        }
+        } 
     }
 }
