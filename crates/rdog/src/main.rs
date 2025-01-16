@@ -3,8 +3,7 @@ use bevy::{prelude::*, render::camera::CameraRenderGraph, window::WindowResoluti
 use bevy_egui::EguiPlugin;
 use rand::Rng;
 use rdog::{
-    interface::orbit::{pan_orbit_camera, PanOrbitState},
-    RdogPlugin,
+    interface::orbit::{pan_orbit_camera, PanOrbitState}, shader::RdogShaderState, RdogPlugin
 };
 
 pub const W: u32 = 480;
@@ -13,17 +12,22 @@ pub const H: u32 = 480;
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    resolution: WindowResolution::new(W as f32, H as f32),
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        resolution: WindowResolution::new(W as f32, H as f32),
+                        ..default()
+                    }),
                     ..default()
+                })
+                .set(AssetPlugin {
+                    watch_for_changes_override: Some(true),
+                    ..Default::default()
                 }),
-                ..default()
-            }),
-            EguiPlugin,
             RdogPlugin(rand::thread_rng().gen_range(0..4_294_967_295)),
+            EguiPlugin,
         ))
-        .add_systems(Startup, setup_camera)
+        .add_systems(OnEnter(RdogShaderState::Finished), setup_camera)
         .add_systems(
             Update,
             (pan_orbit_camera.run_if(any_with_component::<PanOrbitState>),),
@@ -32,6 +36,8 @@ fn main() {
 }
 
 fn setup_camera(mut commands: Commands) {
+    log::info!("Camera being setup");
+
     let mut state = PanOrbitState::default();
     state.center = Vec3::Y;
     state.radius = 4.0;

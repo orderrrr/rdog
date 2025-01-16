@@ -122,7 +122,7 @@ where
             label: Some(&pipeline_label),
             layout: Some(&pipeline_layout),
             module: &shader.module,
-            entry_point: Some(shader.entry_point),
+            entry_point: Some(&shader.entry_point),
             compilation_options: PipelineCompilationOptions::default(),
             cache: None,
         });

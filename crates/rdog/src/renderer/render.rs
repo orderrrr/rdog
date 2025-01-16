@@ -8,8 +8,9 @@ use crate::{
 use super::{
     config::Camera,
     engine::Engine,
-    passes::{Pass, Passes},
+    passes::{Pass, Passes}, shaders::RdogShader,
 };
+use bevy::utils::HashMap;
 use log::{debug, info};
 use rdog_lib::{self as lib, Material};
 use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};

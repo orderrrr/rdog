@@ -3,8 +3,11 @@ use bevy::{
     render::renderer::{RenderDevice, RenderQueue},
     utils::HashMap,
 };
+use wgpu::core::device::queue;
 
-use crate::Config;
+use crate::{shaders::{RdogShader, ShaderCache}, Config};
+
+use super::shader::RdogShaderAsset;
 
 #[derive(Default, Resource)]
 pub struct SyncedState {
@@ -17,9 +20,14 @@ impl SyncedState {
     }
 
     pub fn tick(&mut self, engine: &mut crate::Engine, device: &RenderDevice, queue: &RenderQueue) {
+
         if self.is_active() {
             engine.tick(device.wgpu_device(), queue);
         }
+    }
+
+    pub fn compute_shaders(&mut self, engine: &mut crate::Engine, device: &RenderDevice, shaders: &HashMap<String, RdogShaderAsset>) {
+        engine.compute_shaders(device.wgpu_device(), shaders);
     }
 }
 

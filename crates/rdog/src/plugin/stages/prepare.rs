@@ -20,12 +20,20 @@ use crate::plugin::EngineResource;
 use crate::state::ExtractedConfig;
 use crate::CameraMode;
 
+use super::cache::RdogShaderCache;
+
 pub fn flush(
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     mut engine: ResMut<EngineResource>,
+    cache: ResMut<RdogShaderCache>,
     mut state: ResMut<SyncedState>,
 ) {
+    if !cache.shader_cache.is_empty() {
+        log::info!("computing shaders");
+        state.compute_shaders(&mut engine, &device, &cache.shader_cache);
+    }
+
     state.tick(&mut engine, &device, &queue);
 }
 

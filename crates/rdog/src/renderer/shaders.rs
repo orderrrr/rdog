@@ -1,15 +1,26 @@
 use std::ops::Deref;
 
 use bevy::{prelude::DerefMut, utils::hashbrown::HashMap};
+use wgpu::ShaderModuleDescriptor;
+
+use crate::shader::RdogShaderAsset;
 
 #[derive(Debug)]
 pub struct RdogShader {
     pub module: wgpu::ShaderModule,
-    pub entry_point: &'static str,
+    pub entry_point: String,
 }
 
 impl RdogShader {
-    pub fn new(module: wgpu::ShaderModule, entry_point: &'static str) -> Self {
+    pub fn new(device: &wgpu::Device, asset: &RdogShaderAsset) -> Self {
+        let spv = wgpu::util::make_spirv(&asset.data);
+        let desc = ShaderModuleDescriptor {
+            label: Some(&asset.name),
+            source: spv,
+        };
+        let module = unsafe { device.create_shader_module_unchecked(desc) };
+        let entry_point = format!("rdog_shaders::{}.entry_point", asset.name);
+
         RdogShader {
             module,
             entry_point,

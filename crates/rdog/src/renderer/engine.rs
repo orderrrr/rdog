@@ -1,8 +1,13 @@
+use crate::shader::RdogShaderAsset;
+
 use super::{
-    camera_controllers::RenderControllers, images::Images, render::CameraController,
-    shaders::ShaderCache, utils, Camera, CameraHandle, Config, Image,
+    camera_controllers::RenderControllers,
+    images::Images,
+    render::CameraController,
+    shaders::{RdogShader, ShaderCache},
+    utils, Camera, CameraHandle, Config, Image,
 };
-use bevy::{asset::AssetId, prelude::Image as BevyImage};
+use bevy::{asset::AssetId, log::info_once, prelude::Image as BevyImage, utils::HashMap};
 use glam::Vec2;
 use std::{mem, time::Instant};
 
@@ -67,6 +72,18 @@ impl Engine {
         self.frame = lib::Frame::new(self.frame.get() + 1);
 
         utils::metric("tick", tt);
+    }
+
+    pub fn compute_shaders(
+        &mut self,
+        device: &wgpu::Device,
+        shaders: &HashMap<String, RdogShaderAsset>, // TODO - this does not need to be a hash map.
+    ) {
+        for shader in shaders {
+            log::info!("Computing shader: {}", shader.1.name);
+            let comp = RdogShader::new(device, shader.1);
+            self.shaders.entry(shader.1.name.to_string()).insert(comp);
+        }
     }
 }
 

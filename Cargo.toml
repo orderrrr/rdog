@@ -30,6 +30,7 @@ bevy = { version = "0.15.0", default-features = false, features = [
     "bevy_state",
     "hdr",
 
+    "file_watcher",
     "multi_threaded",
 
     "tonemapping_luts",
