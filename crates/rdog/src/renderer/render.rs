@@ -145,6 +145,7 @@ impl CameraController {
         *self.buffers.materials.deref_mut() = engine.config.material_pass();
 
         if engine.config.material_tree.changed {
+            log::info!("Material tree changed.");
             self.buffers.materials =
                 StorageBuffer::new(device, "materials", engine.config.material_pass());
             self.rebuild_passes(engine, device);

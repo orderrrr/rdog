@@ -40,7 +40,7 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
             }
         });
 
-    ui_state.multi_frame = !c;
+    ui_state.multi_frame = !(c || ui_state.user_orbit);
 }
 
 fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
@@ -100,11 +100,12 @@ impl MaterialList {
 impl TUi for MaterialList {
     fn ui(&mut self, ui: &mut Ui) -> bool {
         self.changed = false;
+        let mut p_change = false;
 
         let mut removed = None;
         let le = self.mats.len();
         for (i, material) in &mut self.mats.iter_mut().enumerate() {
-            self.changed = self.changed || material.ui(ui);
+            p_change = p_change || material.ui(ui);
 
             if ui
                 .button(RichText::new("delete").color(ui.visuals().warn_fg_color))
@@ -145,7 +146,7 @@ impl TUi for MaterialList {
             material.id = i as f32;
         }
 
-        self.changed
+        return self.changed || p_change;
     }
 }
 
@@ -199,43 +200,58 @@ impl TUi for Material {
                 ui.end_row();
 
                 ui.label("Scatter Scale");
-                c = ui.add(
-                    egui::DragValue::new(&mut self.scattering_scale)
-                        .speed(0.01)
-                        .range(0.0..=1.0),
-                ).changed || c;
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.scattering_scale)
+                            .speed(0.01)
+                            .range(0.0..=1.0),
+                    )
+                    .changed
+                    || c;
                 ui.end_row();
 
                 ui.label("Emmissive");
-                c = ui.add(
-                    egui::DragValue::new(&mut self.emissive)
-                        .speed(0.01)
-                        .range(0.0..=10.0),
-                ).changed || c;
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.emissive)
+                            .speed(0.01)
+                            .range(0.0..=10.0),
+                    )
+                    .changed
+                    || c;
                 ui.end_row();
 
                 ui.label("Ior");
-                c = ui.add(
-                    egui::DragValue::new(&mut self.ior)
-                        .speed(0.01)
-                        .range(0.0..=10.0),
-                ).changed || c;
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.ior)
+                            .speed(0.01)
+                            .range(0.0..=10.0),
+                    )
+                    .changed
+                    || c;
                 ui.end_row();
 
                 ui.label("F0");
-                c = ui.add(
-                    egui::DragValue::new(&mut self.f0)
-                        .speed(0.01)
-                        .range(0.0..=10.0),
-                ).changed || c;
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.f0)
+                            .speed(0.01)
+                            .range(0.0..=10.0),
+                    )
+                    .changed
+                    || c;
                 ui.end_row();
 
                 ui.label("Roughness");
-                c = ui.add(
-                    egui::DragValue::new(&mut self.roughness)
-                        .speed(0.01)
-                        .range(0.0..=10.0),
-                ).changed || c;
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.roughness)
+                            .speed(0.01)
+                            .range(0.0..=10.0),
+                    )
+                    .changed
+                    || c;
                 ui.end_row();
             });
 
