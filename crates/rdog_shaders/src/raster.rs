@@ -1,6 +1,8 @@
 use rdog_lib::prelude::*;
 use spirv_std::num_traits::Pow;
 
+use crate::atmosphere::tonemap;
+
 fn srgb(channel: f32) -> f32 {
     if channel <= 0.00031308 {
         channel * 12.92
@@ -39,7 +41,11 @@ pub fn fs(
     }
 
     let col = col.xyz();
-    let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+
+    // let col = col.max(Vec3::splat(0.0)).min(Vec3::splat(1024.0));
+    // let col = tonemap(col);
+
+    // let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
     let col = col.saturate();
 
     *output = col.extend(1.0);

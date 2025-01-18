@@ -1,45 +1,25 @@
 use coord::gather_pos;
 use rdog_lib::prelude::*;
-use spirv_std::{glam::{UVec3, Vec2, Vec3Swizzles}, num_traits::Pow};
+use spirv_std::glam::{UVec3, Vec2, Vec3Swizzles};
 
-pub const ATMOS_RES: UVec2 = uvec2(1920 * 2, 1920 * 2);
-
-#[inline]
-fn d0(x: Vec3) -> Vec3 {
-    x.abs() + 1e-8
-}
-
-#[inline]
-fn d02(x: Vec3) -> Vec3 {
-    x.abs() + 1e-3
-}
-
-// TODO - I would prefer to do vec3 instantiation and then * 1e-5 but for some reason does not work
-// const RAYLEIGH_COEFF: Vec3 = vec3(0.27, 0.5, 1.0) * 1e-5;
 pub const NOISE_DIM: UVec2 = UVec2::new(64, 64);
-const SPHERICAL_PROJECTION: bool = true;
-const RAYLEIGH_COEFF: Vec3 = vec3(0.27 * 1e-5, 0.5 * 1e-5, 1.0 * 1e-5);
-const MIE_COEFF: Vec3 = Vec3::splat(0.5e-6);
-const TOTAL_COEFF: Vec3 = Vec3::new(
-    RAYLEIGH_COEFF.x + MIE_COEFF.x,
-    RAYLEIGH_COEFF.y + MIE_COEFF.y,
-    RAYLEIGH_COEFF.z + MIE_COEFF.z,
-);
-const SUN_BRIGHTNESS: f32 = 3.0;
-pub const EARTH_RADIUS: f32 = 6371000.0; // TODO move
-const CLOUD_HEIGHT: f32 = 1600.0;
-const CLOUD_THICKNESS: f32 = 500.0;
-const CLOUD_MIN_HEIGHT: f32 = CLOUD_HEIGHT;
-pub const CLOUD_MAX_HEIGHT: f32 = CLOUD_THICKNESS + CLOUD_MIN_HEIGHT;
-const CLOUD_DENSITY: f32 = 0.03;
-const CLOUD_SPEED: f32 = 0.02;
+pub const ATMOS_MULT: f32 = 4.0;
 
-const VOLUMETRIC_CLOUD_STEPS: u32 = 16; //Higher is a better result with rendering of clouds.
-const CLOUD_SHADOWING_STEPS: u32 = 12; //Higher is a better result with shading on clouds.
-
-const RPI: f32 = 1.0 / PI;
-pub const HPI: f32 = PI * 0.5; // TODO move out
-const RLOG2: f32 = 1.0 / 0.69314718056;
+const DEPOLARIZATION_FACTOR: f32 = 0.035;
+const MIE_COEFFICIENT: f32 = 0.005;
+const MIE_DIRECTIONAL_G: f32 = 0.8;
+const MIE_K_COEFFICIENT: Vec3 = vec3(0.686, 0.678, 0.666);
+const MIE_V: f32 = 4.0;
+const MIE_ZENITH_LENGTH: f32 = 1.25e3;
+const NUM_MOLECULES: f32 = 2.542e25f32;
+const PRIMARIES: Vec3 = vec3(6.8e-7f32, 5.5e-7f32, 4.5e-7f32);
+const RAYLEIGH: f32 = 1.0;
+const RAYLEIGH_ZENITH_LENGTH: f32 = 8.4e3;
+const REFRACTIVE_INDEX: f32 = 1.0003;
+const SUN_ANGULAR_DIAMETER_DEGREES: f32 = 0.0093333;
+const SUN_INTENSITY_FACTOR: f32 = 1000.0;
+const SUN_INTENSITY_FALLOFF_STEEPNESS: f32 = 1.5;
+const TURBIDITY: f32 = 2.0;
 
 pub struct PositionStruct {
     world_vector: Vec3,
@@ -84,10 +64,12 @@ pub mod coord {
         }
     }
 
-    pub fn gather_pos(sphere: bool, frag_coord: Vec2, screen_res: Vec2) -> PositionStruct {
-        let tx_coord = frag_coord / screen_res;
+    pub fn gather_pos(sphere: bool, frag_coord: Vec2, screen_res: Vec2, el: f32) -> PositionStruct {
+        let mut tx_coord = frag_coord / screen_res;
+        tx_coord.y = 1.0 - tx_coord.y;
 
-        let mouse_coord = vec2(0.8, 0.55);
+        let mouse_coord = vec2(el.sin(), el.cos());
+        // let mouse_coord = vec2(0.8, 0.55);
 
         let w_pos = calculate_world_space_position(tx_coord, sphere);
         let world_vector = w_pos.normalize();
@@ -102,302 +84,102 @@ pub mod coord {
     }
 }
 
-#[inline]
-fn bayer_2(a: Vec2) -> f32 {
-    let a = a.floor();
-    a.dot(vec2(0.5, a.y * 0.75)).fract()
-}
-#[inline]
-fn bayer_4(a: Vec2) -> f32 {
-    bayer_2(0.5 * a) * 0.25 + bayer_2(a)
-}
-#[inline]
-fn bayer_8(a: Vec2) -> f32 {
-    bayer_4(0.5 * a) * 0.25 + bayer_2(a)
-}
-#[inline]
-fn bayer_16(a: Vec2) -> f32 {
-    bayer_8(0.5 * a) * 0.25 + bayer_2(a)
+pub fn tonemap(col: Vec3) -> Vec3 {
+    // see https://www.desmos.com/calculator/0eo9pzo1at
+    const A: f32 = 2.35;
+    const B: f32 = 2.8826666;
+    const C: f32 = 789.7459;
+    const D: f32 = 0.935;
+
+    let z = col.powf(A);
+    z / (z.powf(D) * B + Vec3::splat(C))
 }
 
-fn ray_sphere_intersection(position: Vec3, direction: Vec3, radius: f32) -> Vec2 {
-    let pod = position.dot(direction);
-    let radius_squared = radius * radius;
-
-    let mut delta = (pod * pod) + radius_squared - position.dot(position);
-    if delta < 0.0 {
-        return Vec2::splat(-1.0);
-    }
-    delta = delta.sqrt();
-
-    return -pod + vec2(-delta, delta);
+fn total_rayleigh(lambda: Vec3) -> Vec3 {
+    (8.0 * PI.powf(3.0)
+        * (REFRACTIVE_INDEX.powf(2.0) - 1.0).powf(2.0)
+        * (6.0 + 3.0 * DEPOLARIZATION_FACTOR))
+        / (3.0 * NUM_MOLECULES * lambda.powf(4.0) * (6.0 - 7.0 * DEPOLARIZATION_FACTOR))
 }
 
-fn scatter(coeff: Vec3, depth: f32) -> Vec3 {
-    return coeff * depth;
+fn total_mie(lambda: Vec3, k: Vec3, t: f32) -> Vec3 {
+    let c = 0.2 * t * 10e-18;
+    0.434 * c * PI * (((2.0 * PI) / lambda).powf(MIE_V - 2.0)) * k
 }
 
-fn absorb(coeff: Vec3, depth: f32) -> Vec3 {
-    scatter(coeff, -depth).exp2()
+fn rayleigh_phase(cos_theta: f32) -> f32 {
+    (3.0 / (16.0 * PI)) * (1.0 + cos_theta.powf(2.0))
 }
 
-fn calc_particle_thickness(depth: f32) -> f32 {
-    return 100_000.0 / (depth * 2.0 + 0.01).max(0.01);
+fn henyey_greenstein_phase(cos_theta: f32, g: f32) -> f32 {
+    (1.0 / (4.0 * PI)) * ((1.0 - g.powf(2.0)) / (1.0 - 2.0 * g * cos_theta + g.powf(2.0)).powf(1.5))
 }
 
-fn rayleigh_phase(x: f32) -> f32 {
-    0.375 * (1.0 + (x * x))
+fn sun_intensity(zenith_angle_cos: f32) -> f32 {
+    let cutoff_angle = PI / 1.95; // Earth shadow hack
+    SUN_INTENSITY_FACTOR
+        * 0.0f32.max(
+            1.0 - (-((cutoff_angle - acos_approx(zenith_angle_cos))
+                / SUN_INTENSITY_FALLOFF_STEEPNESS))
+                .exp(),
+        )
 }
 
-fn hg_phase(x: f32, g: f32) -> f32 {
-    let g2 = g * g;
-    0.25 * ((1.0 - g2) * (1.0 + g2 - (2.0 * g * x)).pow(-1.5))
-}
+fn sky(dir: Vec3, sun_position: Vec3, sun_intensity_extra_spec_const_factor: u32) -> Vec3 {
+    let up = vec3(0.0, 1.0, 0.0);
+    let sunfade = 1.0 - (1.0 - (sun_position.y / 450000.0).clamp(0.0, 1.0).exp());
+    let rayleigh_coefficient = RAYLEIGH - (1.0 * (1.0 - sunfade));
+    let beta_r = total_rayleigh(PRIMARIES) * rayleigh_coefficient;
 
-fn mie_phase_sky(x: f32, depth: f32) -> f32 {
-    return hg_phase(x, (-0.000003 * depth).exp2());
-}
+    // Mie coefficient
+    let beta_m = total_mie(PRIMARIES, MIE_K_COEFFICIENT, TURBIDITY) * MIE_COEFFICIENT;
 
-fn powder(od: f32) -> f32 {
-    return 1.0 - (-od * 2.0).exp2();
-}
+    // Optical length, cutoff angle at 90 to avoid singularity
+    let zenith_angle = acos_approx(up.dot(dir).max(0.0));
+    let denom = (zenith_angle).cos() + 0.15 * (93.885 - ((zenith_angle * 180.0) / PI)).powf(-1.253);
 
-fn calculate_scatter_integral(optical_depth: f32, coeff: f32) -> f32 {
-    let a = -coeff * RLOG2;
-    let b = -1.0 / coeff;
-    let c = 1.0 / coeff;
-    return (a * optical_depth).exp2() * b + c;
-}
+    let s_r = RAYLEIGH_ZENITH_LENGTH / denom;
+    let s_m = MIE_ZENITH_LENGTH / denom;
 
-fn calc_atmospheric_scatter(pos: &PositionStruct, absorb_light: &mut Vec3) -> Vec3 {
-    let ln2 = f32::ln(2.0);
+    // Combined extinction factor
+    let fex = (-(beta_r * s_r + beta_m * s_m)).exp();
 
-    let l_dot_w = pos.sun_vector.dot(pos.world_vector);
-    let l_dot_u = pos.sun_vector.dot(vec3(0.0, 1.0, 0.0));
-    let u_dot_w = vec3(0.0, 1.0, 0.0).dot(pos.world_vector);
+    // In-scattering
+    let sun_direction = sun_position.normalize();
+    let cos_theta = dir.dot(sun_direction);
+    let beta_r_theta = beta_r * rayleigh_phase(cos_theta * 0.5 + 0.5);
 
-    let optical_depth = calc_particle_thickness(u_dot_w);
-    let optical_depth_light = calc_particle_thickness(l_dot_u);
+    let beta_m_theta = beta_m * henyey_greenstein_phase(cos_theta, MIE_DIRECTIONAL_G);
+    let sun_e = sun_intensity(sun_direction.dot(up))
 
-    let scatter_view = scatter(TOTAL_COEFF, optical_depth);
-    let absorb_view = absorb(TOTAL_COEFF, optical_depth);
+    // HACK(eddyb) this acts like an integration test for specialization constants,
+    // but the correct value is only obtained when this is a noop (multiplies by `1`).
+        * (sun_intensity_extra_spec_const_factor as f32 / 100.0);
 
-    let scatter_light = scatter(TOTAL_COEFF, optical_depth_light);
-    *absorb_light = absorb(TOTAL_COEFF, optical_depth_light);
+    let mut lin =
+        (sun_e * ((beta_r_theta + beta_m_theta) / (beta_r + beta_m)) * (Vec3::splat(1.0) - fex))
+            .powf(1.5);
 
-    let absorb_sun = (*absorb_light - absorb_view).abs() / d0((scatter_light - scatter_view) * ln2);
-
-    let mie_scatter = scatter(MIE_COEFF, optical_depth) * mie_phase_sky(l_dot_w, optical_depth);
-    let raylleigh_scatter = scatter(RAYLEIGH_COEFF, optical_depth) * rayleigh_phase(l_dot_w);
-
-    let scatter_sun = mie_scatter + raylleigh_scatter;
-
-    let sun_spot = Vec3::splat(0.9999.smoothstep(0.99993, l_dot_w)) * absorb_view * SUN_BRIGHTNESS;
-
-    return (scatter_sun * absorb_sun + sun_spot) * SUN_BRIGHTNESS;
-}
-
-fn calc_atmospheric_scatter_top(pos: &PositionStruct) -> Vec3 {
-    let ln2 = f32::ln(2.0);
-
-    let l_dot_u = pos.sun_vector.dot(vec3(0.0, 1.0, 0.0));
-
-    let optical_depth = calc_particle_thickness(1.0);
-    let optical_depth_light = calc_particle_thickness(l_dot_u);
-
-    let scatter_view = scatter(TOTAL_COEFF, optical_depth);
-    let absorb_view = absorb(TOTAL_COEFF, optical_depth);
-
-    let scatter_light = scatter(TOTAL_COEFF, optical_depth_light);
-    let absorb_light = absorb(TOTAL_COEFF, optical_depth_light);
-
-    let absorb_sun = d02(absorb_light - absorb_view) / d02((scatter_light - scatter_view) * ln2);
-
-    let mie_scatter = scatter(MIE_COEFF, optical_depth) * 0.25;
-    let raylleigh_scatter = scatter(RAYLEIGH_COEFF, optical_depth) * 0.375;
-
-    let scatter_sun = mie_scatter + raylleigh_scatter;
-
-    return (scatter_sun * absorb_sun) * SUN_BRIGHTNESS;
-}
-
-fn get_3d_noise(pos: Vec3, tx: Tex<'_>, smp: &Sampler) -> f32 {
-    let p = pos.z.floor();
-    let f = pos.z - p;
-
-    let inv_noise_res = 1.0 / 64.0;
-
-    let z_stretch = 17.0 * inv_noise_res;
-
-    let coord = pos.xy() * inv_noise_res + (p * z_stretch);
-
-    let noise = vec2(
-        sample(tx, smp, coord).x,
-        sample(tx, smp, coord + z_stretch).x,
+    lin *= Vec3::splat(1.0).lerp(
+        (sun_e * ((beta_r_theta + beta_m_theta) / (beta_r + beta_m)) * fex).powf(0.5),
+        ((1.0 - up.dot(sun_direction)).powf(5.0)).clamp(0.0, 1.0),
     );
 
-    noise.x.mix(noise.y, f)
+    // Composition + solar disc
+    let sun_angular_diameter_cos = SUN_ANGULAR_DIAMETER_DEGREES.cos();
+    let sundisk =
+        (sun_angular_diameter_cos).smoothstep(sun_angular_diameter_cos + 0.00002, cos_theta);
+    let mut l0 = 0.1 * fex;
+    l0 += sun_e * 19000.0 * fex * sundisk;
+
+    lin + l0
 }
 
-fn get_clouds(p: Vec3, el: f32, _seed: UVec2, tx: Tex<'_>, sampler: &Sampler) -> f32 {
-    let p = vec3(
-        p.x,
-        (p + vec3(0.0, EARTH_RADIUS, 0.0)).length() - EARTH_RADIUS,
-        p.z,
-    );
-
-    if p.y < CLOUD_MIN_HEIGHT || p.y > CLOUD_MAX_HEIGHT {
-        return 0.0;
-    }
-
-    let time = el * CLOUD_SPEED;
-    let movement = vec3(time, 0.0, time);
-    let movement = vec3(0.0, 0.0, 0.0); // TODO remove
-    let cloud_coord = (p * 0.001) + movement;
-
-    let mut noise = get_3d_noise(cloud_coord, tx, sampler) * 0.5;
-    noise += get_3d_noise(cloud_coord * 2.0 + movement, tx, sampler) * 0.25;
-    noise += get_3d_noise(cloud_coord * 7.0 - movement, tx, sampler) * 0.125;
-    noise += get_3d_noise((cloud_coord + movement) * 16.0, tx, sampler) * 0.0625;
-
-    let top = 0.004;
-    let bot = 0.01;
-
-    let h_height = p.y - CLOUD_MIN_HEIGHT;
-    let threshhold = (1.0 - (-bot * h_height).exp2()) * (-top * h_height).exp2();
-
-    let clouds = (0.55.smoothstep(0.6, noise)) * threshhold;
-
-    return clouds * CLOUD_DENSITY;
-}
-
-fn get_sun_visibility(
-    p: Vec3,
-    pos: &PositionStruct,
-    el: f32,
-    seed: UVec2,
-    tx: Tex<'_>,
-    smp: &Sampler,
-) -> f32 {
-    let steps = CLOUD_SHADOWING_STEPS;
-    let r_steps = CLOUD_THICKNESS / (steps as f32);
-
-    let increment = pos.sun_vector * r_steps;
-    let position = increment * 0.5 + p;
-
-    let mut transmittance = 0.0;
-
-    for _ in 0..CLOUD_SHADOWING_STEPS {
-        transmittance += get_clouds(position, el, seed, tx, smp);
-    }
-
-    return (-transmittance * r_steps).exp2();
-}
-
-fn phase_2_lobes(x: f32) -> f32 {
-    let m = 0.6;
-    let gm = 0.8;
-
-    let lobe1 = hg_phase(x, 0.8 * gm);
-    let lobe2 = hg_phase(x, -0.5 * gm);
-
-    return lobe2.mix(lobe1, m);
-}
-
-fn get_volumetric_clouds_scattering(
-    optical_depth: f32,
-    phase: f32,
-    p: Vec3,
-    sun_color: Vec3,
-    sky_light: Vec3,
-    pos: &PositionStruct,
-    el: f32,
-    seed: UVec2,
-    tx: Tex<'_>,
-    smp: &Sampler,
-) -> Vec3 {
-    let integral = calculate_scatter_integral(optical_depth, 1.11);
-
-    let beers_powder = powder(optical_depth * f32::ln(2.0));
-
-    let sun_lighting = (sun_color * get_sun_visibility(p, pos, el, seed, tx, smp) * beers_powder)
-        * phase
-        * HPI
-        * SUN_BRIGHTNESS;
-    let sky_lighting = sky_light * 0.25 * RPI;
-
-    return (sun_lighting + sky_lighting) * integral * PI;
-}
-
-fn calculate_volumetric_clouds(
-    pos: &PositionStruct,
-    color: Vec3,
-    dither: f32,
-    sun_color: Vec3,
-    el: f32,
-    seed: UVec2,
-    tx: Tex<'_>,
-    sampler: &Sampler,
-) -> Vec3 {
-    let steps = VOLUMETRIC_CLOUD_STEPS;
-    let isteps = 1.0 / (steps as f32);
-
-    let bottom_sphere = ray_sphere_intersection(
-        vec3(0.0, 1.0, 0.0) * EARTH_RADIUS,
-        pos.world_vector,
-        EARTH_RADIUS + CLOUD_MIN_HEIGHT,
-    )
-    .y;
-    let top_sphere = ray_sphere_intersection(
-        vec3(0.0, 1.0, 0.0) * EARTH_RADIUS,
-        pos.world_vector,
-        EARTH_RADIUS + CLOUD_MAX_HEIGHT,
-    )
-    .y;
-
-    let start_position = pos.world_vector * bottom_sphere;
-    let end_position = pos.world_vector + top_sphere;
-
-    let increment = (end_position - start_position) * isteps;
-    let mut cloud_pos = increment * dither + start_position;
-
-    let step_len = increment.length();
-
-    let mut scattering = Vec3::ZERO;
-    let mut transmittance = 1.0;
-
-    let l_dot_w = pos.sun_vector.dot(pos.world_vector);
-    let phase = phase_2_lobes(l_dot_w);
-
-    let sky_light = calc_atmospheric_scatter_top(pos);
-
-    for _ in 0..steps {
-        let optical_depth = get_clouds(cloud_pos, el, seed, tx, sampler) * step_len;
-
-        if optical_depth <= 0.0 {
-            continue;
-        }
-
-        // scattering += optical_depth;
-        scattering += get_volumetric_clouds_scattering(
-            optical_depth,
-            phase,
-            cloud_pos,
-            sun_color,
-            sky_light,
-            &pos,
-            el,
-            seed,
-            tx,
-            sampler,
-        ) * transmittance;
-        transmittance *= (-optical_depth).exp2();
-
-        cloud_pos += increment;
-    }
-
-    return (color * transmittance + scattering)
-        .mix(color, (start_position.length() * 0.00001).clamp(0.0, 1.0));
+fn get_ray_dir(uv: Vec2, pos: Vec3, look_at_pos: Vec3) -> Vec3 {
+    let forward = (look_at_pos - pos).normalize();
+    let right = vec3(0.0, 1.0, 0.0).cross(forward).normalize();
+    let up = forward.cross(right);
+    (forward + uv.x * right + uv.y * up).normalize()
 }
 
 fn calc_atmosphere(
@@ -409,38 +191,11 @@ fn calc_atmosphere(
     noise_tx: Tex<'_>,
     noise_sampler: &Sampler,
 ) -> Vec3 {
-    let pos = gather_pos(SPHERICAL_PROJECTION, coord, ATMOS_RES.as_vec2());
+    let pos = gather_pos(true, coord, camera.screen.xy() * ATMOS_MULT, el);
 
-    let dither = bayer_16(coord);
-
-    let mut light_absorb = Vec3::ZERO;
-
-    let col = calc_atmospheric_scatter(&pos, &mut light_absorb);
-    // let col = calculate_volumetric_clouds(
-    //     &pos,
-    //     col,
-    //     dither,
-    //     light_absorb,
-    //     el,
-    //     seed,
-    //     noise_tx,
-    //     noise_sampler,
-    // );
+    let col = sky(pos.world_vector, pos.sun_vector, 100);
 
     col
-}
-
-fn robobo_1221_tonemap(color: Vec3) -> Vec3 {
-    let l = color.length();
-
-    let mut color = color;
-    color = color.mix(color * 0.5, l / (l + 1.0));
-    r_t_operator(color)
-}
-
-#[inline]
-fn r_t_operator(x: Vec3) -> Vec3 {
-    return x / (x * x + 1.0).sqrt();
 }
 
 #[spirv(compute(threads(1)))]
@@ -454,8 +209,8 @@ pub fn atmosphere(
 
     #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16<'_>,
 ) {
-    let mut pos = global_id.xy().as_vec2();
-    pos.y = (ATMOS_RES.as_vec2().y) - pos.y;
+    let pos = global_id.xy().as_vec2();
+    // pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
 
     let col = calc_atmosphere(
         pos,
@@ -465,8 +220,11 @@ pub fn atmosphere(
         noise_tx,
         noise_sampler,
     );
-    let col = robobo_1221_tonemap(col * 0.5);
-    // let col= col.powf(1.0 / 2.2);
+
+    // Tonemapping
+    let col = col.max(Vec3::splat(0.0)).min(Vec3::splat(1024.0));
+    let col = tonemap(col);
+    let col = col.powf(1.0 / 2.2);
 
     unsafe {
         out.write(global_id.xy(), col.extend(1.0));
@@ -479,7 +237,7 @@ pub fn noise(
     #[spirv(descriptor_set = 0, binding = 0, uniform)] globals: &Globals,
     #[spirv(descriptor_set = 0, binding = 1)] out: TexRgba16<'_>,
 ) {
-    let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 1.1;
+    let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 0.97;
 
     unsafe {
         out.write(global_id.xy(), Vec3::splat(rng).extend(1.0));

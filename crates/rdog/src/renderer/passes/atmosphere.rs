@@ -1,6 +1,6 @@
 use bevy::{log, utils::HashMap};
-use rdog_lib::PassParams;
-use rdog_shaders::atmosphere::{ATMOS_RES, NOISE_DIM};
+use rdog_lib::{camera, PassParams};
+use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 use crate::{
     compute_pass::ComputePass,
@@ -62,7 +62,7 @@ impl Pass for AtmospherePass {
         self.0[1].run(
             camera,
             encoder,
-            ATMOS_RES,
+            (camera.camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2(),
             (),
         );
     }
