@@ -1,8 +1,8 @@
 use coord::gather_pos;
 use rdog_lib::prelude::*;
-use spirv_std::glam::{UVec3, Vec2, Vec3Swizzles};
+use spirv_std::{glam::{UVec3, Vec2, Vec3Swizzles}, num_traits::Pow};
 
-pub const ATMOS_MULT: f32 = 4.0;
+pub const ATMOS_RES: UVec2 = uvec2(1920 * 2, 1920 * 2);
 
 #[inline]
 fn d0(x: Vec3) -> Vec3 {
@@ -25,7 +25,7 @@ const TOTAL_COEFF: Vec3 = Vec3::new(
     RAYLEIGH_COEFF.y + MIE_COEFF.y,
     RAYLEIGH_COEFF.z + MIE_COEFF.z,
 );
-const SUN_BRIGHTNESS: f32 = 2.5;
+const SUN_BRIGHTNESS: f32 = 3.0;
 pub const EARTH_RADIUS: f32 = 6371000.0; // TODO move
 const CLOUD_HEIGHT: f32 = 1600.0;
 const CLOUD_THICKNESS: f32 = 500.0;
@@ -35,7 +35,7 @@ const CLOUD_DENSITY: f32 = 0.03;
 const CLOUD_SPEED: f32 = 0.02;
 
 const VOLUMETRIC_CLOUD_STEPS: u32 = 16; //Higher is a better result with rendering of clouds.
-const CLOUD_SHADOWING_STEPS: u32 = 8; //Higher is a better result with shading on clouds.
+const CLOUD_SHADOWING_STEPS: u32 = 12; //Higher is a better result with shading on clouds.
 
 const RPI: f32 = 1.0 / PI;
 pub const HPI: f32 = PI * 0.5; // TODO move out
@@ -85,8 +85,7 @@ pub mod coord {
     }
 
     pub fn gather_pos(sphere: bool, frag_coord: Vec2, screen_res: Vec2) -> PositionStruct {
-        let mut tx_coord = frag_coord / screen_res;
-        tx_coord.y = 1.0 - tx_coord.y;
+        let tx_coord = frag_coord / screen_res;
 
         let mouse_coord = vec2(0.8, 0.55);
 
@@ -103,6 +102,7 @@ pub mod coord {
     }
 }
 
+#[inline]
 fn bayer_2(a: Vec2) -> f32 {
     let a = a.floor();
     a.dot(vec2(0.5, a.y * 0.75)).fract()
@@ -142,7 +142,7 @@ fn absorb(coeff: Vec3, depth: f32) -> Vec3 {
 }
 
 fn calc_particle_thickness(depth: f32) -> f32 {
-    return 100_000.0 / ((depth * 2.0) - 0.01).max(0.01);
+    return 100_000.0 / (depth * 2.0 + 0.01).max(0.01);
 }
 
 fn rayleigh_phase(x: f32) -> f32 {
@@ -151,7 +151,7 @@ fn rayleigh_phase(x: f32) -> f32 {
 
 fn hg_phase(x: f32, g: f32) -> f32 {
     let g2 = g * g;
-    0.25 * ((1.0 - g2) * (1.0 + g2 - (2.0 * g * x)).powf(-1.5))
+    0.25 * ((1.0 - g2) * (1.0 + g2 - (2.0 * g * x)).pow(-1.5))
 }
 
 fn mie_phase_sky(x: f32, depth: f32) -> f32 {
@@ -252,11 +252,12 @@ fn get_clouds(p: Vec3, el: f32, _seed: UVec2, tx: Tex<'_>, sampler: &Sampler) ->
 
     let time = el * CLOUD_SPEED;
     let movement = vec3(time, 0.0, time);
+    let movement = vec3(0.0, 0.0, 0.0); // TODO remove
     let cloud_coord = (p * 0.001) + movement;
 
     let mut noise = get_3d_noise(cloud_coord, tx, sampler) * 0.5;
-    noise += get_3d_noise(cloud_coord * (2.0 + movement), tx, sampler) * 0.25;
-    noise += get_3d_noise(cloud_coord * (7.0 - movement), tx, sampler) * 0.125;
+    noise += get_3d_noise(cloud_coord * 2.0 + movement, tx, sampler) * 0.25;
+    noise += get_3d_noise(cloud_coord * 7.0 - movement, tx, sampler) * 0.125;
     noise += get_3d_noise((cloud_coord + movement) * 16.0, tx, sampler) * 0.0625;
 
     let top = 0.004;
@@ -377,6 +378,7 @@ fn calculate_volumetric_clouds(
             continue;
         }
 
+        // scattering += optical_depth;
         scattering += get_volumetric_clouds_scattering(
             optical_depth,
             phase,
@@ -407,25 +409,38 @@ fn calc_atmosphere(
     noise_tx: Tex<'_>,
     noise_sampler: &Sampler,
 ) -> Vec3 {
-    let pos = gather_pos(SPHERICAL_PROJECTION, coord, camera.screen.xy() * ATMOS_MULT);
+    let pos = gather_pos(SPHERICAL_PROJECTION, coord, ATMOS_RES.as_vec2());
 
     let dither = bayer_16(coord);
 
     let mut light_absorb = Vec3::ZERO;
 
-    let mut col = calc_atmospheric_scatter(&pos, &mut light_absorb);
-    col = calculate_volumetric_clouds(
-        &pos,
-        col,
-        dither,
-        light_absorb,
-        el,
-        seed,
-        noise_tx,
-        noise_sampler,
-    );
+    let col = calc_atmospheric_scatter(&pos, &mut light_absorb);
+    // let col = calculate_volumetric_clouds(
+    //     &pos,
+    //     col,
+    //     dither,
+    //     light_absorb,
+    //     el,
+    //     seed,
+    //     noise_tx,
+    //     noise_sampler,
+    // );
 
     col
+}
+
+fn robobo_1221_tonemap(color: Vec3) -> Vec3 {
+    let l = color.length();
+
+    let mut color = color;
+    color = color.mix(color * 0.5, l / (l + 1.0));
+    r_t_operator(color)
+}
+
+#[inline]
+fn r_t_operator(x: Vec3) -> Vec3 {
+    return x / (x * x + 1.0).sqrt();
 }
 
 #[spirv(compute(threads(1)))]
@@ -440,7 +455,7 @@ pub fn atmosphere(
     #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba16<'_>,
 ) {
     let mut pos = global_id.xy().as_vec2();
-    pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
+    pos.y = (ATMOS_RES.as_vec2().y) - pos.y;
 
     let col = calc_atmosphere(
         pos,
@@ -450,6 +465,8 @@ pub fn atmosphere(
         noise_tx,
         noise_sampler,
     );
+    let col = robobo_1221_tonemap(col * 0.5);
+    // let col= col.powf(1.0 / 2.2);
 
     unsafe {
         out.write(global_id.xy(), col.extend(1.0));
@@ -460,9 +477,9 @@ pub fn atmosphere(
 pub fn noise(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 1)] out: TexRgba8<'_>,
+    #[spirv(descriptor_set = 0, binding = 1)] out: TexRgba16<'_>,
 ) {
-    let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 0.97;
+    let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 1.1;
 
     unsafe {
         out.write(global_id.xy(), Vec3::splat(rng).extend(1.0));

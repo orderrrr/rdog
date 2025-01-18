@@ -1,5 +1,6 @@
 use bevy::{log, utils::HashMap};
-use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
+use rdog_lib::PassParams;
+use rdog_shaders::atmosphere::{ATMOS_RES, NOISE_DIM};
 
 use crate::{
     compute_pass::ComputePass,
@@ -9,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct AtmospherePass(HashMap<u32, ComputePass<()>>);
+pub struct AtmospherePass([ComputePass<()>; 2]);
 
 impl AtmospherePass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
@@ -18,7 +19,7 @@ impl AtmospherePass {
                 &buffers.globals.bind_readable(),
                 &buffers.atmos_noise_tx.bind_writable(),
             ])
-            .build(device, &engine.shaders.atmosphere_noise);
+            .build(device, &engine.shaders.get("atmosphere_noise").unwrap());
 
         let atmosphere_pass = ComputePass::builder("atmosphere")
             .bind([
@@ -27,14 +28,12 @@ impl AtmospherePass {
                 &buffers.atmos_noise_tx.bind_sampled(),
                 &buffers.atmosphere_tx.bind_writable(),
             ])
-            .build(device, &engine.shaders.atmosphere_atmosphere);
+            .build(
+                device,
+                &engine.shaders.get("atmosphere_atmosphere").unwrap(),
+            );
 
-        let mut map = HashMap::new();
-
-        map.insert(0, noise_pass);
-        map.insert(1, atmosphere_pass);
-
-        Self(map)
+        Self([noise_pass, atmosphere_pass])
     }
 }
 
@@ -45,19 +44,26 @@ impl Pass for AtmospherePass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
+        _pp: &PassParams,
     ) {
-        if camera.recompute_static {
-            log::info!("Rocomputing atmosphere");
-            self.0.get(&0).unwrap().run(camera, encoder, NOISE_DIM, ());
-        }
-        // may need this later but not sure.
-        if camera.recompute_static {
-            self.0.get(&1).unwrap().run(
-                camera,
-                encoder,
-                camera.camera.viewport.size * (ATMOS_MULT as u32),
-                (),
-            );
-        }
+        // if camera.recompute_static {
+        //     log::info!("Rocomputing atmosphere");
+        //     self.0[0].run(camera, encoder, NOISE_DIM, ());
+        //
+        //     self.0[1].run(
+        //         camera,
+        //         encoder,
+        //         camera.camera.viewport.size * (ATMOS_MULT as u32),
+        //         (),
+        //     );
+        // }
+        self.0[0].run(camera, encoder, NOISE_DIM, ());
+
+        self.0[1].run(
+            camera,
+            encoder,
+            ATMOS_RES,
+            (),
+        );
     }
 }

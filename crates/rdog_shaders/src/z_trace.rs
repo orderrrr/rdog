@@ -39,7 +39,12 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
     #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,
 ) {
-    let r = ray(camera.screen.xy(), camera.ndc_to_world, global_id.xy());
+    let r = ray(
+        camera.screen.xy(),
+        camera.ndc_to_world,
+        global_id.xy().as_vec2(),
+        globals.seed,
+    );
     let hit = hit_simple(r, globals.time.x, globals.seed);
 
     unsafe {

@@ -8,8 +8,8 @@ use rdog::{
     RdogPlugin,
 };
 
-pub const W: u32 = 480;
-pub const H: u32 = 480;
+pub const W: u32 = 800;
+pub const H: u32 = 800;
 
 fn main() {
     App::new()

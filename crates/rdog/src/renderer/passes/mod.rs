@@ -68,7 +68,7 @@ macro_rules! passes {
 }
 
 passes!([
-    // atmosphere => AtmospherePass,
+    atmosphere => AtmospherePass,
     rt => RTPass,
     // testing => TestingPass,
     raster => RasterPass,

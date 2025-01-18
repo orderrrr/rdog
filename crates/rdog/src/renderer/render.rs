@@ -1,23 +1,17 @@
-use std::{
-    borrow::BorrowMut,
-    ops::{Deref, DerefMut},
-};
-
+use std::ops::DerefMut;
 use crate::{
-    bufferable::Bufferable, buffers::mapped_uniform_buffer::MappedUniformBuffer,
-    storage_buffer::StorageBuffer, texture::Texture, Globals,
+    buffers::mapped_uniform_buffer::MappedUniformBuffer, storage_buffer::StorageBuffer,
+    texture::Texture, Globals,
 };
 
 use super::{
     config::Camera,
     engine::Engine,
     passes::{Pass, Passes},
-    utils,
 };
-use futures::SinkExt;
 use log::{debug, info};
 use rdog_lib::{self as lib, Material};
-use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
+use rdog_shaders::atmosphere::{ATMOS_RES, NOISE_DIM};
 
 #[derive(Debug)]
 pub struct Buffers {
@@ -73,7 +67,7 @@ impl Buffers {
             .build(device);
 
         let atmosphere_tx = Texture::builder("atmosphere")
-            .with_size(camera.viewport.size * (ATMOS_MULT as u32)) // should be larger maybe? not sure
+            .with_size(ATMOS_RES) // should be larger maybe? not sure
             .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
@@ -82,7 +76,7 @@ impl Buffers {
 
         let atmos_noise_tx = Texture::builder("atmos_noise")
             .with_size(NOISE_DIM)
-            .with_format(wgpu::TextureFormat::Rgba8Unorm)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -186,6 +180,8 @@ impl CameraController {
     }
 
     pub fn invalidate(&mut self, engine: &Engine, device: &wgpu::Device) {
+        self.recompute_static = true;
+        self.rebuild_buffers(engine, device); // TODO - maybe not correct being here. but I want to reset buffers when shaders recompiled.
         self.rebuild_passes(engine, device);
     }
 

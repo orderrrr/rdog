@@ -12,7 +12,7 @@ use glam::Vec2;
 use std::{mem, time::Instant};
 
 use log::info;
-use rdog_lib as lib;
+use rdog_lib::{self as lib, camera};
 
 #[derive(Debug)]
 pub struct Engine {
@@ -80,7 +80,7 @@ impl Engine {
             let comp = RdogShader::new(device, shader);
             self.shaders.entry(shader.name.to_string()).insert(comp);
         }
-
+        
         let mut cameras = mem::take(&mut self.cameras);
         for camera in cameras.iter_mut() {
             camera.invalidate(self, device);

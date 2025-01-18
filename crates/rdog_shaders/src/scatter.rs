@@ -151,7 +151,8 @@ pub fn main(
     }
 
     let pos = global_id.xy().as_vec2();
-    let mut r = ray(camera.screen.xy(), camera.ndc_to_world, global_id.xy());
+
+    let mut r = ray(camera.screen.xy(), camera.ndc_to_world, pos, globals.seed);
     r.o = (inp.w * r.d) + r.o;
 
     let col = inp.xyz() + get_color(r, pos, camera, globals.time.x, globals.seed, material);
