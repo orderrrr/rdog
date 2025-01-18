@@ -44,7 +44,7 @@ impl Buffers {
 
         let render_tx = Texture::builder("render")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -52,7 +52,7 @@ impl Buffers {
 
         let render_alt_tx = Texture::builder("renderalt")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -60,7 +60,7 @@ impl Buffers {
 
         let prev_tx = Texture::builder("prev_tx")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()

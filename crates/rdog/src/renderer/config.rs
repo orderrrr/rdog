@@ -15,6 +15,7 @@ pub struct Config {
     pub specular_pass: bool,
     pub scatter_pass: bool,
     pub multi_frame: bool,
+    pub realtime_atmosphere: bool,
     pub material_tree: MaterialList,
     pub user_orbit: bool,
 }
@@ -48,6 +49,7 @@ impl Default for Config {
             specular_pass: true,
             scatter_pass: true,
             multi_frame: true,
+            realtime_atmosphere: false,
             user_orbit: false,
             material_tree: MaterialList::demo(), // TODO not demo, serialize from a file
         }

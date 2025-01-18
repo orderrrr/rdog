@@ -70,6 +70,7 @@ macro_rules! passes {
 passes!([
     atmosphere => AtmospherePass,
     rt => RTPass,
+    // rt_single => RTSingle,
     // testing => TestingPass,
     raster => RasterPass,
     // ray => RayPass,

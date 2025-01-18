@@ -58,6 +58,10 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
         || ui
             .checkbox(&mut ui_state.specular_pass, "Specular Lighting")
             .changed;
+    c = c
+        || ui
+            .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
+            .changed;
 
     c
 }
@@ -215,7 +219,7 @@ impl TUi for Material {
                     .add(
                         egui::DragValue::new(&mut self.emissive)
                             .speed(0.01)
-                            .range(0.0..=10.0),
+                            .range(0.0..=30.0),
                     )
                     .changed
                     || c;
