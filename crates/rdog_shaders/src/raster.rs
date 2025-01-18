@@ -1,8 +1,6 @@
 use rdog_lib::prelude::*;
 use spirv_std::num_traits::Pow;
 
-use crate::atmosphere::tonemap;
-
 fn srgb(channel: f32) -> f32 {
     if channel <= 0.00031308 {
         channel * 12.92
@@ -24,28 +22,31 @@ pub fn fs(
     output: &mut Vec4,
 ) {
     let col = trace_tx.read(pos.xy().as_uvec2()).xyz();
-    let prv = prev_tx.read(pos.xy().as_uvec2());
-
-    let a = prv.w + 1.0;
-
-    let col = col.mix(prv.xyz(), 1.0 - (1.0 / a)).extend(a);
-
-    let multi_frame: bool = ((config.flags >> 3) & 1) == 1;
-
-    unsafe {
-        if multi_frame {
-            prev_tx.write(pos.xy().as_uvec2(), col);
-        } else {
-            prev_tx.write(pos.xy().as_uvec2(), Vec4::splat(0.0));
-        }
-    }
+    // let prv = prev_tx.read(pos.xy().as_uvec2());
+    //
+    // let a = prv.w + 1.0;
+    //
+    // let col = col.mix(prv.xyz(), 1.0 - (1.0 / a)).extend(a);
+    //
+    // let multi_frame: bool = ((config.flags >> 3) & 1) == 1;
+    //
+    // unsafe {
+    //     if multi_frame {
+    //         prev_tx.write(pos.xy().as_uvec2(), col);
+    //     } else {
+    //         prev_tx.write(pos.xy().as_uvec2(), Vec4::splat(0.0));
+    //     }
+    // }
 
     let col = col.xyz();
 
     // let col = col.max(Vec3::splat(0.0)).min(Vec3::splat(1024.0));
     // let col = tonemap(col);
 
-    // let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+    let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+
+    let col = col.powf(2.2);
+
     let col = col.saturate();
 
     *output = col.extend(1.0);

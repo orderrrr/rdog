@@ -47,7 +47,6 @@ fn spec_brdf(
     camera: &Camera,
     el: f32,
     seed: UVec2,
-    materials: &[Material],
 ) -> Vec3 {
     let mut specular_light = Vec3::ZERO;
 
@@ -66,24 +65,22 @@ fn spec_brdf(
 
         if n_dot_l > 0.0 {
             let sr = Ray::new(pos + (l * 0.02), l);
+            let hit = hit(sr, el, seed);
 
-            let hit = hit(sr, el, seed, materials);
-
-            let in_radiance = if hit.dist() >= TMAX {
+            let in_radiance = if hit.dist >= TMAX {
                 sample_atmos(sr)
-            } else if hit.emissive() > 0.0 {
-                hit.albedo()
+            } else if hit.emissive > 0.0 {
+                hit.albedo
             } else {
-                hit.albedo()
+                hit.albedo
                     * sample_indirect_diff(
-                        pos + (l * hit.dist()),
-                        hit.normal(),
+                        pos + (l * hit.dist),
+                        hit.normal,
                         uv,
-                        DIFFUSE_BOUNCES,
+                        1,
                         camera,
                         el,
                         seed + i + 30,
-                        materials,
                     )
             };
 
@@ -100,11 +97,11 @@ fn spec_brdf(
 
         if n_dot_l > 0.0 {
             let sr = Ray::new(pos, l);
-            let hit = hit(sr, el, seed, materials);
+            let hit = hit(sr, el, seed);
 
-            if hit.emissive() > 0.0 {
-                let attn = 1.0 / (hit.dist() * hit.dist());
-                let in_radiance = hit.albedo() * hit.emissive() * attn;
+            if hit.emissive > 0.0 {
+                let attn = 1.0 / (hit.dist * hit.dist);
+                let in_radiance = hit.albedo * hit.emissive * attn;
                 let d_term = d_term_ggxtr(n_dot_h, alpha);
                 let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_direct);
                 specular_light += in_radiance * g_term * *fresnel * d_term / (4.0 / n_dot_v);
@@ -115,47 +112,37 @@ fn spec_brdf(
     specular_light / BRDF_STEPS as f32
 }
 
-fn get_color(
-    r: Ray,
-    uv: Vec2,
-    camera: &Camera,
-    el: f32,
-    seed: UVec2,
-    fresnel: &mut f32,
-    materials: &[Material],
-) -> Vec3 {
-    let res = hit(r, el, seed, materials);
+fn get_color(r: Ray, uv: Vec2, camera: &Camera, el: f32, seed: UVec2, fresnel: &mut f32) -> Vec3 {
+    let res = hit(r, el, seed);
 
-    if res.dist() >= TMAX {
+    if res.dist >= TMAX {
         // TODO - back to atmos
         return sample_atmos(r);
     }
 
-    if res.index() > 900.0 {
-        return res.albedo();
+    if res.id > 900.0 {
+        return res.albedo;
     }
 
     let v = -r.d;
 
-    let pos = r.pd(res.dist());
+    let pos = r.pd(res.dist);
 
-    if res.specular() > 0.0 {
-        res.specular()
+    if res.specular_scale > 0.0 {
+        res.specular_scale
             * spec_brdf(
                 pos,
                 v,
-                res.normal(),
-                res.roughness(),
-                res.f0(),
+                res.normal,
+                res.roughness,
+                res.f0,
                 uv - vec2(1.0, 1.0),
                 fresnel,
                 camera,
                 el,
                 seed,
-                materials,
             )
     } else {
-        // vec3(1.0, 0.0, 1.0)
         Vec3::ZERO
     }
 }
@@ -163,39 +150,29 @@ fn get_color(
 #[spirv(compute(threads(1)))]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
-    #[spirv(push_constant)] _params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
-    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] material: &[Material],
-    #[spirv(descriptor_set = 0, binding = 3)] out: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16<'_>,
 ) {
     let inp = out.read(global_id.xy().as_ivec2());
 
-    let pos = global_id.xy().as_vec2();
-
-    let mut r = ray(camera.screen.xy(), camera.ndc_to_world, pos, globals.seed);
-    r.o = (inp.w * r.d) + r.o;
-
     if inp.w >= TMAX {
         unsafe {
-            out.write(global_id.xy(), sample_atmos(r).extend(inp.w));
+            out.write(global_id.xy(), Vec3::splat(0.01).extend(inp.w));
         }
-        return;
     }
 
+    let pos = global_id.xy().as_vec2();
+
+    let mut r = get_camera_ray(pos, camera, globals.time.x);
+    r.o = (inp.w * r.d) + r.o;
+
     let mut fresnel = 0.0;
-    let col = get_color(
-        r,
-        pos,
-        camera,
-        globals.time.x,
-        globals.seed,
-        &mut fresnel,
-        material,
-    );
+    let col = get_color(r, pos, camera, globals.time.x, globals.seed, &mut fresnel);
     let col = (1.0 - fresnel) * inp.xyz() + col;
+    let col = col.extend(1.0);
 
     unsafe {
-        out.write(global_id.xy(), col.extend(1.0));
+        out.write(global_id.xy(), col);
     }
 }

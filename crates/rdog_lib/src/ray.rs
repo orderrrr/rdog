@@ -579,7 +579,7 @@ impl Scene<'_> {
         sample(
             self.atmos_tx,
             self.atmos_sampler,
-            world_space_to_uv(sr.o + (sr.d * 1000.0)) + vec2(0.0, -0.04),
+            world_space_to_uv(sr.o + (sr.d * 1000.0)),
         )
         .xyz()
     }
