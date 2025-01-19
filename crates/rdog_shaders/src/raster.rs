@@ -22,6 +22,9 @@ pub fn fs(
     output: &mut Vec4,
 ) {
     let col = trace_tx.read(pos.xy().as_uvec2()).xyz();
+    let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+    let col = col.saturate();
+
     let prv = prev_tx.read(pos.xy().as_uvec2());
 
     let a = prv.w + 1.0;
@@ -39,11 +42,6 @@ pub fn fs(
     }
 
     let col = col.xyz();
-
-    // let col = col.max(Vec3::splat(0.0)).min(Vec3::splat(1024.0));
-    // let col = tonemap(col);
-
-    let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
     let col = col.saturate();
 
     *output = col.extend(1.0);
