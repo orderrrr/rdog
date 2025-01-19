@@ -1,3 +1,5 @@
+use std::{fs, ops::Deref};
+
 use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, CollapsingHeader, Color32, Pos2, RichText, Ui},
@@ -5,6 +7,7 @@ use bevy_egui::{
 };
 use glam::vec3;
 use rdog_lib::TMAX;
+use serde::{Deserialize, Serialize};
 
 use crate::Config;
 
@@ -36,7 +39,11 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
             ui.separator();
 
             if ui.button("Save").clicked() {
-                // TODO - do something you fuck
+                fs::write(
+                    "crates/rdog/assets/config.json",
+                    serde_json::to_string(ui_state.deref()).unwrap(),
+                )
+                .unwrap();
             }
         });
 
@@ -76,7 +83,7 @@ pub enum Action {
     Delete,
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct MaterialList {
     pub changed: bool,
     pub mats: Vec<Material>,
@@ -286,7 +293,7 @@ impl C32 for Vec3 {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Material {
     pub id: f32,
     pub dist: f32,

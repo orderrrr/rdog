@@ -25,14 +25,11 @@ impl RTSingle {
         //     .bind(bindings)
         //     .build(device, engine.shaders.get("trace_main").unwrap()); // TODO - proper error handling
 
-        let direct_pass = ComputePass::builder("single")
+        let direct_pass = ComputePass::builder("combined")
             .bind(bindings)
             .build(device, &engine.shaders.get("combined_main").unwrap());
 
-
-        Self([
-            direct_pass,
-        ])
+        Self([direct_pass])
     }
 }
 
@@ -45,14 +42,6 @@ impl Pass for RTSingle {
         _view: &wgpu::TextureView,
         pp: &PassParams,
     ) {
-        // if engine.config.direct_pass {
         self.0[0].run(camera, encoder, camera.camera.viewport.size, *pp);
-        // }
-        // if engine.config.scatter_pass {
-        // self.0[1].run(camera, encoder, camera.camera.viewport.size, *pp);
-        // }
-        // if engine.config.specular_pass {
-        // self.0[2].run(camera, encoder, camera.camera.viewport.size, *pp);
-        // }
     }
 }

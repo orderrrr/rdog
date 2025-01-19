@@ -10,10 +10,6 @@ pub const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, -2.0, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
 
-pub const DIFFUSE_BOUNCES: u32 = 4;
-pub const SCATTER_STEPS: u32 = 2;
-pub const BRDF_STEPS: u32 = 1;
-
 pub const HPI: f32 = PI * 0.5; // TODO move out
 
 #[derive(Copy, Clone)]
@@ -223,27 +219,24 @@ impl Material {
 impl Material {
     pub fn scatter(&self, scene: &Scene, r: Ray) -> ScatterRes {
         // let dir = scene.random_on_hemisphere(self.normal(), r);
-        let mut dir = translate_to_ws(scene.get_random_sample(r), self.normal());
+        let mut dir = translate_to_ws(
+            scene.get_random_sample(r.offset_uv(vec2(-1.03322, 3.299))),
+            self.normal(),
+        );
 
         if self.specular() > 0.0 {
             let v = -r.d;
             let h = scene.sample_brdf(
                 self.normal(),
                 self.roughness().powf(4.0),
-                r.offset_seed(UVec2::splat(5)).offset_uv(vec2(1.220, 2.530)),
+                r.offset_seed(uvec2(3, 2)).offset_uv(vec2(1.220, 2.530)),
             );
 
             let v_dot_h = v.dot(h).max(0.000001);
             dir = (2.0 * (v_dot_h * h)) - v;
         }
 
-        ScatterRes::new(
-            r.at(r.pd(self.dist()))
-                .dir(dir)
-                .offset_uv(vec2(1.0012032, 1.100)),
-            true,
-            self.albedo(),
-        )
+        ScatterRes::new(r.at(r.o + (dir * 0.02)).dir(dir), true, self.albedo())
     }
 }
 
@@ -464,6 +457,7 @@ impl<'a> Scene<'a> {
 }
 
 impl Scene<'_> {
+    #[inline(never)]
     pub fn trace(&self, r: Ray) -> Material {
         // TODO - change to a Material struct
         let mut t = 0.01;
@@ -495,13 +489,10 @@ impl Scene<'_> {
     }
 
     pub fn rt(&self, r: Ray) -> Vec3 {
-        let mut r = r;
         let mut hit = self.trace(r);
         let mut r = r.at(r.pd(hit.dist()));
 
         let mut col = Vec3::splat(1.0);
-
-        let mut last = col;
 
         let mut iter = 0;
 
@@ -516,12 +507,18 @@ impl Scene<'_> {
 
             if !hit.valid() {
                 // col *= 1.0 / DANGER;
+                col *= 1.0 / self.sample_atmos(r);
                 break;
             }
 
             let scat = hit.scatter(&self, r.offset_seed(uvec2(iter, iter)));
 
             let mut scol = Vec3::ZERO;
+
+            if hit.emissive() > 0.0 {
+                col *= 1.0 / (hit.albedo() * hit.emissive());
+                break;
+            }
 
             if hit.diffuse() > 0.0 {
                 scol += hit.diffuse()
@@ -537,17 +534,16 @@ impl Scene<'_> {
 
             col *= 1.0 / scol;
 
-            // if !scat.scatter {
-            //     break;
-            // }
+            if !scat.scatter {
+                break;
+            }
 
             r = scat.ray;
-
             hit = self.trace(r);
+            r = r.at(r.pd(hit.dist()));
             iter += 1;
         }
 
-        // return last;
         col = 1.0 / col;
         col
     }
@@ -664,7 +660,7 @@ impl Scene<'_> {
     pub fn get_random_sample(&self, r: Ray) -> Vec3 {
         let ct = (1.0 - rng01(r.spos.xy(), r.seed.y, self.camera.screen.y as u32)).sqrt();
         let st = (1.0 - (ct * ct)).max(0.0).sqrt();
-        let phi = rng01(r.spos.yx(), r.seed.y, self.camera.screen.y as u32) * 2.0 * PI;
+        let phi = rng01(r.spos.yx(), r.seed.y, self.camera.screen.x as u32) * 2.0 * PI;
         return vec3((phi).cos() * st, ct, (phi).sin() * st);
     }
 
@@ -860,69 +856,78 @@ impl Scene<'_> {
         let k_direct = (alpha2 + 1.0) / 8.0;
         let k_ibl = alpha / 2.0;
 
-        for i in 0..BRDF_STEPS + 1 {
-            let h = self.sample_brdf(
-                n,
-                alpha2,
-                r.offset_seed(UVec2::splat(i + 5))
-                    .offset_uv(vec2(1.220, 2.530)),
-            );
-            let v_dot_h = v.dot(h).max(0.000001);
-            let l = (2.0 * (v_dot_h * h)) - v;
-            let n_dot_v = n.dot(v).max(0.0);
-            let n_dot_l = n.dot(l);
-            let n_dot_h = n.dot(h).max(0.0);
+        let h = self.sample_brdf(
+            n,
+            alpha2,
+            r.offset_seed(UVec2::splat(5 + 5))
+                .offset_uv(vec2(1.220, 2.530)),
+        );
+        let v_dot_h = v.dot(h).max(0.000001);
+        let l = (2.0 * (v_dot_h * h)) - v;
+        let n_dot_v = n.dot(v).max(0.0);
+        let n_dot_l = n.dot(l);
+        let n_dot_h = n.dot(h).max(0.0);
 
-            if n_dot_l > 0.0 {
-                let sr = r.clone().at(r.o + (l * 0.02)).dir(l);
+        if n_dot_l > 0.0 {
+            let sr = r.clone().at(r.o + (l * 0.02)).dir(l);
 
-                let hit = self.trace(sr);
+            let hit = self.trace(sr);
 
-                let in_radiance = if hit.valid() {
-                    if hit.emissive() > 0.0 {
-                        hit.albedo()
-                    } else {
-                        hit.albedo()
-                            * self.sample_indirect_diff(
-                                sr.at(r.o + (l * hit.dist()))
-                                    .offset_seed(UVec2::splat(i + 30)),
-                                hit.normal(),
-                            )
-                    }
+            let in_radiance = if hit.valid() {
+                if hit.emissive() > 0.0 {
+                    hit.albedo()
                 } else {
-                    self.sample_atmos(sr)
-                };
+                    let mut col = hit.albedo()
+                        * self.sample_indirect_diff(
+                            sr.at(r.o + (l * hit.dist()))
+                                .offset_seed(UVec2::splat(1 + 30)),
+                            hit.normal(),
+                        );
 
-                *fresnel = f0 + (1.0 - f0) * (1.0 - n_dot_v).pow(5.0);
-                let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_ibl);
-                specular_light +=
-                    in_radiance * (g_term * (*fresnel) * v_dot_h / (n_dot_h * n_dot_v));
-            }
-
-            let cl = self.light_map(r.o);
-            let l = self.spherical_light_sample(cl, r.offset_seed(UVec2::splat(i)));
-            let h = (v + l) / (v + l).length();
-            let n_dot_l = n.dot(l);
-            let n_dot_h = n.dot(h).max(0.0);
-
-            if n_dot_l > 0.0 {
-                let sr = r.dir(l);
-                let hit = self.trace(sr);
-
-                if hit.valid() {
-                    if hit.emissive() > 0.0 {
-                        let attn = 1.0 / (hit.dist() * hit.dist());
-                        let in_radiance = hit.albedo() * hit.emissive() * attn;
-                        let d_term = d_term_ggxtr(n_dot_h, alpha);
-                        let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_direct);
-                        specular_light +=
-                            in_radiance * g_term * *fresnel * d_term / (4.0 / n_dot_v);
+                    if hit.scattering_scale() > 0.0 {
+                        col += hit.scattering_scale()
+                            * hit.scattering_color()
+                            * (self.sample_scattering(
+                                r.clone()
+                                    .at(r.o + (l * hit.dist()))
+                                    .offset_seed(UVec2::splat(2 + 31)),
+                                hit.normal(),
+                            ));
                     }
+
+                    col
+                }
+            } else {
+                self.sample_atmos(sr)
+            };
+
+            *fresnel = f0 + (1.0 - f0) * (1.0 - n_dot_v).pow(5.0);
+            let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_ibl);
+            specular_light += in_radiance * (g_term * (*fresnel) * v_dot_h / (n_dot_h * n_dot_v));
+        }
+
+        let cl = self.light_map(r.o);
+        let l = self.spherical_light_sample(cl, r.offset_seed(UVec2::splat(30)));
+        let h = (v + l) / (v + l).length();
+        let n_dot_l = n.dot(l);
+        let n_dot_h = n.dot(h).max(0.0);
+
+        if n_dot_l > 0.0 {
+            let sr = r.dir(l);
+            let hit = self.trace(sr);
+
+            if hit.valid() {
+                if hit.emissive() > 0.0 {
+                    let attn = 1.0 / (hit.dist() * hit.dist());
+                    let in_radiance = hit.albedo() * hit.emissive() * attn;
+                    let d_term = d_term_ggxtr(n_dot_h, alpha);
+                    let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_direct);
+                    specular_light += in_radiance * g_term * *fresnel * d_term / (4.0 / n_dot_v);
                 }
             }
         }
 
-        specular_light / BRDF_STEPS as f32
+        specular_light
     }
 }
 

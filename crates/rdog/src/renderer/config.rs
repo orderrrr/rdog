@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use std::fmt::{Display, Formatter};
 
 use bevy::prelude::Resource;
@@ -9,7 +10,7 @@ use crate::ui::MaterialList;
 
 use super::Engine;
 
-#[derive(Clone, Debug, Resource)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize)]
 pub struct Config {
     pub direct_pass: bool,
     pub specular_pass: bool,

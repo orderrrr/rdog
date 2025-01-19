@@ -1,4 +1,4 @@
-use std::ops;
+use std::{fs, ops};
 
 use bevy::{
     prelude::*,
@@ -10,6 +10,7 @@ use shader::{
 };
 use stages::cache::RdogShaderCache;
 use state::SyncedState;
+use thiserror::Error;
 use ui::ui_system;
 
 use crate::Config;
@@ -31,7 +32,7 @@ impl Plugin for RdogPlugin {
             .init_state::<RdogShaderState>()
             .init_asset::<RdogShaderAsset>()
             .init_asset_loader::<RdogShaderAssetLoader>()
-            .insert_resource(Config::default())
+            .insert_resource(read_config().unwrap_or(Config::default()))
             .add_systems(OnEnter(RdogShaderState::Setup), load_shaders)
             .add_systems(
                 Update,
@@ -60,6 +61,21 @@ impl Plugin for RdogPlugin {
             .insert_resource(RdogShaderCache::default())
             .insert_resource(EngineResource(engine));
     }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    /// An [IO](std::io) Error
+    #[error("Could not load asset: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Could not load asset: {0}")]
+    SerdeError(#[from] serde_json::Error),
+}
+
+fn read_config() -> Result<Config, ConfigError> {
+    let f = fs::read("crates/rdog/assets/config.json")?;
+    Ok(serde_json::from_slice(&f)?)
 }
 
 #[derive(Resource)]

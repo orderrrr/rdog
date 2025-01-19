@@ -5,11 +5,16 @@
 // pub mod ray;
 pub mod atmosphere;
 
-pub mod direct;
-pub mod scatter;
-pub mod specular;
+// #[cfg(not(feature = "combined"))]
+// pub mod direct;
+// #[cfg(not(feature = "combined"))]
+// pub mod scatter;
+// #[cfg(not(feature = "combined"))]
+// pub mod specular;
 
-// pub mod combined;
+// #[cfg(feature = "combined")]
+pub mod combined;
+
 // pub mod ray;
 // pub mod trace;
 

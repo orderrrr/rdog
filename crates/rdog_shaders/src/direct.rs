@@ -1,5 +1,4 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
-
 pub use rdog_lib::prelude::*;
 
 #[spirv(compute(threads(1)))]
