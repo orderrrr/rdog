@@ -73,7 +73,7 @@ pub enum ConfigError {
     SerdeError(#[from] serde_json::Error),
 }
 
-fn read_config() -> Result<Config, ConfigError> {
+pub fn read_config() -> Result<Config, ConfigError> {
     let f = fs::read("crates/rdog/assets/config.json")?;
     Ok(serde_json::from_slice(&f)?)
 }

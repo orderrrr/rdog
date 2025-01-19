@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::Config;
 
+use super::read_config;
+
 pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
     let mut c = false;
 
@@ -38,6 +40,11 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
 
             ui.separator();
 
+            if ui.button("Reload").clicked() {
+                *ui_state = read_config().unwrap_or(Config::default());
+                c = true;
+            }
+
             if ui.button("Save").clicked() {
                 fs::write(
                     "crates/rdog/assets/config.json",
@@ -47,7 +54,7 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
             }
         });
 
-    ui_state.multi_frame = !(c || ui_state.user_orbit || ! ui_state.multi_frame_override);
+    ui_state.multi_frame = !(c || ui_state.user_orbit || !ui_state.multi_frame_override);
 }
 
 fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
@@ -55,7 +62,10 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
 
     c = c
         || ui
-            .checkbox(&mut ui_state.multi_frame_override, "Preserve last frame (MultiPass)")
+            .checkbox(
+                &mut ui_state.multi_frame_override,
+                "Preserve last frame (MultiPass)",
+            )
             .changed;
     c = c
         || ui
