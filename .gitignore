@@ -1,4 +1,3 @@
 /target
 /scratch.rs
 /*.glsl
-/crates/rdog/assets/shaders/rdog_shaders.spvs/*
