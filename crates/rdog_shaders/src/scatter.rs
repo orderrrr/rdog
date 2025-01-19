@@ -14,7 +14,8 @@ pub fn main(
     let inp = out.read(global_id.xy().as_ivec2());
     let pos = global_id.xy().as_vec2();
     let mut r = ray(camera.screen.xy(), camera.ndc_to_world, pos, globals.seed);
-    r = r.at(r.pd(inp.w));
+    r = r.at(r.pd(inp.w - 0.01));
+
     let scene = Scene::new(
         camera,
         globals,

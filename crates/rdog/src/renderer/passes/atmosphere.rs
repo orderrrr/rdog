@@ -46,8 +46,11 @@ impl Pass for AtmospherePass {
         _view: &wgpu::TextureView,
         _pp: &PassParams,
     ) {
-        if camera.recompute_static || engine.config.realtime_atmosphere {
+        if camera.recompute_static {
             log::info!("Rocomputing atmosphere");
+        }
+
+        if camera.recompute_static || engine.config.realtime_atmosphere {
             self.0[0].run(camera, encoder, NOISE_DIM, ());
 
             self.0[1].run(
@@ -57,13 +60,5 @@ impl Pass for AtmospherePass {
                 (),
             );
         }
-        // self.0[0].run(camera, encoder, NOISE_DIM, ());
-        //
-        // self.0[1].run(
-        //     camera,
-        //     encoder,
-        //     (camera.camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2(),
-        //     (),
-        // );
     }
 }

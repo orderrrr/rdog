@@ -47,12 +47,16 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
             }
         });
 
-    ui_state.multi_frame = !(c || ui_state.user_orbit);
+    ui_state.multi_frame = !(c || ui_state.user_orbit || ! ui_state.multi_frame_override);
 }
 
 fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
     let mut c = false;
 
+    c = c
+        || ui
+            .checkbox(&mut ui_state.multi_frame_override, "Preserve last frame (MultiPass)")
+            .changed;
     c = c
         || ui
             .checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting")
@@ -193,7 +197,7 @@ impl TUi for Material {
                     .add(
                         egui::DragValue::new(&mut self.diffuse_scale)
                             .speed(0.01)
-                            .range(0.0..=1.0),
+                            .range(0.0..=10.0),
                     )
                     .changed
                     || c;
@@ -204,7 +208,7 @@ impl TUi for Material {
                     .add(
                         egui::DragValue::new(&mut self.specular_scale)
                             .speed(0.01)
-                            .range(0.0..=1.0),
+                            .range(0.0..=10.0),
                     )
                     .changed
                     || c;
@@ -215,7 +219,7 @@ impl TUi for Material {
                     .add(
                         egui::DragValue::new(&mut self.scattering_scale)
                             .speed(0.01)
-                            .range(0.0..=1.0),
+                            .range(0.0..=10.0),
                     )
                     .changed
                     || c;

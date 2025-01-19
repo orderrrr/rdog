@@ -5,7 +5,7 @@ use crate::prelude::*;
 
 pub const DANGER: Vec3 = vec3(1.0, 0.0, 1.0);
 
-pub const TMAX: f32 = 22.0;
+pub const TMAX: f32 = 40.0;
 pub const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, -2.0, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
@@ -485,7 +485,7 @@ impl Scene<'_> {
         //         .with_albedo(DANGER);
         //
 
-        Material::default()
+        Material::default().with_albedo(DANGER)
     }
 
     pub fn rt(&self, r: Ray) -> Vec3 {
@@ -859,8 +859,8 @@ impl Scene<'_> {
         let h = self.sample_brdf(
             n,
             alpha2,
-            r.offset_seed(UVec2::splat(5 + 5))
-                .offset_uv(vec2(1.220, 2.530)),
+            r.offset_seed(UVec2::splat(1 + 5))
+                .offset_uv(vec2(5.220, 2.530)),
         );
         let v_dot_h = v.dot(h).max(0.000001);
         let l = (2.0 * (v_dot_h * h)) - v;
@@ -903,27 +903,25 @@ impl Scene<'_> {
 
             *fresnel = f0 + (1.0 - f0) * (1.0 - n_dot_v).pow(5.0);
             let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_ibl);
-            specular_light += in_radiance * (g_term * (*fresnel) * v_dot_h / (n_dot_h * n_dot_v));
+            specular_light = in_radiance * (g_term * (*fresnel) * v_dot_h / (n_dot_h * n_dot_v));
         }
 
         let cl = self.light_map(r.o);
-        let l = self.spherical_light_sample(cl, r.offset_seed(UVec2::splat(30)));
+        let l = self.spherical_light_sample(cl, r);
         let h = (v + l) / (v + l).length();
         let n_dot_l = n.dot(l);
         let n_dot_h = n.dot(h).max(0.0);
 
         if n_dot_l > 0.0 {
-            let sr = r.dir(l);
+            let sr = r.at(r.o + (l * 0.02)).dir(l);
             let hit = self.trace(sr);
 
-            if hit.valid() {
-                if hit.emissive() > 0.0 {
-                    let attn = 1.0 / (hit.dist() * hit.dist());
-                    let in_radiance = hit.albedo() * hit.emissive() * attn;
-                    let d_term = d_term_ggxtr(n_dot_h, alpha);
-                    let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_direct);
-                    specular_light += in_radiance * g_term * *fresnel * d_term / (4.0 / n_dot_v);
-                }
+            if hit.emissive() > 0.0 {
+                let attn = 1.0 / (hit.dist() * hit.dist());
+                let in_radiance = hit.albedo() * attn;
+                let d_term = d_term_ggxtr(n_dot_h, alpha);
+                let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_direct);
+                specular_light += in_radiance * g_term * *fresnel * d_term / (4.0 / n_dot_v);
             }
         }
 
