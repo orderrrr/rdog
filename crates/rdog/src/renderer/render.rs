@@ -1,5 +1,4 @@
 use std::ops::DerefMut;
-
 use crate::{
     buffers::mapped_uniform_buffer::MappedUniformBuffer, storage_buffer::StorageBuffer,
     texture::Texture, Globals,
@@ -45,7 +44,7 @@ impl Buffers {
 
         let render_tx = Texture::builder("render")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -53,7 +52,7 @@ impl Buffers {
 
         let render_alt_tx = Texture::builder("renderalt")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -61,14 +60,14 @@ impl Buffers {
 
         let prev_tx = Texture::builder("prev_tx")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
             .build(device);
 
         let atmosphere_tx = Texture::builder("atmosphere")
-            .with_size(camera.viewport.size * (ATMOS_MULT as u32)) // should be larger maybe? not sure
+            .with_size((camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2()) // should be larger maybe? not sure
             .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
@@ -77,7 +76,7 @@ impl Buffers {
 
         let atmos_noise_tx = Texture::builder("atmos_noise")
             .with_size(NOISE_DIM)
-            .with_format(wgpu::TextureFormat::Rgba8Unorm)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -139,17 +138,19 @@ impl CameraController {
         *self.buffers.config.deref_mut() = engine.config.to_pass_params();
         *self.buffers.materials.deref_mut() = engine.config.material_pass();
 
+        if engine.config.material_tree.changed {
+            log::info!("Material tree changed.");
+            self.buffers.materials =
+                StorageBuffer::new(device, "materials", engine.config.material_pass());
+            self.rebuild_passes(engine, device);
+        }
+
         self.recompute_static = false;
 
         if is_invalidated {
             self.rebuild_buffers(engine, device);
             self.rebuild_passes(engine, device);
             self.recompute_static = true;
-        }
-
-        if engine.config.material_tree.changed {
-            self.buffers.materials =
-                StorageBuffer::new(device, "materials", engine.config.material_pass());
         }
     }
 
@@ -179,6 +180,8 @@ impl CameraController {
     }
 
     pub fn invalidate(&mut self, engine: &Engine, device: &wgpu::Device) {
+        self.recompute_static = true;
+        self.rebuild_buffers(engine, device); // TODO - maybe not correct being here. but I want to reset buffers when shaders recompiled.
         self.rebuild_passes(engine, device);
     }
 

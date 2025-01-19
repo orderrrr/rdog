@@ -17,8 +17,8 @@ pub fn fs(
     #[spirv(descriptor_set = 0, binding = 1, uniform)] _camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 2, uniform)] _globals: &Globals,
 
-    #[spirv(descriptor_set = 1, binding = 0)] trace_tx: TexRgba16,
-    #[spirv(descriptor_set = 1, binding = 1)] prev_tx: TexRgba16,
+    #[spirv(descriptor_set = 1, binding = 0)] trace_tx: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 1)] prev_tx: TexRgba32,
     output: &mut Vec4,
 ) {
     let col = trace_tx.read(pos.xy().as_uvec2()).xyz();
@@ -39,6 +39,10 @@ pub fn fs(
     }
 
     let col = col.xyz();
+
+    // let col = col.max(Vec3::splat(0.0)).min(Vec3::splat(1024.0));
+    // let col = tonemap(col);
+
     let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
     let col = col.saturate();
 

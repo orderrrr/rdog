@@ -13,3 +13,6 @@ crate-type = ["lib", "dylib"]
 [dependencies]
 spirv-std = { workspace = true }
 rdog_lib = { path = "../rdog_lib" }
+
+[features]
+combined = []

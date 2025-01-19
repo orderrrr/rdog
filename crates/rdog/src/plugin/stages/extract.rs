@@ -134,11 +134,13 @@ pub(crate) fn cameras(
 
         assert!(camera.hdr, "Rdog requires an HDR camera");
 
-        commands.get_or_spawn(entity).insert(RdogExtractedCamera {
-            transform: transform.compute_matrix(),
-            projection: projection.get_clip_from_view(),
-            mode: rdog_camera.map(|camera| camera.mode),
-        });
+        if let Some(mut c) = commands.get_entity(entity) {
+            c.insert(RdogExtractedCamera {
+                transform: transform.compute_matrix(),
+                projection: projection.get_clip_from_view(),
+                mode: rdog_camera.map(|camera| camera.mode),
+            });
+        }
     }
 }
 

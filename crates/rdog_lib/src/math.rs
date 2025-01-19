@@ -1,5 +1,17 @@
 use crate::prelude::*;
 
+pub fn acos_approx(v: f32) -> f32 {
+    let x = v.abs();
+    let mut res = -0.155972 * x + 1.56467; // p(x)
+    res *= (1.0f32 - x).sqrt();
+
+    if v >= 0.0 {
+        res
+    } else {
+        PI - res
+    }
+}
+
 /// Linear interpolation between two values, similar to GLSL's mix function
 pub trait Math<T> {
     fn cos(&self) -> T;

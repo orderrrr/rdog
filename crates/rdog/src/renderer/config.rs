@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use std::fmt::{Display, Formatter};
 
 use bevy::prelude::Resource;
@@ -9,13 +10,15 @@ use crate::ui::MaterialList;
 
 use super::Engine;
 
-#[derive(Clone, Debug, Resource)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize)]
 pub struct Config {
     pub direct_pass: bool,
     pub specular_pass: bool,
     pub scatter_pass: bool,
-    pub material_tree: MaterialList,
     pub multi_frame: bool,
+    pub realtime_atmosphere: bool,
+    pub material_tree: MaterialList,
+    pub user_orbit: bool,
 }
 
 impl Config {
@@ -47,6 +50,8 @@ impl Default for Config {
             specular_pass: true,
             scatter_pass: true,
             multi_frame: true,
+            realtime_atmosphere: false,
+            user_orbit: false,
             material_tree: MaterialList::demo(), // TODO not demo, serialize from a file
         }
     }

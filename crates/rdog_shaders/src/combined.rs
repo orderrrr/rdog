@@ -24,29 +24,9 @@ pub fn main(
         atmos_sampler,
     );
 
-    let mut col = Vec3::ZERO;
-
-    let res = scene.trace(r);
-
-    if !res.valid() {
-        col = scene.sample_atmos(r);
-        unsafe {
-            out.write(global_id.xy(), col.xyz().extend(res.dist()));
-        }
-        return;
-    }
-
-    let pos = r.pd(res.dist());
-
-    let diffuse_pass: bool = ((scene.params.flags >> 0) & 1) == 1;
-
-    if res.diffuse() > 0.0 && diffuse_pass {
-        col = res.diffuse()
-            * res.albedo()
-            * (scene.sample_indirect_diff(r.clone().at(pos), res.normal()));
-    }
+    let col = scene.rt(r);
 
     unsafe {
-        out.write(global_id.xy(), col.xyz().extend(res.dist()));
+        out.write(global_id.xy(), col.xyz().extend(1.0));
     }
 }

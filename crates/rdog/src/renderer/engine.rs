@@ -1,17 +1,22 @@
+use crate::shader::RdogShaderAsset;
+
 use super::{
-    camera_controllers::RenderControllers, images::Images, render::CameraController,
-    shaders::Shaders, utils, Camera, CameraHandle, Config, Image,
+    camera_controllers::RenderControllers,
+    images::Images,
+    render::CameraController,
+    shaders::{RdogShader, ShaderCache},
+    utils, Camera, CameraHandle, Config, Image,
 };
 use bevy::{asset::AssetId, prelude::Image as BevyImage};
 use glam::Vec2;
 use std::{mem, time::Instant};
 
 use log::info;
-use rdog_lib as lib;
+use rdog_lib::{self as lib, camera};
 
 #[derive(Debug)]
 pub struct Engine {
-    pub shaders: Shaders,
+    pub shaders: ShaderCache,
     pub frame: lib::Frame,
     pub time: Vec2,
     pub seed: u32,
@@ -27,7 +32,7 @@ impl Engine {
         info!("Initializing");
 
         Self {
-            shaders: Shaders::new(device),
+            shaders: ShaderCache::new_cache(),
             frame: lib::Frame::new(1),
             cameras: Default::default(),
             images: Images::new(device),
@@ -67,6 +72,20 @@ impl Engine {
         self.frame = lib::Frame::new(self.frame.get() + 1);
 
         utils::metric("tick", tt);
+    }
+
+    pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
+        for shader in shaders {
+            log::info!("Computing shader: {}", shader.name);
+            let comp = RdogShader::new(device, shader);
+            self.shaders.entry(shader.name.to_string()).insert(comp);
+        }
+        
+        let mut cameras = mem::take(&mut self.cameras);
+        for camera in cameras.iter_mut() {
+            camera.invalidate(self, device);
+        }
+        self.cameras = cameras;
     }
 }
 

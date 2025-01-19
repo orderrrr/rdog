@@ -52,7 +52,7 @@ pub enum PanOrbitAction {
 impl Default for PanOrbitState {
     fn default() -> Self {
         PanOrbitState {
-            center: Vec3::ZERO,
+            center: Vec3::Y,
             radius: 1.0,
             upside_down: false,
             pitch: 0.0,
@@ -227,14 +227,14 @@ pub fn pan_orbit_camera(
         // controller was just added and thus we are running
         // for the first time and need to initialize)
         if any || state.is_added() {
-            config.multi_frame = false;
+            config.user_orbit = true;
             // YXZ Euler Rotation performs yaw/pitch/roll.
             transform.rotation = Quat::from_euler(EulerRot::YXZ, state.yaw, state.pitch, 0.0);
             // To position the camera, get the backward direction vector
             // and place the camera at the desired radius from the center.
             transform.translation = state.center + transform.back() * state.radius;
         } else {
-            config.multi_frame = true;
+            config.user_orbit = false;
         }
     }
 }
