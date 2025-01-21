@@ -391,13 +391,18 @@ pub struct Scene<'a> {
     camera: &'a Camera,
     globals: &'a Globals,
     materials: &'a [Material],
+    #[allow(dead_code)]
     params: &'a PassParams,
     bounces: u32,
+    #[allow(dead_code)]
     rays: u32,
     atmos_tx: Tex<'a>,
     atmos_sampler: &'a Sampler,
+    #[allow(dead_code)]
     diffuse: bool,
+    #[allow(dead_code)]
     scatter: bool,
+    #[allow(dead_code)]
     specular: bool,
 }
 

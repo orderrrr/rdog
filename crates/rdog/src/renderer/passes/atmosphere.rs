@@ -1,5 +1,5 @@
-use bevy::{log, utils::HashMap};
-use rdog_lib::{camera, PassParams};
+use bevy::log;
+use rdog_lib::PassParams;
 use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 use crate::{

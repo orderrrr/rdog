@@ -12,7 +12,7 @@ use glam::Vec2;
 use std::{mem, time::Instant};
 
 use log::info;
-use rdog_lib::{self as lib, camera};
+use rdog_lib::{self as lib};
 
 #[derive(Debug)]
 pub struct Engine {

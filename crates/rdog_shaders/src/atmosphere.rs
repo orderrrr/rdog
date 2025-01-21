@@ -460,8 +460,8 @@ pub fn calc_atmosphere(
     camera: &Camera,
     globals: &Globals,
 
-    noise_tx: Tex,
-    noise_sampler: &Sampler,
+    _noise_tx: Tex,
+    _noise_sampler: &Sampler,
 ) -> Vec3 {
     let pos = gather_pos(
         SPHERICAL_PROJECTION,
@@ -470,7 +470,7 @@ pub fn calc_atmosphere(
         globals.time.x,
     );
 
-    let dither = bayer_16(coord);
+    let _dither = bayer_16(coord);
 
     let mut light_absorb = Vec3::ZERO;
 
@@ -497,7 +497,7 @@ pub fn noise(
     #[spirv(descriptor_set = 0, binding = 0, uniform)] globals: &Globals,
     #[spirv(descriptor_set = 0, binding = 1)] out: TexRgba16,
 ) {
-    let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 0.97;
+    let rng = rng01(global_id.xy().as_vec2(), globals.seed.x, NOISE_DIM.x) * 1.2;
 
     unsafe {
         out.write(global_id.xy(), Vec3::splat(rng).extend(1.0));
