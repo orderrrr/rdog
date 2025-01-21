@@ -67,16 +67,16 @@ macro_rules! passes {
     };
 }
 
-#[cfg(not(feature = "combined"))]
-passes!([
-    atmosphere => AtmospherePass,
-    rt => RTPass,
-    raster => RasterPass,
-]);
-
 #[cfg(feature = "combined")]
 passes!([
     atmosphere => AtmospherePass,
     rt_single => RTSingle,
+    raster => RasterPass,
+]);
+
+#[cfg(not(feature = "combined"))]
+passes!([
+    atmosphere => AtmospherePass,
+    rt => RTPass,
     raster => RasterPass,
 ]);

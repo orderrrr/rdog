@@ -15,4 +15,6 @@ spirv-std = { workspace = true }
 rdog_lib = { path = "../rdog_lib" }
 
 [features]
+# default = ["combined"]
 combined = []
+not-combined = []

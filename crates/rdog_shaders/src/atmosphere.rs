@@ -84,12 +84,10 @@ pub mod coord {
     }
 
     pub fn gather_pos(sphere: bool, frag_coord: Vec2, screen_res: Vec2, el: f32) -> PositionStruct {
-        let mut tx_coord = frag_coord / screen_res;
-        // tx_coord.y = 1.0 - tx_coord.y;
+        let tx_coord = frag_coord / screen_res;
 
-        let mouse_coord = vec2(0.8, 0.55);
         let el = el * 0.2;
-        let mouse_coord = ((((vec2(el.sin(), el.cos()) * 0.5) + 0.5) * 0.5) + 0.5);
+        let mouse_coord = vec2(el.sin(), el.cos()) * 0.5 + 0.5 * 0.5 + 0.5;
 
         let w_pos = calculate_world_space_position(tx_coord, sphere);
         let world_vector = w_pos.normalize();

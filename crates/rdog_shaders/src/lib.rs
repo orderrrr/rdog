@@ -5,14 +5,14 @@
 // pub mod ray;
 pub mod atmosphere;
 
-#[cfg(not(feature = "combined"))]
-pub mod direct;
-#[cfg(not(feature = "combined"))]
-pub mod scatter;
-#[cfg(not(feature = "combined"))]
-pub mod specular;
+// // #[cfg(feature = "not-combined")]
+// pub mod direct;
+// // #[cfg(feature = "not-combined")]
+// pub mod scatter;
+// // #[cfg(feature = "not-combined")]
+// pub mod specular;
 
-#[cfg(feature = "combined")]
+// #[cfg(feature = "combined")]
 pub mod combined;
 
 // pub mod ray;
@@ -22,4 +22,4 @@ pub mod combined;
 // pub mod z_gaussian;
 // pub mod z_motion;
 
-pub mod raster;
+// pub mod raster;

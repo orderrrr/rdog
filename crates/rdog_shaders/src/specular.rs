@@ -21,7 +21,8 @@ pub fn main(
         globals,
         material,
         params,
-        20,
+        8,
+        8,
         atmos_tx,
         atmos_sampler,
     );

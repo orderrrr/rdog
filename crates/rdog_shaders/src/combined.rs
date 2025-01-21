@@ -12,16 +12,24 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 4)] atmos_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 5)] out: TexRgba32,
 ) {
+    let compute_diffuse: bool = ((params.flags >> 0) & 1) == 1;
+    let compute_scatter: bool = ((params.flags >> 1) & 1) == 1;
+    let compute_specular: bool = ((params.flags >> 2) & 1) == 1;
+
     let pos = global_id.xy().as_vec2();
-    let r = ray(camera.screen.xy(), camera.ndc_to_world, pos, globals.seed);
+    let r = Ray::ray(camera.screen.xy(), camera.ndc_to_world, pos, globals.seed);
     let scene = Scene::new(
         camera,
         globals,
         material,
         params,
-        20,
+        8,
+        8,
         atmos_tx,
         atmos_sampler,
+        compute_diffuse,
+        compute_scatter,
+        compute_specular,
     );
 
     let col = scene.rt(r);
