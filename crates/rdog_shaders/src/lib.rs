@@ -22,4 +22,4 @@ pub mod combined;
 // pub mod z_gaussian;
 // pub mod z_motion;
 
-// pub mod raster;
+pub mod raster;

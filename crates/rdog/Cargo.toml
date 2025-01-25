@@ -47,7 +47,7 @@ console_log = "0.2.0"
 wasm-bindgen-futures = "0.4.18"
 
 [features]
-default = ["use-compiled-tools"]
+default = ["use-compiled-tools", "combined"]
 use-installed-tools = ["spirv-builder/use-installed-tools"]
 use-compiled-tools = ["spirv-builder/use-compiled-tools"]
 metrics = ["humantime"]

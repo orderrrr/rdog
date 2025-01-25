@@ -4,6 +4,7 @@ use spirv_builder::{Capability, MetadataPrintout, SpirvBuilder};
 use std::env;
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let crate_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -37,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
-    uu_cp_recursive(
+    copy_dir_all(
         PathBuf::from(
             crate_path
                 .clone()
@@ -49,37 +50,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         ),
         PathBuf::from(
             crate_path.into_os_string().to_str().unwrap().to_owned()
-                + "/../../crates/rdog/assets/shaders",
+                + "/../../crates/rdog/assets/shaders/rdog_shaders.spvs",
         ),
-    );
+    )
+    .unwrap();
 
     Ok(())
 }
 
-// Equal to coreutils `cp -r src dst`
-fn uu_cp_recursive(src: PathBuf, dst: PathBuf) {
-    let options = uu_cp::Options {
-        attributes: uu_cp::Attributes::NONE,
-        attributes_only: false,
-        copy_contents: false,
-        cli_dereference: false,
-        copy_mode: uu_cp::CopyMode::Copy,
-        dereference: true,
-        one_file_system: false,
-        parents: false,
-        update: uu_cp::UpdateMode::ReplaceAll,
-        debug: false,
-        verbose: false,
-        strip_trailing_slashes: false,
-        reflink_mode: uu_cp::ReflinkMode::Auto,
-        sparse_mode: uu_cp::SparseMode::Auto,
-        backup: uu_cp::BackupMode::NoBackup,
-        backup_suffix: "~".to_owned(),
-        no_target_dir: false,
-        overwrite: uu_cp::OverwriteMode::Clobber(uu_cp::ClobberMode::Standard),
-        recursive: true, // !
-        target_dir: None,
-        progress_bar: false,
-    };
-    uu_cp::copy(&[src], &dst, &options).unwrap();
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
 }

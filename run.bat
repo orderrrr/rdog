@@ -1,2 +1,2 @@
 $Env:WGPU_BACKEND="vulkan"
-cargo run --bin rdog
+cargo run --release --bin rdog

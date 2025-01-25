@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 spirv-builder.workspace = true
-uu_cp = "0.0.28"
+# uu_cp = "0.0.28"
 
 # See rustc_codegen_spirv/Cargo.toml for details on these features
 [features]
