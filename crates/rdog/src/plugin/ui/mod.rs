@@ -91,21 +91,27 @@ fn atmosphere(ui_state: &mut Config, ui: &mut Ui) -> bool {
             // ui_state.sun_pos *= 360.0;
 
             ui.label("Sun Height");
-            c = c || ui.add(egui::Slider::new(&mut ui_state.sun_pos.y, 0.0..=1.0).suffix("%")).changed;
+            c = c
+                || ui
+                    .add(egui::Slider::new(&mut ui_state.sun_pos.y, 0.0..=1.0).suffix("%"))
+                    .changed;
             ui.end_row();
 
-                // c = ui
-                //     .add(
-                //         egui::DragValue::new(&mut self.diffuse_scale)
-                //             .speed(0.01)
-                //             .range(0.0..=10.0),
-                //     )
-                //     .changed
-                //     || c;
-                // ui.end_row();
+            // c = ui
+            //     .add(
+            //         egui::DragValue::new(&mut self.diffuse_scale)
+            //             .speed(0.01)
+            //             .range(0.0..=10.0),
+            //     )
+            //     .changed
+            //     || c;
+            // ui.end_row();
 
             ui.label("Sun Pos");
-            c = c || ui.add(egui::Slider::new(&mut ui_state.sun_pos.x, 0.0..=1.0).suffix("%")).changed;
+            c = c
+                || ui
+                    .add(egui::Slider::new(&mut ui_state.sun_pos.x, 0.0..=1.0).suffix("%"))
+                    .changed;
             ui.end_row();
 
             // ui_state.sun_pos /= 360.0;
@@ -124,6 +130,39 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
                 "Preserve last frame (MultiPass)",
             )
             .changed;
+
+    egui::Grid::new("")
+        .num_columns(2)
+        .striped(true)
+        .spacing([40.0, 4.0])
+        .show(ui, |ui| {
+            ui_state.pass_count -= 1;
+            ui.label("Pass Count");
+            c = ui
+                .add(
+                    egui::DragValue::new(&mut ui_state.pass_count)
+                        .speed(1)
+                        .range(0.0..=16.0),
+                )
+                .changed
+                || c;
+            ui.end_row();
+            ui_state.pass_count += 1;
+
+            ui_state.bounce_count -= 1;
+            ui.label("Bounces");
+            c = ui
+                .add(
+                    egui::DragValue::new(&mut ui_state.bounce_count)
+                        .speed(1)
+                        .range(0.0..=16.0),
+                )
+                .changed
+                || c;
+            ui.end_row();
+            ui_state.bounce_count += 1;
+        });
+
     // TODO - probably can remove...
     // c = c
     //     || ui
