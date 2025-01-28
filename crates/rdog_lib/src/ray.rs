@@ -1,3 +1,5 @@
+use core::f32;
+
 use bytemuck::{Pod, Zeroable};
 use spirv_std::num_traits::Pow;
 
@@ -23,16 +25,21 @@ pub struct Ray {
 }
 
 impl Ray {
-    pub fn ray(ss: Vec2, ndc_to_world: Mat4, pos: Vec2, seed: UVec2) -> Ray {
-        let sp = pos + vec2(0.5, 0.5);
+    pub fn ray(ss: Vec2, ndc_to_world: Mat4, pos: Vec2, seed: UVec2, i: u32) -> Ray {
+        // for i in 0..passes {
+        let mut uv = ((pos + vec2(0.5, 0.5)) * 2.0) / ss - Vec2::ONE;
 
-        let ndc = sp * 2.0 / ss - Vec2::ONE;
-        let ndc = vec2(ndc.x, ndc.y);
+        let offset = i as f32 * pos;
+        let position = rng01(offset, seed.y, ss.y as u32) - 0.5;
 
-        let far_plane = ndc_to_world.project_point3(ndc.extend(f32::EPSILON));
-        let near_plane = ndc_to_world.project_point3(ndc.extend(1.0));
+        uv += position * 0.005;
 
-        Ray::new(near_plane, (far_plane - near_plane).normalize(), pos, seed)
+        let fp = ndc_to_world.project_point3(uv.extend(f32::EPSILON));
+        let np = ndc_to_world.project_point3(uv.extend(1.0));
+
+        let seed = uvec2(seed.x, seed.y.wrapping_mul(i + 1));
+
+        return Ray::new(np, (fp - np).normalize(), pos, seed);
     }
 
     fn new(o: Vec3, d: Vec3, pos: Vec2, seed: UVec2) -> Self {
@@ -394,8 +401,6 @@ pub struct Scene<'a> {
     #[allow(dead_code)]
     params: &'a PassParams,
     bounces: u32,
-    #[allow(dead_code)]
-    rays: u32,
     atmos_tx: Tex<'a>,
     atmos_sampler: &'a Sampler,
     #[allow(dead_code)]
@@ -413,7 +418,6 @@ impl<'a> Scene<'a> {
         materials: &'a [Material],
         params: &'a PassParams,
         bounces: u32,
-        rays: u32,
         atmos_tx: Tex<'a>,
         atmos_sampler: &'a Sampler,
         diffuse: bool,
@@ -426,7 +430,6 @@ impl<'a> Scene<'a> {
             materials,
             params,
             bounces,
-            rays,
             atmos_tx,
             atmos_sampler,
             diffuse,

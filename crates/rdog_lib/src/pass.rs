@@ -6,5 +6,7 @@ use bytemuck::{Pod, Zeroable};
 pub struct PassParams {
     pub sun_x: f32,
     pub sun_y: f32,
+    pub pass_count: u32,
+    pub bounce_count: u32,
     pub flags: u32,
 }

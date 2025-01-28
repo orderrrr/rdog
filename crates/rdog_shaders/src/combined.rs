@@ -1,6 +1,5 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 pub use rdog_lib::prelude::*;
-
 #[spirv(compute(threads(1)))]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
@@ -17,14 +16,13 @@ pub fn main(
     let compute_specular: bool = ((params.flags >> 2) & 1) == 1;
 
     let pos = global_id.xy().as_vec2();
-    let r = Ray::ray(camera.screen.xy(), camera.ndc_to_world, pos, globals.seed);
+
     let scene = Scene::new(
         camera,
         globals,
         material,
         params,
-        8,
-        8,
+        params.bounce_count,
         atmos_tx,
         atmos_sampler,
         compute_diffuse,
@@ -32,7 +30,20 @@ pub fn main(
         compute_specular,
     );
 
-    let col = scene.rt(r);
+    let mut col = Vec3::ZERO;
+
+    for i in 0..params.pass_count {
+        let r = Ray::ray(
+            camera.screen.xy(),
+            camera.ndc_to_world,
+            pos,
+            globals.seed,
+            i,
+        );
+        col += scene.rt(r);
+    }
+
+    col /= params.pass_count as f32;
 
     unsafe {
         out.write(global_id.xy(), col.xyz().extend(1.0));
