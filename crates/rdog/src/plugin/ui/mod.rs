@@ -97,16 +97,6 @@ fn atmosphere(ui_state: &mut Config, ui: &mut Ui) -> bool {
                     .changed;
             ui.end_row();
 
-            // c = ui
-            //     .add(
-            //         egui::DragValue::new(&mut self.diffuse_scale)
-            //             .speed(0.01)
-            //             .range(0.0..=10.0),
-            //     )
-            //     .changed
-            //     || c;
-            // ui.end_row();
-
             ui.label("Sun Pos");
             c = c
                 || ui
