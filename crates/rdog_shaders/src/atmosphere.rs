@@ -83,11 +83,12 @@ pub mod coord {
         }
     }
 
-    pub fn gather_pos(sphere: bool, frag_coord: Vec2, screen_res: Vec2, el: f32) -> PositionStruct {
+    pub fn gather_pos(sphere: bool, frag_coord: Vec2, screen_res: Vec2, _el: f32, params: &PassParams) -> PositionStruct {
         let tx_coord = frag_coord / screen_res;
 
-        let el = el * 0.2;
-        let mouse_coord = vec2(el.sin(), el.cos()) * 0.5 + 0.5 * 0.5 + 0.5;
+        // let el = el * 0.2;
+        // let mouse_coord = vec2(el.sin(), el.cos()) * 0.5 + 0.5 * 0.5 + 0.5;
+        let mouse_coord = vec2(params.sun_x, params.sun_y);
 
         let w_pos = calculate_world_space_position(tx_coord, sphere);
         let world_vector = w_pos.normalize();
@@ -395,6 +396,7 @@ pub fn calculate_volumetric_clouds(
 
 #[spirv(compute(threads(1)))]
 pub fn atmosphere(
+    #[spirv(push_constant)] params: &PassParams,
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
@@ -407,7 +409,7 @@ pub fn atmosphere(
     let mut pos = global_id.xy().as_vec2();
     pos.y = (camera.screen.y * ATMOS_MULT) - pos.y;
 
-    let col = calc_atmosphere(pos, camera, globals, noise_tx, noise_sampler);
+    let col = calc_atmosphere(pos, camera, globals, params, noise_tx, noise_sampler);
 
     unsafe {
         out.write(global_id.xy(), col.extend(1.0));
@@ -459,6 +461,7 @@ pub fn calc_atmosphere(
     coord: Vec2,
     camera: &Camera,
     globals: &Globals,
+    pass_params: &PassParams,
 
     _noise_tx: Tex,
     _noise_sampler: &Sampler,
@@ -468,6 +471,7 @@ pub fn calc_atmosphere(
         coord,
         camera.screen.xy() * ATMOS_MULT,
         globals.time.x,
+        pass_params,
     );
 
     let _dither = bayer_16(coord);

@@ -32,6 +32,10 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
                 .default_open(true)
                 .show(ui, |ui| c = c || passes(&mut ui_state, ui));
 
+            CollapsingHeader::new("Atmosphere")
+                .default_open(false)
+                .show(ui, |ui| c = c || atmosphere(&mut ui_state, ui));
+
             ui.separator();
 
             CollapsingHeader::new("Material Tree")
@@ -40,21 +44,74 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
 
             ui.separator();
 
-            if ui.button("Reload").clicked() {
-                *ui_state = read_config().unwrap_or(Config::default());
+            if ui.button("Reset Camera").clicked() {
+                ui_state.orbit_reset = true;
                 c = true;
             }
 
-            if ui.button("Save").clicked() {
-                fs::write(
-                    "crates/rdog/assets/config.json",
-                    serde_json::to_string(ui_state.deref()).unwrap(),
-                )
-                .unwrap();
-            }
+            ui.separator();
+
+            egui::Grid::new("")
+                .num_columns(2)
+                .striped(true)
+                .spacing([40.0, 4.0])
+                .show(ui, |ui| {
+                    if ui.button("Reload").clicked() {
+                        *ui_state = read_config().unwrap_or(Config::default());
+                        c = true;
+                    }
+
+                    if ui.button("Save").clicked() {
+                        fs::write(
+                            "crates/rdog/assets/config.json",
+                            serde_json::to_string(ui_state.deref()).unwrap(),
+                        )
+                        .unwrap();
+                    }
+                });
         });
 
     ui_state.multi_frame = !(c || ui_state.user_orbit || !ui_state.multi_frame_override);
+}
+
+fn atmosphere(ui_state: &mut Config, ui: &mut Ui) -> bool {
+    let mut c = false;
+
+    c = c
+        || ui
+            .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
+            .changed;
+
+    ui.heading("Sun Position");
+    egui::Grid::new("")
+        .num_columns(2)
+        .striped(true)
+        .spacing([40.0, 4.0])
+        .show(ui, |ui| {
+            // ui_state.sun_pos *= 360.0;
+
+            ui.label("Sun Height");
+            c = c || ui.add(egui::Slider::new(&mut ui_state.sun_pos.y, 0.0..=1.0).suffix("%")).changed;
+            ui.end_row();
+
+                // c = ui
+                //     .add(
+                //         egui::DragValue::new(&mut self.diffuse_scale)
+                //             .speed(0.01)
+                //             .range(0.0..=10.0),
+                //     )
+                //     .changed
+                //     || c;
+                // ui.end_row();
+
+            ui.label("Sun Pos");
+            c = c || ui.add(egui::Slider::new(&mut ui_state.sun_pos.x, 0.0..=1.0).suffix("%")).changed;
+            ui.end_row();
+
+            // ui_state.sun_pos /= 360.0;
+        });
+
+    c
 }
 
 fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
@@ -67,22 +124,23 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
                 "Preserve last frame (MultiPass)",
             )
             .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting")
-            .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.scatter_pass, "Scatter Lighting")
-            .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.specular_pass, "Specular Lighting")
-            .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
-            .changed;
+    // TODO - probably can remove...
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting")
+    //         .changed;
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.scatter_pass, "Scatter Lighting")
+    //         .changed;
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.specular_pass, "Specular Lighting")
+    //         .changed;
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
+    //         .changed;
 
     c
 }
