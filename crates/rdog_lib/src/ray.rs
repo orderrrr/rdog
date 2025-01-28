@@ -32,7 +32,7 @@ impl Ray {
         let offset = i as f32 * pos;
         let position = rng01(offset, seed.y, ss.y as u32) - 0.5;
 
-        uv += position * 0.005;
+        uv += position * 0.0005;
 
         let fp = ndc_to_world.project_point3(uv.extend(f32::EPSILON));
         let np = ndc_to_world.project_point3(uv.extend(1.0));
