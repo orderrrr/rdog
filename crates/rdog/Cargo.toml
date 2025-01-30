@@ -29,7 +29,7 @@ log = { workspace = true }
 derivative = "2.2.0"
 guillotiere = "0.6.2"
 bevy = { workspace = true }
-bevy_egui = "0.31"
+bevy_egui = "0.32.0"
 rand = "0.8.5"
 spirv-builder.workspace = true
 thiserror = "2.0.9"

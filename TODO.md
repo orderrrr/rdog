@@ -5,3 +5,4 @@
 4. post process depth of field.
 5. anti aliasing.
 6. quater res.
+7. specular_scatter seems to have some rng issues.

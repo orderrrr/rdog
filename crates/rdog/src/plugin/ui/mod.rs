@@ -447,7 +447,7 @@ impl Default for Material {
             diffuse_scale: 1.0,
             specular_scale: 1.0,
             emissive: 0.0,
-            ior: 1.0,
+            ior: 0.0,
             f0: 0.04,
             roughness: 0.0,
             scattering_scale: 0.0,

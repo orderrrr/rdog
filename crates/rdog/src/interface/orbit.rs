@@ -86,11 +86,7 @@ pub fn pan_orbit_camera(
 ) {
     // First, accumulate the total amount of
     // mouse motion and scroll, from all pending events:
-    let mut total_motion: Vec2 = evr_motion.read().map(|ev| ev.delta).sum();
-
-    // Reverse Y (Bevy's Worldspace coordinate system is Y-Up,
-    // but events are in window/ui coordinates, which are Y-Down)
-    total_motion.y = -total_motion.y;
+    let total_motion: Vec2 = evr_motion.read().map(|ev| ev.delta).sum();
 
     let mut total_scroll_lines = Vec2::ZERO;
     let mut total_scroll_pixels = Vec2::ZERO;
@@ -153,12 +149,12 @@ pub fn pan_orbit_camera(
             .map(|key| kbd.pressed(key))
             .unwrap_or(false)
         {
-            total_zoom -= total_motion * settings.zoom_sensitivity;
+            total_zoom += total_motion * settings.zoom_sensitivity;
         }
         if settings.scroll_action == Some(PanOrbitAction::Zoom) {
-            total_zoom -=
+            total_zoom +=
                 total_scroll_lines * settings.scroll_line_sensitivity * settings.zoom_sensitivity;
-            total_zoom -=
+            total_zoom +=
                 total_scroll_pixels * settings.scroll_pixel_sensitivity * settings.zoom_sensitivity;
         }
 

@@ -9,7 +9,7 @@ const ONE: Vec3 = Vec3::ONE;
 
 pub const TMAX: f32 = 40.0;
 const RMAX: u32 = 300;
-const LIGHT_POS: Vec3 = vec3(0.0, -2.0, 2.5);
+const LIGHT_POS: Vec3 = vec3(0.0, 2.0, 2.5);
 const LIGHT_RAD: f32 = 1.0;
 
 const HPI: f32 = PI * 0.5; // TODO move out
