@@ -465,13 +465,6 @@ impl Scene<'_> {
             t += h.x
         }
 
-        // let tp1 = (2.0 - r.o.y) / r.d.y;
-        // if tp1 > 0.0 {
-        //     return self
-        //         .lookup_mat(r, r.pd(tp1), vec2(tp1, 2.0), t, Vec3::Y)
-        //         .with_albedo(DANGER);
-        //
-
         Material::default().with_albedo(DANGER)
     }
 
@@ -578,7 +571,7 @@ impl Scene<'_> {
     fn map(&self, posi: Vec3) -> Vec2 {
         let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
         let s = shape(posi, self.globals.time.x, self.globals.seed);
-        let p = plane(posi, vec4(0.0, 1.0, 0.0, 0.0)); // TODO - readd
+        let p = plane(posi, vec4(0.0, 1.0, 0.0, 1.0)); // TODO - readd
 
         let l = vec2(l, 0.0);
         let s = vec2(s, 1.0);
@@ -587,8 +580,6 @@ impl Scene<'_> {
         let s2 = vec2(sphere(posi - vec3(-1.0, 1.0, 0.0), 0.6), 3.0);
 
         min_sd(min_sd(min_sd(l, s), s2), p)
-        // min_sd(l, s2)
-        // min_sd(min_sd(l, s2), p)
     }
 
     fn lookup_mat(&self, _r: Ray, _p: Vec3, h: Vec2, t: f32, normal: Vec3) -> Material {
@@ -663,7 +654,7 @@ impl Scene<'_> {
         sample(
             self.atmos_tx,
             self.atmos_sampler,
-            world_space_to_uv(sr.o + (sr.d * 1000.0)),
+            world_space_to_uv(sr.o + (sr.d * 1000.0)) * vec2(1.0, -1.0),
         )
         .xyz()
     }
