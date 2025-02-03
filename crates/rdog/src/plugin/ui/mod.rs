@@ -445,7 +445,7 @@ impl Default for Material {
             albedo: Vec3::ZERO,
             scattering_color: Vec3::ZERO,
             diffuse_scale: 1.0,
-            specular_scale: 1.0,
+            specular_scale: 0.0,
             emissive: 0.0,
             ior: 0.0,
             refraction: 0.04,

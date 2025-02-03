@@ -99,7 +99,7 @@ pub struct Material {
 impl Default for Material {
     fn default() -> Self {
         Self {
-            // ifrs: (index, f0, roughness, scattering_scale)
+            // ifrs: (index, refraction, roughness, scattering_scale)
             irrs: Vec4::new(0.0, 0.04, 0.0, 0.0),
 
             // nd: (normal.xyz, dist)
@@ -130,7 +130,7 @@ impl Material {
         self.irrs.x
     }
 
-    pub fn f0(&self) -> f32 {
+    pub fn refraction(&self) -> f32 {
         self.irrs.y
     }
 
@@ -286,7 +286,7 @@ impl Material {
         let r0 = (1.0 - eta) / (1.0 + eta);
         let fresnel = (r0 * r0) + (1.0 - r0) * (1.0 - cos_theta).pow(5.0);
 
-        let dir = if fresnel > scene.rng(r) {
+        let dir = if scene.rng(r) < self.refraction() {
             scene.reflect(ud, n)
         } else {
             r.at(r.o + (self.normal() * (MIN_DIST * 4.0) * -1.0));
@@ -313,7 +313,12 @@ impl Material {
 
     pub fn scatter(&self, scene: &Scene, r: &mut Ray) -> ScatterRes {
         if self.specular() > 0.0 && self.diffuse() > 0.0 {
-            if scene.rng(r) >= 0.5 {
+            let diffuse_weight = self.diffuse() / 10.0;
+            let specular_weight = self.specular() / 10.0;
+            let sum_weights = diffuse_weight + specular_weight;
+            let diffuse_prob = diffuse_weight / sum_weights;
+
+            if scene.rng(r) < diffuse_prob {
                 self.specular_scatter(scene, r)
             } else {
                 self.diffuse_scatter(scene, r)
