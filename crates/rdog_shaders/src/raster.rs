@@ -22,7 +22,7 @@ pub fn fs(
     output: &mut Vec4,
 ) {
     let col = trace_tx.read(pos.xy().as_uvec2()).xyz();
-    let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+    // let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
     let col = col.saturate();
 
     let prv = prev_tx.read(pos.xy().as_uvec2());

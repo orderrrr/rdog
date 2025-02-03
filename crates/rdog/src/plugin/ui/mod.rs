@@ -412,7 +412,7 @@ pub struct Material {
     pub scattering_scale: f32,
 }
 impl Material {
-    pub(crate) fn to_shader(&self) -> rdog_lib::Material {
+    pub fn to_shader(&self) -> rdog_lib::Material {
         rdog_lib::Material::default()
             // ifrs: (index, f0, roughness, scattering_scale)
             .with_index(self.id)

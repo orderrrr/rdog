@@ -8,19 +8,21 @@ const ZERO: Vec3 = Vec3::ZERO;
 const ONE: Vec3 = Vec3::ONE;
 
 pub const TMAX: f32 = 40.0;
+pub const MIN_DIST: f32 = 0.001;
 const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, 3.0, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
 
 const HPI: f32 = PI * 0.5; // TODO move out
 
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 #[derive(Copy, Clone)]
 pub struct Ray {
-    o: Vec3,
-    d: Vec3,
-    spos: Vec2,
-    seed: UVec2,
-    trace_interior: bool,
+    pub o: Vec3,
+    pub d: Vec3,
+    pub spos: Vec2,
+    pub seed: UVec2,
+    pub t: u32,
 }
 
 impl Ray {
@@ -41,49 +43,38 @@ impl Ray {
         return Ray::new(np, (fp - np).normalize(), pos, seed);
     }
 
-    fn new(o: Vec3, d: Vec3, pos: Vec2, seed: UVec2) -> Self {
+    pub fn new(o: Vec3, d: Vec3, pos: Vec2, seed: UVec2) -> Self {
         Ray {
             o,
             d,
             spos: pos,
             seed,
-            trace_interior: false,
+            t: 0,
         }
-    }
-
-    fn should_trace_interior(&self) -> bool {
-        self.trace_interior
-    }
-
-    fn trace_interior(mut self, t: bool) -> Ray {
-        self.trace_interior = t;
-        self
     }
 
     fn pd(&self, t: f32) -> Vec3 {
         (self.d * t) + self.o
     }
 
-    fn mv(&self, t: f32) -> Ray {
+    pub fn mv(&mut self, t: f32) {
         self.at(self.pd(t))
     }
 
-    fn at(mut self, p: Vec3) -> Ray {
+    pub fn at(&mut self, p: Vec3) {
         self.o = p;
-        self
     }
 
-    fn dir(mut self, d: Vec3) -> Ray {
+    pub fn dir(&mut self, d: Vec3) {
         self.d = d;
-        self
     }
 
-    fn offset_uv(mut self, offset: Vec2) -> Ray {
+    fn offset_uv(&mut self, offset: Vec2) -> &mut Self {
         self.spos += offset;
         self
     }
 
-    fn offset_seed(mut self, offset: UVec2) -> Ray {
+    fn offset_seed(&mut self, offset: UVec2) -> &mut Self {
         self.seed += offset;
         self
     }
@@ -102,7 +93,7 @@ struct Light {
 pub struct Material {
     ifrs: Vec4,
     nd: Vec4,
-    albedo: Vec4,
+    pub albedo: Vec4,
     scattering_color: Vec4,
     dsei: Vec4,
 }
@@ -131,6 +122,10 @@ impl Default for Material {
 impl Material {
     pub fn valid(&self) -> bool {
         self.normal().length() > 0.0 // means its an object.
+    }
+
+    pub fn interior(&self) -> bool {
+        self.albedo.w < 0.0
     }
 
     pub fn index(&self) -> f32 {
@@ -198,6 +193,11 @@ impl Material {
         self
     }
 
+    pub fn with_interior(mut self, interior: bool) -> Self {
+        self.albedo.w = ((!interior as i32) as f32) * 2.0 - 1.0;
+        self
+    }
+
     pub fn with_scattering_scale(mut self, scale: f32) -> Self {
         self.ifrs.w = scale;
         self
@@ -251,66 +251,71 @@ impl Material {
 }
 
 impl Material {
-    fn specular_scatter(&self, scene: &Scene, r: Ray) -> ScatterRes {
-        let inside = self.dist() < 0.0;
-        let mut refracted = false;
-
-        let ri = if inside { self.ior() } else { 1.0 / self.ior() };
-
-        let cos_theta = (-r.d).dot(self.normal());
-        let sin_theta = (1.0 - (cos_theta * cos_theta)).sqrt();
-        let cannot_refract = ri * sin_theta > 1.0;
-
-        let n = self.normal();
-        let v = -r.d;
-
-        let alpha = self.roughness() * self.roughness();
-        let alpha2 = alpha * alpha;
-        let k_ibl = alpha / 2.0;
-        let h = if cannot_refract {
-            scene.sample_reflection_brdf(
-                n,
-                alpha2,
-                r.offset_seed(uvec2(3, 2)).offset_uv(vec2(1.220, 2.530)),
-            )
+    pub fn specular_scatter(&self, scene: &Scene, r: &mut Ray) -> ScatterRes {
+        let (eta, mut n) = if !self.interior() {
+            (1.0 / self.ior(), self.normal())
         } else {
-            refracted = true;
-            scene.sample_refractive_brdf(
-                n,
-                ri,
-                alpha2,
-                r.offset_seed(uvec2(3, 2)).offset_uv(vec2(1.220, 2.530)),
-            )
+            (self.ior() / 1.0, self.normal())
         };
-        let v_dot_h = v.dot(h).max(0.000001);
-        let dir = (2.0 * (v_dot_h * h)) - v;
-        let n_dot_v = n.dot(v).max(0.0);
-        let n_dot_l = n.dot(dir);
-        let n_dot_h = n.dot(h).max(0.0);
 
-        let scat = n_dot_l > 0.0;
+        let ud = r.d.normalize();
+        let v_ud = -ud;
 
-        let fresnel = self.f0() + (1.0 - self.f0()) * (1.0 - n_dot_v).pow(5.0);
-        let g_term = g_term_schlick_ggx(n_dot_v, n_dot_l, k_ibl);
-        let radiance = g_term * fresnel * v_dot_h / (n_dot_h * n_dot_v);
+        let u = if n.dot(ud) == 1.0 {
+            // If ray direction is aligned with normal, use fallback vector for u
+            n.cross(Vec3::Y).normalize()
+        } else {
+            n.cross(ud).normalize()
+        };
+        let v = u.cross(n).normalize();
+
+        // Perturb the normal based on roughness using RNG
+        let a: f32 = (scene.rng(r) - 0.5) * self.roughness() * 2.0;
+        let b: f32 = (scene.rng(r) - 0.5) * self.roughness() * 2.0;
+
+        n += u * a + v * b;
+        n = n.normalize();
+
+        let cos_theta = v_ud.dot(n).min(1.0);
+        let cos_theta = if cos_theta > 1.0 {
+            1.0
+        } else if cos_theta < -1.0 {
+            -1.0
+        } else {
+            cos_theta
+        };
+
+        let r0 = (1.0 - eta) / (1.0 + eta);
+        let fresnel = (r0 * r0) + (1.0 - r0) * (1.0 - cos_theta).pow(5.0);
+
+        let dir = if fresnel > scene.rng(r) {
+            scene.reflect(ud, n)
+        } else {
+            r.at(r.o + (self.normal() * (MIN_DIST * 4.0) * -1.0));
+            scene.refract(ud, n, eta)
+        };
+
+        let reflection_radiance = fresnel * Vec3::new(1.0, 1.0, 1.0); // Placeholder for reflected light
+        let refraction_radiance = (1.0 - fresnel) * Vec3::new(1.0, 1.0, 1.0); // Placeholder for refracted light
+        let radiance = reflection_radiance + refraction_radiance;
 
         let albedo = ONE; // todo may want to apply tint to reflections in future.
 
-        ScatterRes::new(dir, scat, radiance, fresnel, albedo, refracted)
+        ScatterRes::new(dir, true, radiance, fresnel, albedo)
     }
 
-    fn diffuse_scatter(&self, scene: &Scene, r: Ray) -> ScatterRes {
+    fn diffuse_scatter(&self, scene: &Scene, r: &mut Ray) -> ScatterRes {
         let dir = translate_to_ws(
             scene.get_random_sample(r.offset_uv(vec2(-1.03322, 3.299))),
             self.normal(),
         );
 
-        ScatterRes::new(dir, true, 1.0, 0.0, self.albedo(), false)
+        ScatterRes::new(dir, true, ONE, 0.0, self.albedo())
     }
 
-    fn scatter(&self, scene: &Scene, r: Ray) -> ScatterRes {
+    pub fn scatter(&self, scene: &Scene, r: &mut Ray) -> ScatterRes {
         if self.specular() > 0.0 && self.diffuse() > 0.0 {
-            if rng01(r.spos, r.seed.y * 40, scene.camera.screen.y as u32) >= 0.5 {
+            if scene.rng(r) >= 0.5 {
                 self.specular_scatter(scene, r)
             } else {
                 self.diffuse_scatter(scene, r)
@@ -320,36 +325,27 @@ impl Material {
         } else if self.diffuse() > 0.0 {
             self.diffuse_scatter(scene, r)
         } else {
-            ScatterRes::new(Vec3::Y, false, 1.0, 0.0, self.albedo(), false)
+            ScatterRes::new(Vec3::Y, false, ONE, 0.0, self.albedo())
         }
     }
 }
 
-struct ScatterRes {
-    dir: Vec3,
+pub struct ScatterRes {
+    pub dir: Vec3,
     scatter: bool,
     albedo: Vec3,
     fresnel: f32,
-    radiance: f32,
-    refracted: bool,
+    radiance: Vec3,
 }
 
 impl ScatterRes {
-    fn new(
-        dir: Vec3,
-        scatter: bool,
-        radiance: f32,
-        fresnel: f32,
-        albedo: Vec3,
-        refracted: bool,
-    ) -> Self {
+    fn new(dir: Vec3, scatter: bool, radiance: Vec3, fresnel: f32, albedo: Vec3) -> Self {
         Self {
             dir,
             scatter,
             albedo,
             fresnel,
             radiance,
-            refracted,
         }
     }
 }
@@ -405,8 +401,8 @@ pub struct Scene<'a> {
     #[allow(dead_code)]
     params: &'a PassParams,
     bounces: u32,
-    atmos_tx: Tex<'a>,
-    atmos_sampler: &'a Sampler,
+    // atmos_tx: Tex<'a>,
+    // atmos_sampler: &'a Sampler,
     #[allow(dead_code)]
     diffuse: bool,
     #[allow(dead_code)]
@@ -422,8 +418,8 @@ impl<'a> Scene<'a> {
         materials: &'a [Material],
         params: &'a PassParams,
         bounces: u32,
-        atmos_tx: Tex<'a>,
-        atmos_sampler: &'a Sampler,
+        // atmos_tx: Tex<'a>,
+        // atmos_sampler: &'a Sampler,
         diffuse: bool,
         scatter: bool,
         specular: bool,
@@ -434,8 +430,8 @@ impl<'a> Scene<'a> {
             materials,
             params,
             bounces,
-            atmos_tx,
-            atmos_sampler,
+            // atmos_tx,
+            // atmos_sampler,
             diffuse,
             scatter,
             specular,
@@ -445,17 +441,21 @@ impl<'a> Scene<'a> {
 
 impl Scene<'_> {
     #[inline(never)]
-    fn trace(&self, r: Ray) -> Material {
+    pub fn trace(&self, r: &mut Ray) -> Material {
         // TODO - change to a Material struct
         let mut t = 0.01;
+        let mut interior;
+        let mut h;
 
         for _ in 0..RMAX {
             let p = r.pd(t);
 
-            let h = self.map(p);
+            h = self.map(p);
+            interior = h.x <= 0.0;
+            h.x = h.x.abs();
 
             if h.x < 0.001 {
-                return self.lookup_mat(r, p, h, t, self.calc_normal(p));
+                return self.lookup_material(r, p, h, t, self.calc_normal(p), interior);
             }
 
             if t > TMAX {
@@ -468,26 +468,19 @@ impl Scene<'_> {
         Material::default().with_albedo(DANGER)
     }
 
-    pub fn rt(&self, r: Ray) -> Vec3 {
-        let mut r = r;
+    pub fn rt(&self, r: &mut Ray) -> Vec3 {
         let mut t = ZERO;
         let mut albedo = ONE;
         let mut cos_theta = 1.0;
-        let mut radiance = 1.0;
+        let mut radiance = ONE;
 
         for i in 0..self.bounces {
-            let h = if r.should_trace_interior() {
-                self.trace_inside(r)
-            } else {
-                self.trace(r)
-            };
-
-            // let h = self.trace(r);
-            r = r.at(r.pd(h.dist()));
+            let h = self.trace(r);
+            r.mv(h.dist());
 
             {
                 if !h.valid() {
-                    t += albedo * self.sample_atmos(r) * radiance;
+                    t += albedo * self.sample_atmos(&r) * radiance;
                     break;
                 }
                 if h.emissive() > 0.0 {
@@ -503,6 +496,11 @@ impl Scene<'_> {
             );
             cos_theta = h.normal().dot(l.dir).max(0.0);
 
+            // {
+            //     t = l.albedo;
+            //     break;
+            // }
+
             // sample light at this location
             albedo *= l.albedo * radiance;
             t += albedo * self.sample_point(h, r, &l) * radiance;
@@ -513,34 +511,39 @@ impl Scene<'_> {
                 break;
             }
 
-            r = r.dir(l.dir).trace_interior(l.refracted && h.dist() > 0.0);
+            r.dir(l.dir);
         }
 
         t
     }
 
-    fn sample_point(&self, h: Material, r: Ray, l: &ScatterRes) -> Vec3 {
+    fn sample_point(&self, h: Material, r: &mut Ray, l: &ScatterRes) -> Vec3 {
+        let mut rc = r.clone();
         let mut col = ZERO;
 
         if h.diffuse() > 0.0 {
             col += h.diffuse()
                 * h.albedo()
-                * self.sample_direct_diff_spherical(r.offset_seed(UVec2::ONE * 23), h.normal())
+                * self.sample_direct_diff_spherical(rc.offset_seed(UVec2::ONE * 23), h.normal());
+            r.seed = rc.seed;
+            rc = r.clone();
         }
 
         if h.scattering_scale() > 0.0 {
             col += h.scattering_scale()
                 * h.scattering_color()
-                * self.sample_scattering(r.offset_seed(UVec2::ONE * 24), h.normal())
+                * self.sample_scattering(rc.offset_seed(UVec2::ONE * 24), h.normal());
+            r.seed = rc.seed;
+            rc = r.clone();
         }
 
         // todo specular highlights...
         col = (1.0 - l.fresnel) * col;
 
         if h.specular() > 0.0 {
-            let cl = self.light_map(r.o);
-            let ls = self.spherical_light_sample(cl, r);
-            let v = -r.d;
+            let cl = self.light_map(rc.o);
+            let ls = self.spherical_light_sample(cl, &mut rc);
+            let v = -rc.d;
             let n = h.normal();
             let n_dot_v = n.dot(v).max(0.0);
             let alpha = h.roughness().powf(2.0);
@@ -550,8 +553,10 @@ impl Scene<'_> {
             let n_dot_h = n.dot(h).max(0.0);
 
             if n_dot_l > 0.0 {
-                let sr = r.at(r.o + (ls * 0.02)).dir(ls);
-                let hit = self.trace(sr);
+                rc.at(rc.o + (ls * 0.02));
+                rc.dir(ls);
+
+                let hit = self.trace(&mut rc);
 
                 let k_direct = (alpha2 + 1.0) / 8.0;
 
@@ -563,6 +568,7 @@ impl Scene<'_> {
                     col += in_radiance * g_term * l.fresnel * d_term / (4.0 / n_dot_v);
                 }
             }
+            r.seed = rc.seed;
         }
 
         col
@@ -571,25 +577,43 @@ impl Scene<'_> {
     fn map(&self, posi: Vec3) -> Vec2 {
         let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
         let s = shape(posi, self.globals.time.x, self.globals.seed);
+        // let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
+        // let s = shape(posi, self.globals.time.x, self.globals.seed);
         let p = plane(posi, vec4(0.0, 1.0, 0.0, 1.0)); // TODO - readd
 
         let l = vec2(l, 0.0);
         let s = vec2(s, 1.0);
         let p = vec2(p, 2.0);
 
-        let s2 = vec2(sphere(posi - vec3(-1.0, 1.0, 0.0), 0.6), 3.0);
+        let s2 = vec2(sphere(posi - vec3(-2.0, 1.0, 0.0), 0.6), 3.0);
 
         min_sd(min_sd(min_sd(l, s), s2), p)
     }
 
-    fn lookup_mat(&self, _r: Ray, _p: Vec3, h: Vec2, t: f32, normal: Vec3) -> Material {
+    fn lookup_material(
+        &self,
+        _r: &mut Ray,
+        _p: Vec3,
+        h: Vec2,
+        t: f32,
+        normal: Vec3,
+        interior: bool,
+    ) -> Material {
         let i = h.y as usize;
 
-        if i > self.materials.len() - 1 {
-            return Material::default().with_normal(normal).with_dist(t);
+        let normal = normal * (2.0 * (!interior as i32 as f32) - 1.0);
+
+        if i > self.materials.len() - 1 || self.materials.is_empty() {
+            return Material::default()
+                .with_normal(normal)
+                .with_dist(t)
+                .with_interior(interior);
         }
 
-        self.materials[i].with_normal(normal).with_dist(t)
+        self.materials[i]
+            .with_normal(normal)
+            .with_dist(t)
+            .with_interior(interior)
     }
 
     fn calc_normal(&self, pos: Vec3) -> Vec3 {
@@ -603,19 +627,9 @@ impl Scene<'_> {
             .normalize()
     }
 
-    fn spherical_light_sample(&self, cl: Light, r: Ray) -> Vec3 {
-        let u0 = rng01(
-            r.spos.xy() + vec2(2.0, 3.0),
-            r.seed.y,
-            self.camera.screen.x as u32,
-        )
-        .c(0.0, 1.0);
-        let u1 = rng01(
-            r.spos.yx() - vec2(1.0, 1.0),
-            r.seed.y,
-            self.camera.screen.x as u32,
-        )
-        .c(0.0, 1.0);
+    fn spherical_light_sample(&self, cl: Light, r: &mut Ray) -> Vec3 {
+        let u0 = self.rng(r).c(0.0, 1.0);
+        let u1 = self.rng(r).c(0.0, 1.0);
 
         let d = (cl.pos - r.o).length();
         let lv = (cl.pos - r.o) / d;
@@ -632,10 +646,10 @@ impl Scene<'_> {
         translate_to_ws(sample_direction, lv)
     }
 
-    fn get_random_sample(&self, r: Ray) -> Vec3 {
-        let ct = (1.0 - rng01(r.spos.xy(), r.seed.y, self.camera.screen.y as u32)).sqrt();
+    fn get_random_sample(&self, r: &mut Ray) -> Vec3 {
+        let ct = (1.0 - self.rng(r)).sqrt();
         let st = (1.0 - (ct * ct)).max(0.0).sqrt();
-        let phi = rng01(r.spos.yx(), r.seed.y, self.camera.screen.x as u32) * 2.0 * PI;
+        let phi = self.rng(r) * 2.0 * PI;
         return vec3((phi).cos() * st, ct, (phi).sin() * st);
     }
 
@@ -650,20 +664,21 @@ impl Scene<'_> {
         }
     }
 
-    fn sample_atmos(&self, sr: Ray) -> Vec3 {
-        sample(
-            self.atmos_tx,
-            self.atmos_sampler,
-            world_space_to_uv(sr.o + (sr.d * 1000.0)) * vec2(1.0, -1.0),
-        )
-        .xyz()
+    fn sample_atmos(&self, _sr: &Ray) -> Vec3 {
+        vec3(0.4, 0.35, 0.37) * 0.1
+        // sample(
+        //     self.atmos_tx,
+        //     self.atmos_sampler,
+        //     world_space_to_uv(sr.o + (sr.d * 1000.0)) * vec2(1.0, -1.0),
+        // )
+        // .xyz()
     }
 }
 
 // direct + indirect
 // need to sample specular and scatter in the bounces.
 impl Scene<'_> {
-    fn sample_direct_diff_spherical(&self, r: Ray, n: Vec3) -> Vec3 {
+    fn sample_direct_diff_spherical(&self, r: &mut Ray, n: Vec3) -> Vec3 {
         let cl = self.light_map(r.o);
 
         // assumed spherical
@@ -674,8 +689,10 @@ impl Scene<'_> {
             return Vec3::ZERO;
         }
 
-        let lsr = r.clone().at(r.o + l).dir(l);
-        let hit = self.trace(lsr);
+        // let lsr = r.clone().at(r.o + l).dir(l);
+        r.at(r.o + l);
+        r.dir(l);
+        let hit = self.trace(r);
 
         if !hit.valid() {
             return Vec3::ZERO;
@@ -693,45 +710,22 @@ impl Scene<'_> {
 
 // scatter
 impl Scene<'_> {
-    fn trace_inside(&self, r: Ray) -> Material {
-        // TODO - change to a Material struct
-        let mut t = 0.01;
-
-        for _ in 0..RMAX {
-            let p = r.o + t * r.d;
-
-            let mut h = self.map(p);
-            h.x *= -1.0;
-
-            if h.x < 0.001 {
-                return self.lookup_mat(r, p, h, t, self.calc_normal(p));
-            }
-
-            if t > TMAX {
-                break;
-            }
-
-            t += h.x
-        }
-
-        Material::default()
-    }
-
-    fn sample_scattering(&self, r: Ray, n: Vec3) -> Vec3 {
+    fn sample_scattering(&self, r: &mut Ray, n: Vec3) -> Vec3 {
         let p1 = r.o - (n * 0.02);
 
         let cl = self.light_map(p1);
 
         let mut out = Vec3::ZERO;
 
-        let l = self.spherical_light_sample(cl, r.clone().at(p1));
+        r.at(p1);
+        let l = self.spherical_light_sample(cl, r);
 
-        let sr = r.clone().at(p1).dir(l);
-        let h = self.trace_inside(sr);
+        r.dir(l);
+        let h = self.trace(r);
 
-        let sr = r.clone().at(p1 + (l * h.dist()) + (0.03 * l)).dir(l);
+        r.at(p1 + (l * h.dist()) + (0.03 * l));
 
-        let h1 = self.trace(sr);
+        let h1 = self.trace(r);
 
         if h1.valid() {
             if h1.emissive() > 0.0 {
@@ -756,59 +750,29 @@ impl Scene<'_> {
 
 // specular
 impl Scene<'_> {
-    fn sample_refractive_brdf(&self, normal: Vec3, ri: f32, alpha2: f32, r: Ray) -> Vec3 {
-        let u0 = rng01(
-            r.spos.xy() + vec2(0.0, 0.0),
-            r.seed.y,
-            self.camera.screen.y as u32,
-        );
-        let u1 = rng01(
-            r.spos.yx() + vec2(1.3, 2.7),
-            r.seed.y,
-            self.camera.screen.y as u32,
-        );
-
-        // Compute the angles based on refraction index
-        let cos_theta_i = ((1.0 - u0) / (alpha2 * u0 + 1.0 - alpha2)).sqrt();
-        let sin_theta_i = ((1.0 - (cos_theta_i * cos_theta_i)).max(0.0)).sqrt();
-
-        // Apply Snell's law to compute the refracted angle
-        let sin_theta_t_max = (ri * sin_theta_i).min(1.0);
-        let cos_theta_t = ((ri.powi(2)) * (1.0 - sin_theta_t_max.powi(2))).sqrt();
-
-        // Clamp to avoid numerical errors
-        let cos_theta_t = cos_theta_t.clamp(-1.0, 1.0);
-
-        let phi = u1 * 2.0 * PI;
-        let direction = vec3(
-            phi.cos() * sin_theta_t_max,
-            cos_theta_t,
-            phi.sin() * sin_theta_t_max,
-        );
-
-        // Transform the direction to world space
-        translate_to_ws(direction, normal)
+    fn reflect(&self, i: Vec3, n: Vec3) -> Vec3 {
+        i - n * (2.0 * i.dot(n))
     }
 
-    fn sample_reflection_brdf(&self, normal: Vec3, alpha2: f32, r: Ray) -> Vec3 {
-        let u0 = rng01(
-            r.spos.xy() + vec2(0.0, 0.0),
-            r.seed.y,
-            self.camera.screen.y as u32,
-        );
-        let u1 = rng01(
-            r.spos.yx() + vec2(1.3, 2.7),
-            r.seed.y,
-            self.camera.screen.y as u32,
-        );
+    pub fn refract(&self, ud: Vec3, n: Vec3, ior: f32) -> Vec3 {
+        let k = 1.0 - ior * ior * (1.0 - n.dot(ud) * n.dot(ud));
+        if k < 0.0 {
+            ud
+        } else {
+            ior * ud - (ior * n.dot(ud) + k.sqrt()) * n
+        }
+        // let cos_thior = ((-ud).dot(n)).min(1.0);
+        // let r_out_perp = ior * (ud + (cos_thior * n));
+        // let r_out_parallel = -((1.0 - r_out_perp.dot(r_out_perp)).abs().sqrt()) * n;
+        // r_out_perp + r_out_parallel
+    }
 
-        let cos_theta = ((1.0 - u0) / ((alpha2 - 1.0) * u0 + 1.0)).sqrt();
-        let sin_theta = ((1.0 - (cos_theta * cos_theta)).max(0.0)).sqrt();
-        let phi = u1 * 2.0 * PI;
-
-        translate_to_ws(
-            vec3(phi.cos() * sin_theta, cos_theta, phi.sin() * sin_theta),
-            normal,
+    pub fn rng(&self, r: &mut Ray) -> f32 {
+        r.t += 1;
+        rng01(
+            r.spos,
+            r.seed.y.wrapping_add(r.t - 1),
+            self.camera.screen.y as u32,
         )
     }
 }

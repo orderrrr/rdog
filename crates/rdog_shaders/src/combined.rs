@@ -17,14 +17,14 @@ pub fn main(
 
     let pos = global_id.xy().as_vec2();
 
-    let scene = Scene::new(
+    let mut scene = Scene::new(
         camera,
         globals,
         material,
         params,
         params.bounce_count,
-        atmos_tx,
-        atmos_sampler,
+        // atmos_tx,
+        // atmos_sampler,
         compute_diffuse,
         compute_scatter,
         compute_specular,
@@ -33,14 +33,14 @@ pub fn main(
     let mut col = Vec3::ZERO;
 
     for i in 0..params.pass_count {
-        let r = Ray::ray(
+        let mut r = Ray::ray(
             camera.screen.xy(),
             camera.ndc_to_world,
             pos,
             globals.seed,
             i,
         );
-        col += scene.rt(r);
+        col += scene.rt(&mut r);
     }
 
     col /= params.pass_count as f32;
