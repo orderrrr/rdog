@@ -347,7 +347,7 @@ impl TUi for Material {
                 ui.label("F0");
                 c = ui
                     .add(
-                        egui::DragValue::new(&mut self.f0)
+                        egui::DragValue::new(&mut self.refraction)
                             .speed(0.01)
                             .range(0.0..=10.0),
                     )
@@ -407,7 +407,7 @@ pub struct Material {
     pub specular_scale: f32,
     pub emissive: f32,
     pub ior: f32,
-    pub f0: f32,
+    pub refraction: f32,
     pub roughness: f32,
     pub scattering_scale: f32,
 }
@@ -416,7 +416,7 @@ impl Material {
         rdog_lib::Material::default()
             // ifrs: (index, f0, roughness, scattering_scale)
             .with_index(self.id)
-            .with_f0(self.f0)
+            .with_refraction(self.refraction)
             .with_roughness(self.roughness)
             .with_scattering_scale(self.scattering_scale)
             // nd: (normal.xyz, dist)
@@ -448,7 +448,7 @@ impl Default for Material {
             specular_scale: 1.0,
             emissive: 0.0,
             ior: 0.0,
-            f0: 0.04,
+            refraction: 0.04,
             roughness: 0.0,
             scattering_scale: 0.0,
         }

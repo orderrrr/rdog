@@ -27,6 +27,8 @@ pub struct Config {
     pub sun_pos: Vec2,
 
     pub material_tree: MaterialList,
+
+    pub ray_debug: bool,
 }
 
 impl Config {
@@ -72,6 +74,7 @@ impl Default for Config {
             sun_pos: Vec2::new(0.5, 0.7),
             pass_count: 8,
             bounce_count: 8,
+            ray_debug: false,
         }
     }
 }

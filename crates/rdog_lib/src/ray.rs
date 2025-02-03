@@ -13,8 +13,6 @@ const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, 3.0, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
 
-const HPI: f32 = PI * 0.5; // TODO move out
-
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 #[derive(Copy, Clone)]
 pub struct Ray {
@@ -91,7 +89,7 @@ struct Light {
 #[derive(Clone, Copy, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Material {
-    ifrs: Vec4,
+    irrs: Vec4,
     nd: Vec4,
     pub albedo: Vec4,
     scattering_color: Vec4,
@@ -102,7 +100,7 @@ impl Default for Material {
     fn default() -> Self {
         Self {
             // ifrs: (index, f0, roughness, scattering_scale)
-            ifrs: Vec4::new(0.0, 0.04, 0.0, 0.0),
+            irrs: Vec4::new(0.0, 0.04, 0.0, 0.0),
 
             // nd: (normal.xyz, dist)
             nd: Vec4::new(0.0, 0.0, 0.0, TMAX),
@@ -129,19 +127,19 @@ impl Material {
     }
 
     pub fn index(&self) -> f32 {
-        self.ifrs.x
+        self.irrs.x
     }
 
     pub fn f0(&self) -> f32 {
-        self.ifrs.y
+        self.irrs.y
     }
 
     pub fn roughness(&self) -> f32 {
-        self.ifrs.z
+        self.irrs.z
     }
 
     pub fn scattering_scale(&self) -> f32 {
-        self.ifrs.w
+        self.irrs.w
     }
 
     pub fn normal(&self) -> Vec3 {
@@ -179,17 +177,17 @@ impl Material {
 
 impl Material {
     pub fn with_index(mut self, index: f32) -> Self {
-        self.ifrs.x = index;
+        self.irrs.x = index;
         self
     }
 
-    pub fn with_f0(mut self, f0: f32) -> Self {
-        self.ifrs.y = f0;
+    pub fn with_refraction(mut self, refraction: f32) -> Self {
+        self.irrs.y = refraction;
         self
     }
 
     pub fn with_roughness(mut self, roughness: f32) -> Self {
-        self.ifrs.z = roughness;
+        self.irrs.z = roughness;
         self
     }
 
@@ -199,7 +197,7 @@ impl Material {
     }
 
     pub fn with_scattering_scale(mut self, scale: f32) -> Self {
-        self.ifrs.w = scale;
+        self.irrs.w = scale;
         self
     }
 
@@ -361,21 +359,6 @@ fn shape(posi: Vec3, _el: f32, _seed: UVec2) -> f32 {
     let r = op_smooth_subtraction(v, r, 0.1);
 
     op_smooth_union(o, r, 0.1)
-}
-
-fn world_space_to_uv(world_pos: Vec3) -> Vec2 {
-    let spherical = cart_to_sphere(world_pos);
-    let ndc = Vec2::new(spherical.x / PI, spherical.y / HPI);
-    (ndc + Vec2::ONE) * 0.5
-}
-
-fn cart_to_sphere(v: Vec3) -> Vec3 {
-    let normalized = v.normalize();
-    Vec3::new(
-        normalized.z.atan2(normalized.x),
-        normalized.y.asin(),
-        v.length(),
-    )
 }
 
 fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {

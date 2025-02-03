@@ -7,8 +7,8 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] material: &[Material],
-    #[spirv(descriptor_set = 0, binding = 3)] atmos_tx: Tex<'_>,
-    #[spirv(descriptor_set = 0, binding = 4)] atmos_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 3)] _atmos_tx: Tex<'_>,
+    #[spirv(descriptor_set = 0, binding = 4)] _atmos_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 5)] out: TexRgba32,
 ) {
     let compute_diffuse: bool = ((params.flags >> 0) & 1) == 1;
@@ -17,7 +17,7 @@ pub fn main(
 
     let pos = global_id.xy().as_vec2();
 
-    let mut scene = Scene::new(
+    let scene = Scene::new(
         camera,
         globals,
         material,

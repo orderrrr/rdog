@@ -1,21 +1,17 @@
 use bevy::{
     color::palettes::css::{BLUE, PURPLE, RED},
-    input::mouse::MouseMotion,
     prelude::*,
     render::{
         camera::{CameraProjection, CameraRenderGraph},
         view::RenderLayers,
-        Extract,
     },
     window::{PrimaryWindow, WindowResolution},
 };
 
 use bevy_egui::EguiPlugin;
-use glam::{uvec2, vec3};
+use glam::uvec2;
 use rand::Rng;
 use rdog::{
-    camera::RdogCamera,
-    config,
     interface::orbit::{pan_orbit_camera, PanOrbitState},
     orbit::PanOrbitSettings,
     shader::RdogShaderState,
@@ -49,7 +45,7 @@ fn main() {
             RdogPlugin(rand::thread_rng().gen_range(0..4_294_967_295)),
             EguiPlugin,
         ))
-        .add_systems(OnEnter(RdogShaderState::Finished), (setup_camera))
+        .add_systems(OnEnter(RdogShaderState::Finished), setup_camera)
         .add_systems(
             Update,
             ((pan_orbit_camera, update_bevy_cam).run_if(any_with_component::<PanOrbitState>),),
@@ -115,10 +111,9 @@ fn update_bevy_cam(
 
 fn render_debug_ray(
     mut dconf: ResMut<DebugConfig>,
-    mut config: ResMut<Config>,
+    config: ResMut<Config>,
 
     mut gizmos: Gizmos,
-    time: Res<Time>,
 
     q_windows: Query<&Window, With<PrimaryWindow>>,
 
@@ -126,6 +121,10 @@ fn render_debug_ray(
 
     cameras: Query<(&Projection, &Transform, &PanOrbitState)>,
 ) {
+    if !config.ray_debug {
+        return;
+    }
+
     if mouse.just_pressed(MouseButton::Left) {
         dconf.i += 1;
 
@@ -138,12 +137,6 @@ fn render_debug_ray(
             dconf.i = 0;
         }
     }
-
-    let ro = vec3(-4.0, 4.0, 0.0);
-
-    let t = (0.25 * time.elapsed_secs()).sin();
-
-    let rd = (vec3(-2.0, 1.0 + t, 0.0) - ro).normalize();
 
     let c = C::new_blank(uvec2(W, H).as_vec2().extend(0.0).extend(0.0));
     let g = Globals {
@@ -169,7 +162,7 @@ fn render_debug_ray(
     );
     let mut prev_ray = ray.clone();
 
-    for i in 0..8 {
+    for _ in 0..8 {
         let h = scene.debug_rt(&mut ray);
         // if dconf.i == i {
         gizmos.arrow(prev_ray.o, ray.o, if h.interior() { RED } else { BLUE });
@@ -183,6 +176,7 @@ pub struct DebugConfig {
     pub i: u32,
     pub ndc: Mat4,
     pub uv: Vec2,
+    pub pressed: bool,
 }
 
 pub trait DebugRt {
