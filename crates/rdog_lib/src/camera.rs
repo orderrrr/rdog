@@ -13,6 +13,15 @@ pub struct Camera {
 }
 
 impl Camera {
+    pub fn new_blank(screen: Vec4) -> Self {
+        Camera {
+            projection_view: Mat4::ZERO,
+            ndc_to_world: Mat4::ZERO,
+            origin: Vec4::ZERO,
+            screen,
+        }
+    }
+
     /// Given a point in world-coordinates, returns it in clip-coordinates.
     pub fn world_to_clip(self, pos: Vec3) -> Vec4 {
         self.projection_view * pos.extend(1.0)

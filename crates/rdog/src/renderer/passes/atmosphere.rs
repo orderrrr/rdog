@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct AtmospherePass([ComputePass<()>; 2]);
+pub struct AtmospherePass([ComputePass<PassParams>; 2]);
 
 impl AtmospherePass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
@@ -44,20 +44,20 @@ impl Pass for AtmospherePass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
-        _pp: &PassParams,
+        pp: &PassParams,
     ) {
         if camera.recompute_static {
             log::info!("Rocomputing atmosphere");
         }
 
         if camera.recompute_static || engine.config.realtime_atmosphere {
-            self.0[0].run(camera, encoder, NOISE_DIM, ());
+            self.0[0].run(camera, encoder, NOISE_DIM, *pp);
 
             self.0[1].run(
                 camera,
                 encoder,
                 camera.camera.viewport.size * (ATMOS_MULT as u32),
-                (),
+                *pp,
             );
         }
     }

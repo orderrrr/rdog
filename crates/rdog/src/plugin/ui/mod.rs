@@ -32,6 +32,10 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
                 .default_open(true)
                 .show(ui, |ui| c = c || passes(&mut ui_state, ui));
 
+            CollapsingHeader::new("Atmosphere")
+                .default_open(false)
+                .show(ui, |ui| c = c || atmosphere(&mut ui_state, ui));
+
             ui.separator();
 
             CollapsingHeader::new("Material Tree")
@@ -40,21 +44,70 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
 
             ui.separator();
 
-            if ui.button("Reload").clicked() {
-                *ui_state = read_config().unwrap_or(Config::default());
+            if ui.button("Reset Camera").clicked() {
+                ui_state.orbit_reset = true;
                 c = true;
             }
 
-            if ui.button("Save").clicked() {
-                fs::write(
-                    "crates/rdog/assets/config.json",
-                    serde_json::to_string(ui_state.deref()).unwrap(),
-                )
-                .unwrap();
-            }
+            ui.separator();
+
+            egui::Grid::new("")
+                .num_columns(2)
+                .striped(true)
+                .spacing([40.0, 4.0])
+                .show(ui, |ui| {
+                    if ui.button("Reload").clicked() {
+                        *ui_state = read_config().unwrap_or(Config::default());
+                        c = true;
+                    }
+
+                    if ui.button("Save").clicked() {
+                        fs::write(
+                            "crates/rdog/assets/config.json",
+                            serde_json::to_string(ui_state.deref()).unwrap(),
+                        )
+                        .unwrap();
+                    }
+                });
         });
 
     ui_state.multi_frame = !(c || ui_state.user_orbit || !ui_state.multi_frame_override);
+}
+
+fn atmosphere(ui_state: &mut Config, ui: &mut Ui) -> bool {
+    let mut c = false;
+
+    c = c
+        || ui
+            .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
+            .changed;
+
+    ui.heading("Sun Position");
+    egui::Grid::new("")
+        .num_columns(2)
+        .striped(true)
+        .spacing([40.0, 4.0])
+        .show(ui, |ui| {
+            // ui_state.sun_pos *= 360.0;
+
+            ui.label("Sun Height");
+            c = c
+                || ui
+                    .add(egui::Slider::new(&mut ui_state.sun_pos.y, 0.0..=1.0).suffix("%"))
+                    .changed;
+            ui.end_row();
+
+            ui.label("Sun Pos");
+            c = c
+                || ui
+                    .add(egui::Slider::new(&mut ui_state.sun_pos.x, 0.0..=1.0).suffix("%"))
+                    .changed;
+            ui.end_row();
+
+            // ui_state.sun_pos /= 360.0;
+        });
+
+    c
 }
 
 fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
@@ -67,22 +120,56 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
                 "Preserve last frame (MultiPass)",
             )
             .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting")
-            .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.scatter_pass, "Scatter Lighting")
-            .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.specular_pass, "Specular Lighting")
-            .changed;
-    c = c
-        || ui
-            .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
-            .changed;
+
+    egui::Grid::new("")
+        .num_columns(2)
+        .striped(true)
+        .spacing([40.0, 4.0])
+        .show(ui, |ui| {
+            ui_state.pass_count -= 1;
+            ui.label("Pass Count");
+            c = ui
+                .add(
+                    egui::DragValue::new(&mut ui_state.pass_count)
+                        .speed(1)
+                        .range(0.0..=16.0),
+                )
+                .changed
+                || c;
+            ui.end_row();
+            ui_state.pass_count += 1;
+
+            ui_state.bounce_count -= 1;
+            ui.label("Bounces");
+            c = ui
+                .add(
+                    egui::DragValue::new(&mut ui_state.bounce_count)
+                        .speed(1)
+                        .range(0.0..=16.0),
+                )
+                .changed
+                || c;
+            ui.end_row();
+            ui_state.bounce_count += 1;
+        });
+
+    // TODO - probably can remove...
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting")
+    //         .changed;
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.scatter_pass, "Scatter Lighting")
+    //         .changed;
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.specular_pass, "Specular Lighting")
+    //         .changed;
+    // c = c
+    //     || ui
+    //         .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
+    //         .changed;
 
     c
 }
@@ -259,12 +346,12 @@ impl TUi for Material {
                     || c;
                 ui.end_row();
 
-                ui.label("F0");
+                ui.label("Refraction");
                 c = ui
                     .add(
-                        egui::DragValue::new(&mut self.f0)
+                        egui::DragValue::new(&mut self.refraction)
                             .speed(0.01)
-                            .range(0.0..=10.0),
+                            .range(0.0..=1.0),
                     )
                     .changed
                     || c;
@@ -322,16 +409,16 @@ pub struct Material {
     pub specular_scale: f32,
     pub emissive: f32,
     pub ior: f32,
-    pub f0: f32,
+    pub refraction: f32,
     pub roughness: f32,
     pub scattering_scale: f32,
 }
 impl Material {
-    pub(crate) fn to_shader(&self) -> rdog_lib::Material {
+    pub fn to_shader(&self) -> rdog_lib::Material {
         rdog_lib::Material::default()
             // ifrs: (index, f0, roughness, scattering_scale)
             .with_index(self.id)
-            .with_f0(self.f0)
+            .with_refraction(self.refraction)
             .with_roughness(self.roughness)
             .with_scattering_scale(self.scattering_scale)
             // nd: (normal.xyz, dist)
@@ -360,10 +447,10 @@ impl Default for Material {
             albedo: Vec3::ZERO,
             scattering_color: Vec3::ZERO,
             diffuse_scale: 1.0,
-            specular_scale: 1.0,
+            specular_scale: 0.0,
             emissive: 0.0,
-            ior: 1.0,
-            f0: 0.04,
+            ior: 0.0,
+            refraction: 0.04,
             roughness: 0.0,
             scattering_scale: 0.0,
         }

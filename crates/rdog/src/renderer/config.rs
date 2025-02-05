@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 use bevy::prelude::Resource;
@@ -18,8 +18,17 @@ pub struct Config {
     pub multi_frame_override: bool,
     pub multi_frame: bool,
     pub realtime_atmosphere: bool,
-    pub material_tree: MaterialList,
     pub user_orbit: bool,
+    pub orbit_reset: bool,
+
+    pub bounce_count: u32,
+    pub pass_count: u32,
+
+    pub sun_pos: Vec2,
+
+    pub material_tree: MaterialList,
+
+    pub ray_debug: bool,
 }
 
 impl Config {
@@ -31,7 +40,13 @@ impl Config {
         flags |= (self.specular_pass as u32) << 2;
         flags |= (self.multi_frame as u32) << 3;
 
-        PassParams { flags }
+        PassParams {
+            flags,
+            sun_x: self.sun_pos.x,
+            sun_y: self.sun_pos.y,
+            pass_count: self.pass_count,
+            bounce_count: self.bounce_count,
+        }
     }
 
     pub(crate) fn material_pass(&self) -> Vec<Material> {
@@ -55,6 +70,11 @@ impl Default for Config {
             realtime_atmosphere: false,
             user_orbit: false,
             material_tree: MaterialList::demo(), // TODO not demo, serialize from a file
+            orbit_reset: true,
+            sun_pos: Vec2::new(0.5, 0.7),
+            pass_count: 8,
+            bounce_count: 8,
+            ray_debug: false,
         }
     }
 }

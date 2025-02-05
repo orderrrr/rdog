@@ -53,10 +53,10 @@ impl Default for PanOrbitState {
     fn default() -> Self {
         PanOrbitState {
             center: Vec3::Y,
-            radius: 1.0,
+            radius: 4.0,
             upside_down: false,
-            pitch: 0.0,
-            yaw: 0.0,
+            pitch: 15.0_f32.to_radians(),
+            yaw: 30.0_f32.to_radians(),
         }
     }
 }
@@ -86,11 +86,7 @@ pub fn pan_orbit_camera(
 ) {
     // First, accumulate the total amount of
     // mouse motion and scroll, from all pending events:
-    let mut total_motion: Vec2 = evr_motion.read().map(|ev| ev.delta).sum();
-
-    // Reverse Y (Bevy's Worldspace coordinate system is Y-Up,
-    // but events are in window/ui coordinates, which are Y-Down)
-    total_motion.y = -total_motion.y;
+    let total_motion: Vec2 = evr_motion.read().map(|ev| ev.delta).sum();
 
     let mut total_scroll_lines = Vec2::ZERO;
     let mut total_scroll_pixels = Vec2::ZERO;
@@ -111,6 +107,10 @@ pub fn pan_orbit_camera(
         // Check how much of each thing we need to apply.
         // Accumulate values from motion and scroll,
         // based on our configuration settings.
+
+        if config.orbit_reset {
+            *state = PanOrbitState::default();
+        }
 
         let mut total_pan = Vec2::ZERO;
         if settings
@@ -149,12 +149,12 @@ pub fn pan_orbit_camera(
             .map(|key| kbd.pressed(key))
             .unwrap_or(false)
         {
-            total_zoom -= total_motion * settings.zoom_sensitivity;
+            total_zoom += total_motion * settings.zoom_sensitivity;
         }
         if settings.scroll_action == Some(PanOrbitAction::Zoom) {
-            total_zoom -=
+            total_zoom +=
                 total_scroll_lines * settings.scroll_line_sensitivity * settings.zoom_sensitivity;
-            total_zoom -=
+            total_zoom +=
                 total_scroll_pixels * settings.scroll_pixel_sensitivity * settings.zoom_sensitivity;
         }
 
@@ -226,7 +226,7 @@ pub fn pan_orbit_camera(
         // (if we changed anything, or if the pan-orbit
         // controller was just added and thus we are running
         // for the first time and need to initialize)
-        if any || state.is_added() {
+        if any || state.is_added() || config.orbit_reset {
             config.user_orbit = true;
             // YXZ Euler Rotation performs yaw/pitch/roll.
             transform.rotation = Quat::from_euler(EulerRot::YXZ, state.yaw, state.pitch, 0.0);
@@ -235,6 +235,10 @@ pub fn pan_orbit_camera(
             transform.translation = state.center + transform.back() * state.radius;
         } else {
             config.user_orbit = false;
+        }
+
+        if config.orbit_reset {
+            config.orbit_reset = false;
         }
     }
 }

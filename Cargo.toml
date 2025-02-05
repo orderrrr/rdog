@@ -35,6 +35,8 @@ bevy = { version = "0.15.1", default-features = false, features = [
 
     "tonemapping_luts",
     "bevy_core_pipeline",
+    "bevy_picking",
+    "bevy_pbr",
 ] }
 
 # Enable incremental by default in release mode.
