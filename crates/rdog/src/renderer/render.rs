@@ -17,6 +17,7 @@ use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 pub struct Buffers {
     pub curr_camera: MappedUniformBuffer<lib::camera::Camera>,
     pub prev_camera: MappedUniformBuffer<lib::camera::Camera>,
+    pub config: MappedUniformBuffer<lib::PassParams>,
 
     pub materials: StorageBuffer<Material>,
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
@@ -27,8 +28,6 @@ pub struct Buffers {
 
     pub atmosphere_tx: Texture,
     pub atmos_noise_tx: Texture,
-
-    pub config: MappedUniformBuffer<lib::PassParams>,
 }
 
 impl Buffers {
@@ -136,9 +135,12 @@ impl CameraController {
         *self.buffers.curr_camera.deref_mut() = self.camera.serialize();
         *self.buffers.globals.deref_mut() = Globals::from_engine(engine).serialize();
         *self.buffers.config.deref_mut() = engine.config.to_pass_params();
-        *self.buffers.materials.deref_mut() = engine.config.material_pass();
 
-        if engine.config.material_tree.changed {
+        if engine.config.material_tree.modified {
+            *self.buffers.materials.deref_mut() = engine.config.material_pass();
+        }
+
+        if engine.config.material_tree.list_changed {
             log::info!("Material tree changed.");
             self.buffers.materials =
                 StorageBuffer::new(device, "materials", engine.config.material_pass());

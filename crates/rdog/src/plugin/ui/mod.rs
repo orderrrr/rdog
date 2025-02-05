@@ -99,7 +99,8 @@ pub enum Action {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct MaterialList {
-    pub changed: bool,
+    pub list_changed: bool,
+    pub modified: bool,
     pub mats: Vec<Material>,
 }
 
@@ -117,20 +118,21 @@ impl MaterialList {
                     ..default()
                 },
             ],
-            changed: false,
+            modified: false,
+            list_changed: false,
         }
     }
 }
 
 impl TUi for MaterialList {
     fn ui(&mut self, ui: &mut Ui) -> bool {
-        self.changed = false;
-        let mut p_change = false;
+        self.list_changed = false;
+        self.modified = false;
 
         let mut removed = None;
         let le = self.mats.len();
         for (i, material) in &mut self.mats.iter_mut().enumerate() {
-            p_change = p_change || material.ui(ui);
+            self.modified = self.modified || material.ui(ui);
 
             if ui
                 .button(RichText::new("delete").color(ui.visuals().warn_fg_color))
@@ -146,7 +148,7 @@ impl TUi for MaterialList {
 
         if removed.is_some() {
             self.mats.remove(removed.unwrap());
-            self.changed = true;
+            self.list_changed = true;
         }
 
         egui::Grid::new("")
@@ -162,7 +164,7 @@ impl TUi for MaterialList {
                         id: (self.mats.len() - 1) as f32,
                         ..default()
                     });
-                    self.changed = true;
+                    self.list_changed = true;
                 }
                 ui.end_row();
             });
@@ -171,7 +173,7 @@ impl TUi for MaterialList {
             material.id = i as f32;
         }
 
-        return self.changed || p_change;
+        return self.list_changed || self.modified;
     }
 }
 
