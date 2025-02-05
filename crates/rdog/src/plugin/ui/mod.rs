@@ -344,12 +344,12 @@ impl TUi for Material {
                     || c;
                 ui.end_row();
 
-                ui.label("F0");
+                ui.label("Refraction");
                 c = ui
                     .add(
                         egui::DragValue::new(&mut self.refraction)
                             .speed(0.01)
-                            .range(0.0..=10.0),
+                            .range(0.0..=1.0),
                     )
                     .changed
                     || c;

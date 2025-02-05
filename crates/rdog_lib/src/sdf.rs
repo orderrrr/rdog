@@ -1,3 +1,5 @@
+use spirv_std::num_traits::Float;
+
 use crate::{prelude::*, Clamp};
 
 pub fn sd_round_box(p: Vec3, b: Vec3, r: f32) -> f32 {
@@ -123,4 +125,36 @@ impl Op {
     pub fn smooth_subtraction(k: f32) -> Self {
         Self::SmoothSubtraction(SdOp::new(k))
     }
+}
+
+pub fn de(p: Vec3) -> f32 {
+    let mut p = p;
+    let mut scale = 1.0;
+    let mut orb: f32 = 10000.0;
+    for i in 0..7 {
+        p = -1.0 + 2.0 * (0.5 * p + 0.5).fract_gl();
+        p -= p.sn() * 0.1;
+        let a = (i as f32) * acos_approx(-1.0_f32) / 4.0;
+        let pt = mat2(vec2(a.cos(), a.sin()), vec2(-a.sin(), a.cos())).mul_vec2(p.xz());
+        p.x = pt.x;
+        p.z = pt.y;
+
+        let r2 = p.dot(p);
+        let k = 0.95 / r2;
+        p *= k;
+        scale *= k;
+        orb = orb.min(r2);
+    }
+
+    let d1 = (p.xy().dot(p.xy()))
+        .min(p.yz().dot(p.yz()))
+        .min(p.zx().dot(p.zx()))
+        .sqrt()
+        - 0.02;
+    let d2 = p.y.abs();
+    let mut dmi = d2;
+    if d1 < d2 {
+        dmi = d1;
+    }
+    return 0.5 * dmi / scale;
 }

@@ -250,12 +250,12 @@ impl Material {
 
 impl Material {
     pub fn specular_scatter(&self, scene: &Scene, r: &mut Ray) -> ScatterRes {
-        let (eta, mut n) = if !self.interior() {
-            (1.0 / self.ior(), self.normal())
-        } else {
-            (self.ior() / 1.0, self.normal())
+        let eta = match !self.interior() {
+            true => 1.0 / self.ior(),
+            false => 1.0 / self.ior(),
         };
 
+        let mut n = self.normal();
         let ud = r.d.normalize();
         let v_ud = -ud;
 
@@ -274,19 +274,12 @@ impl Material {
         n += u * a + v * b;
         n = n.normalize();
 
-        let cos_theta = v_ud.dot(n).min(1.0);
-        let cos_theta = if cos_theta > 1.0 {
-            1.0
-        } else if cos_theta < -1.0 {
-            -1.0
-        } else {
-            cos_theta
-        };
+        let cos_theta = v_ud.dot(n).min(1.0).max(-1.0);
 
         let r0 = (1.0 - eta) / (1.0 + eta);
-        let fresnel = (r0 * r0) + (1.0 - r0) * (1.0 - cos_theta).pow(5.0);
+        let fresnel = r0.pow(2.0) + (1.0 - r0) * (1.0 - cos_theta).pow(5.0);
 
-        let dir = if scene.rng(r) < self.refraction() {
+        let dir = if scene.rng(r) > self.refraction() {
             scene.reflect(ud, n)
         } else {
             r.at(r.o + (self.normal() * (MIN_DIST * 4.0) * -1.0));
@@ -297,7 +290,7 @@ impl Material {
         let refraction_radiance = (1.0 - fresnel) * Vec3::new(1.0, 1.0, 1.0); // Placeholder for refracted light
         let radiance = reflection_radiance + refraction_radiance;
 
-        let albedo = ONE; // todo may want to apply tint to reflections in future.
+        let albedo = self.albedo(); // todo may want to apply tint to reflections in future.
 
         ScatterRes::new(dir, true, radiance, fresnel, albedo)
     }
@@ -442,7 +435,7 @@ impl Scene<'_> {
             interior = h.x <= 0.0;
             h.x = h.x.abs();
 
-            if h.x < 0.001 {
+            if h.x < MIN_DIST {
                 return self.lookup_material(r, p, h, t, self.calc_normal(p), interior);
             }
 
@@ -564,18 +557,21 @@ impl Scene<'_> {
 
     fn map(&self, posi: Vec3) -> Vec2 {
         let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
-        let s = shape(posi, self.globals.time.x, self.globals.seed);
-        // let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
+
+        let d = de(posi);
+        min_sd(vec2(d, 1.0), vec2(l, 0.0))
         // let s = shape(posi, self.globals.time.x, self.globals.seed);
-        let p = plane(posi, vec4(0.0, 1.0, 0.0, 1.0)); // TODO - readd
-
-        let l = vec2(l, 0.0);
-        let s = vec2(s, 1.0);
-        let p = vec2(p, 2.0);
-
-        let s2 = vec2(sphere(posi - vec3(-2.0, 1.0, 0.0), 0.6), 3.0);
-
-        min_sd(min_sd(min_sd(l, s), s2), p)
+        // // let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
+        // // let s = shape(posi, self.globals.time.x, self.globals.seed);
+        // let p = plane(posi, vec4(0.0, 1.0, 0.0, 1.0)); // TODO - readd
+        //
+        // let l = vec2(l, 0.0);
+        // let s = vec2(s, 1.0);
+        // let p = vec2(p, 2.0);
+        //
+        // let s2 = vec2(sphere(posi - vec3(-2.0, 1.0, 0.0), 0.6), 3.0);
+        //
+        // min_sd(min_sd(min_sd(l, s), s2), p)
     }
 
     fn lookup_material(

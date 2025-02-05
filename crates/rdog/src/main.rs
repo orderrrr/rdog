@@ -197,15 +197,6 @@ impl DebugRt for Scene<'_> {
             }
         }
 
-        // let (eta, n) = if h.interior() {
-        //     (1.0 / h.ior(), h.normal())
-        //     // (self.ior(), self.normal())
-        // } else {
-        //     (h.ior() / 1.0, h.normal())
-        // };
-        // let ud = r.d.normalize();
-        // let dir = self.refract(ud, n, eta);
-
         let l = h.scatter(self, r);
 
         r.dir(l.dir);

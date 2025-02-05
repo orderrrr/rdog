@@ -242,3 +242,34 @@ impl Clamp for Vec4 {
         )
     }
 }
+
+pub trait SigNum {
+    fn sn(&self) -> Self;
+}
+
+impl SigNum for f32 {
+    fn sn(&self) -> Self {
+        match *self >= 0.0 {
+            true => 1.0,
+            _ => -1.0,
+        }
+    }
+}
+
+impl SigNum for Vec2 {
+    fn sn(&self) -> Self {
+        vec2(self.x.sn(), self.y.sn())
+    }
+}
+
+impl SigNum for Vec3 {
+    fn sn(&self) -> Self {
+        vec3(self.x.sn(), self.y.sn(), self.z.sn())
+    }
+}
+
+impl SigNum for Vec4 {
+    fn sn(&self) -> Self {
+        vec4(self.x.sn(), self.y.sn(), self.z.sn(), self.w.sn())
+    }
+}
