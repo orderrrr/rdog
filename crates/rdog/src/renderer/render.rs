@@ -26,8 +26,8 @@ pub struct Buffers {
     pub render_alt_tx: Texture,
     pub prev_tx: Texture,
 
-    pub atmosphere_tx: Texture,
-    pub atmos_noise_tx: Texture,
+    // pub atmosphere_tx: Texture,
+    // pub atmos_noise_tx: Texture,
 }
 
 impl Buffers {
@@ -65,31 +65,31 @@ impl Buffers {
             .with_linear_filtering_sampler()
             .build(device);
 
-        let atmosphere_tx = Texture::builder("atmosphere")
-            .with_size((camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2()) // should be larger maybe? not sure
-            .with_format(wgpu::TextureFormat::Rgba16Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
+        // let atmosphere_tx = Texture::builder("atmosphere")
+        //     .with_size((camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2()) // should be larger maybe? not sure
+        //     .with_format(wgpu::TextureFormat::Rgba16Float)
+        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+        //     .with_linear_filtering_sampler()
+        //     .build(device);
 
-        let atmos_noise_tx = Texture::builder("atmos_noise")
-            .with_size(NOISE_DIM)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
+        // let atmos_noise_tx = Texture::builder("atmos_noise")
+        //     .with_size(NOISE_DIM)
+        //     .with_format(wgpu::TextureFormat::Rgba16Float)
+        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+        //     .with_linear_filtering_sampler()
+        //     .build(device);
 
         Self {
             prev_camera,
             curr_camera,
-            atmos_noise_tx,
+            // atmos_noise_tx,
             globals,
             render_tx,
             render_alt_tx,
             prev_tx,
-            atmosphere_tx,
+            // atmosphere_tx,
             config,
             materials,
         }

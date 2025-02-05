@@ -7,7 +7,7 @@ const DANGER: Vec3 = vec3(1.0, 0.0, 1.0);
 const ZERO: Vec3 = Vec3::ZERO;
 const ONE: Vec3 = Vec3::ONE;
 
-pub const TMAX: f32 = 40.0;
+pub const TMAX: f32 = 10.0;
 pub const MIN_DIST: f32 = 0.001;
 const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, 3.0, 2.5);

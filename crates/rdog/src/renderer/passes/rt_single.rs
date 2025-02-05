@@ -13,11 +13,11 @@ pub struct RTSingle([ComputePass<PassParams>; 1]);
 
 impl RTSingle {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
-        let bindings: [&dyn DoubleBufferedBindable; 5] = [
+        let bindings: [&dyn DoubleBufferedBindable; 4] = [
             &buffers.curr_camera.bind_readable(),
             &buffers.globals.bind_readable(),
             &buffers.materials.bind_readable(),
-            &buffers.atmosphere_tx.bind_sampled(),
+            // &buffers.atmosphere_tx.bind_sampled(),
             &buffers.render_tx.bind_writable(),
         ];
 
