@@ -7,7 +7,7 @@ use bevy::{
     },
 };
 
-use crate::plugin::{state::SyncedState, EngineResource};
+use crate::plugins::rdog::{state::SyncedState, EngineResource};
 
 #[derive(Default)]
 pub struct RdogRenderingNode;

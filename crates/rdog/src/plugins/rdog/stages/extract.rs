@@ -9,7 +9,7 @@ use bevy::{
 };
 
 use crate::{
-    plugin::{
+    plugins::rdog::{
         camera::RdogCamera,
         event::RdogEvent,
         state::{ExtractedImage, ExtractedImageData, ExtractedImages, RdogExtractedCamera},

@@ -2,7 +2,7 @@ use std::{fs, ops};
 
 use bevy::{
     prelude::*,
-    render::{renderer::RenderDevice, RenderApp},
+    render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, RenderApp},
 };
 use event::RdogEvent;
 use shader::{
@@ -13,9 +13,13 @@ use state::SyncedState;
 use thiserror::Error;
 use ui::ui_system;
 
-use crate::Config;
+use crate::{orbit::PanOrbitState, Config};
+
+pub const GIZMO: usize = 1;
+pub const MAIN: usize = 0;
 
 pub mod camera;
+pub mod config;
 pub mod event;
 pub mod graph;
 pub mod rendering;
@@ -34,11 +38,11 @@ impl Plugin for RdogPlugin {
             .init_asset_loader::<RdogShaderAssetLoader>()
             .insert_resource(read_config().unwrap_or(Config::default()))
             .add_systems(OnEnter(RdogShaderState::Setup), load_shaders)
+            .add_systems(OnEnter(RdogShaderState::Finished), rdog_setup_scene)
             .add_systems(
                 Update,
                 check_textures.run_if(in_state(RdogShaderState::Setup)),
             )
-            // .add_systems(OnEnter(RdogShaderState::Finished), create_shader_hashmap)
             .add_systems(Update, ui_system);
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
@@ -93,4 +97,27 @@ impl ops::DerefMut for EngineResource {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+fn rdog_setup_scene(mut commands: Commands) {
+    log::info!("Camera being setup");
+
+    let mut state = PanOrbitState::default();
+    state.center = Vec3::Y;
+    state.radius = 4.0;
+    state.pitch = 15.0_f32.to_radians();
+    state.yaw = 30.0_f32.to_radians();
+
+    commands.spawn((
+        RenderLayers::layer(MAIN),
+        Camera3d::default(),
+        state,
+        Transform::from_xyz(0., 1.5, 6.).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera {
+            hdr: true,
+            order: -1,
+            ..default()
+        },
+        CameraRenderGraph::new(self::graph::Rdog),
+    ));
 }

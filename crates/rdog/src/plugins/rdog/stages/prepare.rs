@@ -15,8 +15,8 @@ use bevy::{
 use glam::vec2;
 
 use crate::images::ImageData;
-use crate::plugin::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
-use crate::plugin::EngineResource;
+use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
+use crate::plugins::rdog::EngineResource;
 use crate::state::ExtractedConfig;
 use crate::CameraMode;
 
