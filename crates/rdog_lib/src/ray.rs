@@ -562,11 +562,11 @@ impl Scene<'_> {
 
     fn map(&self, posi: Vec3) -> Vec2 {
         let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
+        let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
 
         // let d = de(posi);
         // min_sd(vec2(d, 1.0), vec2(l, 0.0))
         // let s = shape(posi, self.globals.time.x, self.globals.seed);
-        let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
         // // let s = shape(posi, self.globals.time.x, self.globals.seed);
         // let p = plane(posi, vec4(0.0, 1.0, 0.0, 1.0)); // TODO - readd
         //
@@ -671,7 +671,8 @@ impl Scene<'_> {
     fn sample_direct_diff_spherical(&self, r: &mut Ray, n: Vec3) -> Vec3 {
         let cl = self.light_map(r.o);
 
-        if cl.dist > 8.0 { // TODO don't hard code.
+        if cl.dist > 8.0 {
+            // TODO don't hard code.
             return Vec3::ZERO;
         }
 
