@@ -80,7 +80,7 @@ impl Ray {
 
 #[derive(Copy, Clone)]
 struct Light {
-    _dist: f32,
+    dist: f32,
     pos: Vec3,
     radius: f32,
 }
@@ -523,6 +523,11 @@ impl Scene<'_> {
 
         if h.specular() > 0.0 {
             let cl = self.light_map(rc.o);
+
+            if cl.dist > 8.0 {
+                return col;
+            }
+
             let ls = self.spherical_light_sample(cl, &mut rc);
             let v = -rc.d;
             let n = h.normal();
@@ -558,10 +563,10 @@ impl Scene<'_> {
     fn map(&self, posi: Vec3) -> Vec2 {
         let l = sphere(posi - LIGHT_POS, LIGHT_RAD);
 
-        let d = de(posi);
-        min_sd(vec2(d, 1.0), vec2(l, 0.0))
+        // let d = de(posi);
+        // min_sd(vec2(d, 1.0), vec2(l, 0.0))
         // let s = shape(posi, self.globals.time.x, self.globals.seed);
-        // // let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
+        let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
         // // let s = shape(posi, self.globals.time.x, self.globals.seed);
         // let p = plane(posi, vec4(0.0, 1.0, 0.0, 1.0)); // TODO - readd
         //
@@ -572,6 +577,7 @@ impl Scene<'_> {
         // let s2 = vec2(sphere(posi - vec3(-2.0, 1.0, 0.0), 0.6), 3.0);
         //
         // min_sd(min_sd(min_sd(l, s), s2), p)
+        min_sd(vec2(s, 1.0), vec2(l, 0.0))
     }
 
     fn lookup_material(
@@ -642,7 +648,7 @@ impl Scene<'_> {
         let dist = sphere(posi - LIGHT_POS, LIGHT_RAD);
 
         Light {
-            _dist: dist,
+            dist,
             pos: LIGHT_POS,
             radius: LIGHT_RAD,
         }
@@ -664,6 +670,10 @@ impl Scene<'_> {
 impl Scene<'_> {
     fn sample_direct_diff_spherical(&self, r: &mut Ray, n: Vec3) -> Vec3 {
         let cl = self.light_map(r.o);
+
+        if cl.dist > 8.0 { // TODO don't hard code.
+            return Vec3::ZERO;
+        }
 
         // assumed spherical
         let l = self.spherical_light_sample(cl, r);
@@ -696,10 +706,13 @@ impl Scene<'_> {
 impl Scene<'_> {
     fn sample_scattering(&self, r: &mut Ray, n: Vec3) -> Vec3 {
         let p1 = r.o - (n * 0.02);
+        let mut out = Vec3::ZERO;
 
         let cl = self.light_map(p1);
 
-        let mut out = Vec3::ZERO;
+        if cl.dist > 8.0 {
+            return out;
+        }
 
         r.at(p1);
         let l = self.spherical_light_sample(cl, r);

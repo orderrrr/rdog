@@ -7,3 +7,4 @@
 6. quater res.
 7. specular_scatter seems to have some rng issues.
 8. separate out debug gizmo rendering and rdog rendering.
+9. limit light check by distance..

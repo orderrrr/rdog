@@ -6,7 +6,7 @@ use glam::{uvec2, Mat4, UVec2, Vec2};
 use log::info;
 use rdog_lib::{self as gpu, Material, PassParams};
 
-use crate::ui::MaterialList;
+use crate::ui::{LightList, MaterialList};
 
 use super::Engine;
 
@@ -27,6 +27,7 @@ pub struct Config {
     pub sun_pos: Vec2,
 
     pub material_tree: MaterialList,
+    pub lights: LightList,
 
     pub ray_debug: bool,
 }
@@ -75,6 +76,7 @@ impl Default for Config {
             pass_count: 8,
             bounce_count: 8,
             ray_debug: false,
+            lights: LightList::default(),
         }
     }
 }

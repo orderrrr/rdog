@@ -42,6 +42,10 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
                 .default_open(false)
                 .show(ui, |ui| c = c || ui_state.material_tree.ui(ui));
 
+            CollapsingHeader::new("Light List")
+                .default_open(false)
+                .show(ui, |ui| c = c || ui_state.lights.ui(ui));
+
             ui.separator();
 
             if ui.button("Reset Camera").clicked() {
@@ -152,24 +156,6 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
             ui.end_row();
             ui_state.bounce_count += 1;
         });
-
-    // TODO - probably can remove...
-    // c = c
-    //     || ui
-    //         .checkbox(&mut ui_state.direct_pass, "Direct+Indirect Lighting")
-    //         .changed;
-    // c = c
-    //     || ui
-    //         .checkbox(&mut ui_state.scatter_pass, "Scatter Lighting")
-    //         .changed;
-    // c = c
-    //     || ui
-    //         .checkbox(&mut ui_state.specular_pass, "Specular Lighting")
-    //         .changed;
-    // c = c
-    //     || ui
-    //         .checkbox(&mut ui_state.realtime_atmosphere, "Realtime Atmosphere")
-    //         .changed;
 
     c
 }
@@ -454,5 +440,82 @@ impl Default for Material {
             roughness: 0.0,
             scattering_scale: 0.0,
         }
+    }
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct LightList {
+    pub list_changed: bool,
+    pub modified: bool,
+    pub lights: Vec<Light>,
+}
+
+impl TUi for LightList {
+    fn ui(&mut self, ui: &mut Ui) -> bool {
+        self.list_changed = false;
+        self.modified = false;
+
+        let mut removed = None;
+        let le = self.lights.len();
+        for (i, light) in &mut self.lights.iter_mut().enumerate() {
+            self.modified = self.modified || light.ui(ui);
+
+            if ui
+                .button(RichText::new("delete").color(ui.visuals().warn_fg_color))
+                .clicked()
+            {
+                removed = Some(i);
+            }
+
+            if le - 1 > i {
+                ui.separator();
+            }
+        }
+
+        if removed.is_some() {
+            self.lights.remove(removed.unwrap());
+            self.list_changed = true;
+        }
+
+        egui::Grid::new("")
+            .num_columns(2)
+            .striped(true)
+            .spacing([40.0, 4.0])
+            .show(ui, |ui| {
+                ui.end_row();
+
+                ui.label("New Light");
+                if ui.button("+").clicked() {
+                    self.lights.push(Light { ..default() });
+                    self.list_changed = true;
+                }
+                ui.end_row();
+            });
+
+        return self.list_changed || self.modified;
+    }
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct Light {
+    pub pos: Vec3,
+    pub radius: f32,
+    pub mat_id: f32,
+}
+
+impl Default for Light {
+    fn default() -> Self {
+        Self {
+            pos: vec3(1.0, 1.0, 0.0),
+            radius: 1.0,
+            mat_id: 0.0,
+        }
+    }
+}
+
+impl TUi for Light {
+    fn ui(&mut self, ui: &mut Ui) -> bool {
+        ui.label("LIGHT");
+        return false;
     }
 }
