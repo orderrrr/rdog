@@ -311,7 +311,7 @@ impl Material {
             let sum_weights = diffuse_weight + specular_weight;
             let diffuse_prob = diffuse_weight / sum_weights;
 
-            if scene.rng(r) < diffuse_prob {
+            if scene.rng(r) > diffuse_prob {
                 self.specular_scatter(scene, r)
             } else {
                 self.diffuse_scatter(scene, r)
