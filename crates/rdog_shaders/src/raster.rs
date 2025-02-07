@@ -18,31 +18,13 @@ pub fn fs(
     #[spirv(descriptor_set = 0, binding = 2, uniform)] _globals: &Globals,
 
     #[spirv(descriptor_set = 1, binding = 0)] trace_tx: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 1)] prev_tx: TexRgba32,
     output: &mut Vec4,
 ) {
     let col = trace_tx.read(pos.xy().as_uvec2()).xyz();
-    let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
-    let col = col.saturate();
-
-    let prv = prev_tx.read(pos.xy().as_uvec2());
-
-    let a = prv.w + 1.0;
-
-    let col = col.mix(prv.xyz(), 1.0 - (1.0 / a)).extend(a);
-
-    let multi_frame: bool = ((config.flags >> 3) & 1) == 1;
-
-    unsafe {
-        if multi_frame {
-            prev_tx.write(pos.xy().as_uvec2(), col);
-        } else {
-            prev_tx.write(pos.xy().as_uvec2(), Vec4::splat(0.0));
-        }
-    }
 
     let col = col.xyz();
-    let col = col.saturate();
+    // let col = vec3(srgb(col.x), srgb(col.y), srgb(col.z));
+    // let col = col.saturate();
 
     *output = col.extend(1.0);
 }

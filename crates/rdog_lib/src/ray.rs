@@ -567,7 +567,7 @@ impl Scene<'_> {
                     break;
                 }
                 if h.emissive() > 0.0 {
-                    t += albedo * h.albedo() * cos_theta * radiance;
+                    t += h.emissive() * albedo * h.albedo() * cos_theta * radiance;
                     break;
                 }
             }
@@ -586,7 +586,9 @@ impl Scene<'_> {
 
             // sample light at this location
             albedo *= l.albedo * radiance;
-            t += albedo * self.sample_point(h, r, &l) * radiance;
+            let sample = self.sample_point(h, r, &l);
+
+            t += albedo * sample * radiance;
 
             radiance *= l.radiance;
 
@@ -642,22 +644,27 @@ impl Scene<'_> {
     fn map(&self, posi: Vec3) -> Vec2 {
         let l = self.lights(posi);
         // let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
-        // let s = sphere(posi + Vec3::NEG_Y, 0.5);
+        let pos = aar(posi, vec3(0.05, 0.5, 0.1).normalize(), 1.0);
+        let s1 = sd_round_box(pos + vec3(-1.0, -1.0, 1.0), Vec3::splat(0.5), 0.1);
+        let s2 = shape(posi, self.globals.time.x, self.globals.seed);
+        let s3 = sphere(posi + vec3(-1.0, -1.0, -1.0), 0.4);
 
         // let d = de(posi);
         // min_sd(vec2(d, 1.0), vec2(l, 0.0))
-        let s = shape(posi, self.globals.time.x, self.globals.seed);
         // // let s = shape(posi, self.globals.time.x, self.globals.seed);
         let p = plane(posi, vec4(0.0, 1.0, 0.0, 0.0)); // TODO - readd
                                                        //
                                                        // let l = vec2(l, 0.0);
                                                        // let s = vec2(s, 1.0);
-        let p = vec2(p, 2.0);
+        let p = vec2(p, 4.0);
+        let s1 = vec2(s1, 3.0);
+        let s2 = vec2(s2, 2.0);
+        let s3 = vec2(s3, 5.0);
         //
         // let s2 = vec2(sphere(posi - vec3(-2.0, 1.0, 0.0), 0.6), 3.0);
         //
         // min_sd(min_sd(min_sd(l, s), s2), p)
-        min_sd(min_sd(vec2(s, 2.0), l), p)
+        min_sd(min_sd(min_sd(min_sd(s2, l), p), s1), s3)
     }
 
     // get a random light.
@@ -728,7 +735,7 @@ impl Scene<'_> {
     }
 
     fn sample_atmos(&self, _sr: &Ray) -> Vec3 {
-        vec3(0.4, 0.35, 0.37) * 0.01
+        vec3(0.4, 0.35, 0.37) * 0.002
         // sample(
         //     self.atmos_tx,
         //     self.atmos_sampler,
@@ -777,7 +784,7 @@ impl Scene<'_> {
 
 fn calc_attenuation(r: &mut Ray, cl: &Light) -> f32 {
     let attenuation = (1.0 - (r.o.distance(cl.pos()) / cl.falloff())).max(0.0);
-    attenuation * attenuation
+    attenuation.powf(4.0)
 }
 
 // scatter

@@ -25,7 +25,6 @@ pub struct Buffers {
 
     pub render_tx: Texture,
     pub render_alt_tx: Texture,
-    pub prev_tx: Texture,
     // pub atmosphere_tx: Texture,
     // pub atmos_noise_tx: Texture,
 }
@@ -58,13 +57,13 @@ impl Buffers {
             .with_linear_filtering_sampler()
             .build(device);
 
-        let prev_tx = Texture::builder("prev_tx")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
+        // let prev_tx = Texture::builder("prev_tx")
+        //     .with_size(camera.viewport.size)
+        //     .with_format(wgpu::TextureFormat::Rgba32Float)
+        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+        //     .with_linear_filtering_sampler()
+        //     .build(device);
 
         // let atmosphere_tx = Texture::builder("atmosphere")
         //     .with_size((camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2()) // should be larger maybe? not sure
@@ -89,7 +88,6 @@ impl Buffers {
             globals,
             render_tx,
             render_alt_tx,
-            prev_tx,
             // atmosphere_tx,
             config,
             materials,

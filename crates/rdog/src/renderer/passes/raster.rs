@@ -32,7 +32,6 @@ impl RasterPass {
 
         let bg1 = BindGroup::builder("raster_bg1")
             .add(&buffers.render_tx.bind_readable())
-            .add(&buffers.prev_tx.bind_writable())
             .build(device);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
