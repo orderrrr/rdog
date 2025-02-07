@@ -43,8 +43,14 @@ pub fn render_debug_ray(
             .iter()
             .map(|x| x.to_shader())
             .collect();
+        let l: Vec<rdog_lib::Light> = config
+            .light_tree
+            .lights
+            .iter()
+            .map(|x| x.to_shader())
+            .collect();
 
-        let scene = Scene::new(&c, &g, &m, &p, 4, true, true, true);
+        let scene = Scene::new(&c, &g, &m, &l, &p, 4, true, true, true);
 
         let mut ray = Ray::ray(vs.as_vec2(), dconf.ndc, dconf.uv, UVec2::splat(0), 0);
         let mut prev_ray = ray.clone();

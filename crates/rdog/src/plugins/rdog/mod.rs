@@ -19,7 +19,6 @@ pub const GIZMO: usize = 1;
 pub const MAIN: usize = 0;
 
 pub mod camera;
-pub mod config;
 pub mod event;
 pub mod graph;
 pub mod rendering;

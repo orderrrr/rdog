@@ -5,7 +5,7 @@ use bevy_egui::{
     egui::{self, CollapsingHeader, Color32, Pos2, RichText, Ui},
     EguiContexts,
 };
-use glam::vec3;
+use glam::{vec3, vec4};
 use rdog_lib::TMAX;
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +29,7 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
             ui.separator();
 
             CollapsingHeader::new("Passes")
-                .default_open(true)
+                .default_open(false)
                 .show(ui, |ui| c = c || passes(&mut ui_state, ui));
 
             CollapsingHeader::new("Atmosphere")
@@ -44,7 +44,7 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
 
             CollapsingHeader::new("Light List")
                 .default_open(false)
-                .show(ui, |ui| c = c || ui_state.lights.ui(ui));
+                .show(ui, |ui| c = c || ui_state.light_tree.ui(ui));
 
             ui.separator();
 
@@ -443,11 +443,21 @@ impl Default for Material {
     }
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LightList {
     pub list_changed: bool,
     pub modified: bool,
     pub lights: Vec<Light>,
+}
+
+impl Default for LightList {
+    fn default() -> Self {
+        LightList {
+            lights: vec![Light::default()],
+            modified: false,
+            list_changed: false,
+        }
+    }
 }
 
 impl TUi for LightList {
@@ -501,6 +511,7 @@ pub struct Light {
     pub pos: Vec3,
     pub radius: f32,
     pub mat_id: f32,
+    pub falloff: f32,
 }
 
 impl Default for Light {
@@ -509,13 +520,92 @@ impl Default for Light {
             pos: vec3(1.0, 1.0, 0.0),
             radius: 1.0,
             mat_id: 0.0,
+            falloff: 8.0,
         }
+    }
+}
+
+impl Light {
+    pub fn to_shader(&self) -> rdog_lib::Light {
+        rdog_lib::Light::default()
+            .with_pos(self.pos)
+            .with_radius(self.radius)
+            .with_material_id(self.mat_id)
+            .with_falloff(self.falloff)
     }
 }
 
 impl TUi for Light {
     fn ui(&mut self, ui: &mut Ui) -> bool {
-        ui.label("LIGHT");
-        return false;
+        let mut c = false;
+
+        ui.heading("Light Instance");
+        egui::Grid::new("")
+            .num_columns(4)
+            .striped(true)
+            .spacing([40.0, 4.0])
+            .show(ui, |ui| {
+                ui.label("Material Id");
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.mat_id)
+                            .speed(1.0)
+                            .range(0.0..=20.0),
+                    )
+                    .changed
+                    || c;
+                ui.end_row();
+
+                ui.label("Radius");
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.radius)
+                            .speed(0.01)
+                            .range(0.0..=10.0),
+                    )
+                    .changed
+                    || c;
+                ui.end_row();
+
+                ui.label("Falloff");
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.falloff)
+                            .speed(0.01)
+                            .range(0.0..=20.0),
+                    )
+                    .changed
+                    || c;
+                ui.end_row();
+
+                ui.label("Pos");
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.pos.x)
+                            .speed(0.01)
+                            .range(-10.0..=10.0),
+                    )
+                    .changed
+                    || c;
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.pos.y)
+                            .speed(0.01)
+                            .range(-10.0..=10.0),
+                    )
+                    .changed
+                    || c;
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.pos.z)
+                            .speed(0.01)
+                            .range(-10.0..=10.0),
+                    )
+                    .changed
+                    || c;
+                ui.end_row();
+            });
+
+        c
     }
 }

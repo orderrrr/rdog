@@ -1,8 +1,8 @@
-use std::ops::DerefMut;
 use crate::{
     buffers::mapped_uniform_buffer::MappedUniformBuffer, storage_buffer::StorageBuffer,
     texture::Texture, Globals,
 };
+use std::ops::DerefMut;
 
 use super::{
     config::Camera,
@@ -10,7 +10,7 @@ use super::{
     passes::{Pass, Passes},
 };
 use log::{debug, info};
-use rdog_lib::{self as lib, Material};
+use rdog_lib::{self as lib, Light, Material};
 use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 #[derive(Debug)]
@@ -20,12 +20,12 @@ pub struct Buffers {
     pub config: MappedUniformBuffer<lib::PassParams>,
 
     pub materials: StorageBuffer<Material>,
+    pub lights: StorageBuffer<Light>,
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
 
     pub render_tx: Texture,
     pub render_alt_tx: Texture,
     pub prev_tx: Texture,
-
     // pub atmosphere_tx: Texture,
     // pub atmos_noise_tx: Texture,
 }
@@ -40,6 +40,7 @@ impl Buffers {
             MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
         let config = MappedUniformBuffer::new(device, "config", engine.config.to_pass_params());
         let materials = StorageBuffer::new(device, "materials", engine.config.material_pass());
+        let lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
 
         let render_tx = Texture::builder("render")
             .with_size(camera.viewport.size)
@@ -92,6 +93,7 @@ impl Buffers {
             // atmosphere_tx,
             config,
             materials,
+            lights,
         }
     }
 }
@@ -140,10 +142,20 @@ impl CameraController {
             *self.buffers.materials.deref_mut() = engine.config.material_pass();
         }
 
+        if engine.config.light_tree.modified {
+            *self.buffers.lights.deref_mut() = engine.config.light_pass();
+        }
+
         if engine.config.material_tree.list_changed {
             log::info!("Material tree changed.");
             self.buffers.materials =
                 StorageBuffer::new(device, "materials", engine.config.material_pass());
+            self.rebuild_passes(engine, device);
+        }
+
+        if engine.config.light_tree.list_changed {
+            log::info!("Light tree changed.");
+            self.buffers.lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
             self.rebuild_passes(engine, device);
         }
 
@@ -194,6 +206,7 @@ impl CameraController {
         self.buffers.globals.flush(queue);
         self.buffers.config.flush(queue);
         self.buffers.materials.flush(queue);
+        self.buffers.lights.flush(queue);
     }
 }
 
