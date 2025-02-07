@@ -18,6 +18,7 @@ pub mod shader;
 pub mod smoothstep;
 pub mod util;
 pub mod ray;
+pub mod scene;
 
 pub use self::pass::*;
 pub use self::camera::*;
@@ -31,6 +32,7 @@ pub use self::shader::*;
 pub use self::smoothstep::*;
 pub use self::util::*;
 pub use self::ray::*;
+pub use self::scene::*;
 
 pub mod prelude {
     #![allow(unexpected_cfgs)]

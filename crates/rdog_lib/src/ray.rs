@@ -405,19 +405,6 @@ impl ScatterRes {
     }
 }
 
-fn shape(posi: Vec3, _el: f32, _seed: UVec2) -> f32 {
-    // let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), el);
-    let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), 0.5);
-    let po = aar(pos, vec3(0.0, 0.0, 1.0).normalize(), -90.0_f32.to_radians());
-    let pp = aar(pos, vec3(1.0, 0.0, 0.0).normalize(), -45.0_f32.to_radians());
-    let o = sd_rounded_cylinder(pp + vec3(0.0, 0.0, -0.35), 0.3, 0.1, 0.1);
-    let r = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.3, 0.1, 0.1);
-    let v = sd_rounded_cylinder(po + vec3(-0.35, 0.0, 0.35), 0.15, 0.1, 0.4);
-    let r = op_smooth_subtraction(v, r, 0.1);
-
-    op_smooth_union(o, r, 0.1)
-}
-
 fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
     let r = if n.x.abs() > n.y.abs() {
         vec3(n.z, 0.0, -n.x) / ((n.x * n.x) + (n.z * n.z)).sqrt()
@@ -436,7 +423,7 @@ fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
 
 pub struct Scene<'a> {
     camera: &'a Camera,
-    globals: &'a Globals,
+    pub globals: &'a Globals,
     materials: &'a [Material],
     pub lights: &'a [Light],
     #[allow(dead_code)]
@@ -522,6 +509,10 @@ impl<'a> Scene<'a> {
 }
 
 impl Scene<'_> {
+    pub fn map(&self, pos: Vec3) -> Vec2 {
+        scene::map_scene_1(self, pos)
+    }
+
     #[inline(never)]
     pub fn trace(&self, r: &mut Ray) -> Material {
         // TODO - change to a Material struct
@@ -631,7 +622,7 @@ impl Scene<'_> {
         col
     }
 
-    fn lights(&self, posi: Vec3) -> Vec2 {
+    pub fn lights(&self, posi: Vec3) -> Vec2 {
         let mut d = vec2(TMAX, 0.0);
         for i in 0..self.lights.len() {
             let l = self.lights[i];
@@ -639,32 +630,6 @@ impl Scene<'_> {
         }
 
         d
-    }
-
-    fn map(&self, posi: Vec3) -> Vec2 {
-        let l = self.lights(posi);
-        // let s = sd_round_box(posi + Vec3::NEG_Y, ONE * 0.5, 0.1);
-        let pos = aar(posi, vec3(0.05, 0.5, 0.1).normalize(), 1.0);
-        let s1 = sd_round_box(pos + vec3(-1.0, -1.0, 1.0), Vec3::splat(0.5), 0.1);
-        let s2 = shape(posi, self.globals.time.x, self.globals.seed);
-        let s3 = sphere(posi + vec3(-1.0, -1.0, -1.0), 0.4);
-
-        // let d = de(posi);
-        // min_sd(vec2(d, 1.0), vec2(l, 0.0))
-        // // let s = shape(posi, self.globals.time.x, self.globals.seed);
-        let p = plane(posi, vec4(0.0, 1.0, 0.0, 0.0)); // TODO - readd
-                                                       //
-                                                       // let l = vec2(l, 0.0);
-                                                       // let s = vec2(s, 1.0);
-        let p = vec2(p, 4.0);
-        let s1 = vec2(s1, 3.0);
-        let s2 = vec2(s2, 2.0);
-        let s3 = vec2(s3, 5.0);
-        //
-        // let s2 = vec2(sphere(posi - vec3(-2.0, 1.0, 0.0), 0.6), 3.0);
-        //
-        // min_sd(min_sd(min_sd(l, s), s2), p)
-        min_sd(min_sd(min_sd(min_sd(s2, l), p), s1), s3)
     }
 
     // get a random light.

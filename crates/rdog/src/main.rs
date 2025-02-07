@@ -3,7 +3,8 @@ use bevy::{prelude::*, window::WindowResolution};
 use bevy_egui::EguiPlugin;
 use rand::Rng;
 use rdog::{
-    interface::orbit::{pan_orbit_camera, PanOrbitState}, DebugConfig, RdogDebugPlugin, RdogPlugin
+    interface::orbit::{pan_orbit_camera, PanOrbitState},
+    DebugConfig, RdogDebugPlugin, RdogPlugin,
 };
 
 pub const W: u32 = 640;

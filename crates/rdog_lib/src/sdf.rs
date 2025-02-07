@@ -1,5 +1,3 @@
-use spirv_std::num_traits::Float;
-
 use crate::{prelude::*, Clamp};
 
 pub fn sd_round_box(p: Vec3, b: Vec3, r: f32) -> f32 {
