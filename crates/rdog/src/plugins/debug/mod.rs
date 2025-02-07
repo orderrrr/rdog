@@ -28,7 +28,6 @@ impl Plugin for RdogDebugPlugin {
                 Update,
                 (
                     update_bevy_cam.run_if(any_with_component::<PanOrbitState>),
-                    draw_gizmos,
                     render_debug_ray,
                 ),
             );
@@ -67,9 +66,4 @@ fn rdog_debug_setup_scene(mut commands: Commands, mut config_store: ResMut<Gizmo
             ..Default::default()
         },
     ));
-}
-
-// TODO REMOVE
-fn draw_gizmos(mut gizmos: Gizmos) {
-    gizmos.sphere(LIGHT_POS, LIGHT_RAD, PURPLE);
 }

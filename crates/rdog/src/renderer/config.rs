@@ -4,9 +4,9 @@ use std::fmt::{Display, Formatter};
 use bevy::prelude::Resource;
 use glam::{uvec2, Mat4, UVec2, Vec2};
 use log::info;
-use rdog_lib::{self as gpu, Material, PassParams};
+use rdog_lib::{self as gpu, Light, Material, PassParams};
 
-use crate::ui::MaterialList;
+use crate::ui::{LightList, MaterialList};
 
 use super::Engine;
 
@@ -27,6 +27,7 @@ pub struct Config {
     pub sun_pos: Vec2,
 
     pub material_tree: MaterialList,
+    pub light_tree: LightList,
 
     pub ray_debug: bool,
 }
@@ -55,7 +56,20 @@ impl Config {
             m.push(mat.to_shader());
         }
 
+        m.push(Material::default());
+
         m
+    }
+
+    pub(crate) fn light_pass(&self) -> Vec<Light> {
+        let mut l: Vec<rdog_lib::Light> = vec![];
+        for light in self.light_tree.lights.iter() {
+            l.push(light.to_shader());
+        }
+
+        l.push(Light::default());
+
+        l
     }
 }
 
@@ -75,6 +89,7 @@ impl Default for Config {
             pass_count: 8,
             bounce_count: 8,
             ray_debug: false,
+            light_tree: LightList::default(),
         }
     }
 }
