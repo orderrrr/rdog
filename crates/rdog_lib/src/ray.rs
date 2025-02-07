@@ -7,9 +7,9 @@ const DANGER: Vec3 = vec3(1.0, 0.0, 1.0);
 const ZERO: Vec3 = Vec3::ZERO;
 const ONE: Vec3 = Vec3::ONE;
 
-pub const TMAX: f32 = 40.0;
+pub const TMAX: f32 = 5.0;
 pub const MIN_DIST: f32 = 0.001;
-const RMAX: u32 = 300;
+pub const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, 3.0, 2.5);
 pub const LIGHT_RAD: f32 = 1.0;
 
@@ -178,7 +178,7 @@ impl Default for Material {
 
 impl Material {
     pub fn valid(&self) -> bool {
-        self.normal().length() > 0.0 // means its an object.
+        self.dist() < TMAX
     }
 
     pub fn interior(&self) -> bool {
@@ -511,6 +511,11 @@ impl<'a> Scene<'a> {
 impl Scene<'_> {
     pub fn map(&self, pos: Vec3) -> Vec2 {
         scene::map_scene_1(self, pos)
+
+        // let l = self.lights(pos);
+        // let d = de(pos);
+        //
+        // min_sd(l, vec2(d, 1.0))
     }
 
     #[inline(never)]
@@ -528,7 +533,7 @@ impl Scene<'_> {
             h.x = h.x.abs();
 
             if h.x < MIN_DIST {
-                return self.lookup_material(r, p, h, t, self.calc_normal(p), interior);
+                return self.lookup_material(r, p, h, t, interior);
             }
 
             if t > TMAX {
@@ -547,33 +552,27 @@ impl Scene<'_> {
         let mut cos_theta = 1.0;
         let mut radiance = ONE;
 
-        for i in 0..self.bounces {
+        for i in 0..self.bounces + 1 {
             let h = self.trace(r);
-
             r.mv(h.dist());
 
-            {
-                if !h.valid() {
-                    t += albedo * self.sample_atmos(&r) * radiance;
-                    break;
-                }
-                if h.emissive() > 0.0 {
-                    t += h.emissive() * albedo * h.albedo() * cos_theta * radiance;
-                    break;
-                }
+            if !h.valid() {
+                t += albedo * self.sample_atmos(&r) * radiance;
+                break;
+            }
+            if h.emissive() > 0.0 {
+                t += h.emissive() * albedo * h.albedo() * cos_theta * radiance;
+                break;
             }
 
+            let h =
+                h.with_normal(self.calc_normal(r.o) * (2.0 * (!h.interior() as i32 as f32) - 1.0));
             let l = h.scatter(
                 &self,
                 r.offset_seed(UVec2::ZERO + (i * 2))
                     .offset_uv(vec2(8.2, 3.3)),
             );
             cos_theta = h.normal().dot(l.dir).max(0.0);
-
-            // {
-            //     t = l.albedo;
-            //     break;
-            // }
 
             // sample light at this location
             albedo *= l.albedo * radiance;
@@ -643,23 +642,9 @@ impl Scene<'_> {
         self.materials[i]
     }
 
-    fn lookup_material(
-        &self,
-        _r: &mut Ray,
-        _p: Vec3,
-        h: Vec2,
-        t: f32,
-        normal: Vec3,
-        interior: bool,
-    ) -> Material {
+    fn lookup_material(&self, _r: &mut Ray, _p: Vec3, h: Vec2, t: f32, interior: bool) -> Material {
         let i = h.y as usize;
-
-        let normal = normal * (2.0 * (!interior as i32 as f32) - 1.0);
-
-        self.mat(i)
-            .with_normal(normal)
-            .with_dist(t)
-            .with_interior(interior)
+        self.mat(i).with_dist(t).with_interior(interior)
     }
 
     fn calc_normal(&self, pos: Vec3) -> Vec3 {
@@ -731,7 +716,6 @@ impl Scene<'_> {
 
         // let lsr = r.clone().at(r.o + l).dir(l);
         r.dir(l);
-        r.mv(0.01);
         let hit = self.trace(r);
 
         if !hit.valid() {
