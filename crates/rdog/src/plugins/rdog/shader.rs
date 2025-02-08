@@ -2,7 +2,8 @@ use std::borrow::Cow;
 
 use bevy::{
     asset::{
-        io::Reader, Asset, AssetEvent, AssetLoader, AssetServer, Handle, LoadContext, LoadedFolder,
+        io::Reader, Asset, AssetEvent, AssetLoader, AssetServer, AsyncReadExt, Handle, LoadContext,
+        LoadedFolder,
     },
     prelude::{Commands, Deref, DerefMut, EventReader, NextState, Res, ResMut, Resource, States},
     reflect::TypePath,
@@ -22,15 +23,12 @@ pub struct RdogShaderFolder(Handle<LoadedFolder>);
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct RdogShaderAsset {
     pub name: String,
-    pub data: Cow<'static, [u8]>,
+    pub data: FType,
 }
 
 impl RdogShaderAsset {
-    pub fn new(name: String, data: impl Into<Cow<'static, [u8]>>) -> Self {
-        Self {
-            name,
-            data: data.into(),
-        }
+    pub fn new(name: String, data: FType) -> Self {
+        Self { name, data }
     }
 }
 
@@ -60,16 +58,33 @@ impl AssetLoader for RdogShaderAssetLoader {
     ) -> Result<Self::Asset, Self::Error> {
         let fname = String::from(load_context.path().file_name().unwrap().to_str().unwrap());
 
-        let mut bytes = Vec::new();
-        reader.read_to_end(&mut bytes).await?;
+        let name = fname.replace("-", "_").replace(".spv", "").replace(".wgsl", "");
 
-        let name = fname.replace("-", "_").replace(".spv", "");
+        let data = match load_context.path().extension().unwrap().to_str().unwrap() {
+            "spv" => RdogShaderAsset::read_spv(reader).await?,
+            "wgsl" => RdogShaderAsset::read_wgsl(reader).await?,
+            _ => panic!("how did I get here?"),
+        };
 
-        Ok(RdogShaderAsset::new(name, bytes))
+        Ok(RdogShaderAsset::new(name, data))
     }
 
     fn extensions(&self) -> &[&str] {
-        &["spv"]
+        &["spv", "wgsl"]
+    }
+}
+
+impl RdogShaderAsset {
+    async fn read_spv(reader: &mut dyn Reader) -> Result<FType, CustomAssetLoaderError> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        Ok(FType::Spv(bytes.into()))
+    }
+
+    async fn read_wgsl(reader: &mut dyn Reader) -> Result<FType, CustomAssetLoaderError> {
+        let mut bytes = String::new();
+        reader.read_to_string(&mut bytes).await?;
+        Ok(FType::Wgsl(bytes.into()))
     }
 }
 
@@ -89,4 +104,10 @@ pub fn check_textures(
             next_state.set(RdogShaderState::Finished);
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum FType {
+    Wgsl(Cow<'static, str>),
+    Spv(Cow<'static, [u8]>),
 }

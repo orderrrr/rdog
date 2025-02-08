@@ -55,8 +55,8 @@ impl Default for PanOrbitState {
             center: Vec3::Y,
             radius: 4.0,
             upside_down: false,
-            pitch: 15.0_f32.to_radians(),
-            yaw: 30.0_f32.to_radians(),
+            pitch: -10.0_f32.to_radians(),
+            yaw: 0.0_f32.to_radians(),
         }
     }
 }

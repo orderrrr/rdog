@@ -5,8 +5,7 @@ use bevy_egui::{
     egui::{self, CollapsingHeader, Color32, Pos2, RichText, Ui},
     EguiContexts,
 };
-use glam::{vec3, vec4};
-use rdog_lib::TMAX;
+use glam::vec3;
 use serde::{Deserialize, Serialize};
 
 use crate::Config;
@@ -14,6 +13,7 @@ use crate::Config;
 use super::read_config;
 
 pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
+    ui_state.reload = false;
     let mut c = false;
 
     let ctx = contexts.ctx_mut();
@@ -62,6 +62,7 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
                 .show(ui, |ui| {
                     if ui.button("Reload").clicked() {
                         *ui_state = read_config().unwrap_or(Config::default());
+                        ui_state.reload = true;
                         c = true;
                     }
 
@@ -385,19 +386,16 @@ impl C32 for Vec3 {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Material {
     pub id: f32,
-    pub dist: f32,
-    pub normal: Vec3,
-    pub metallic: bool,
-    pub refractive: bool,
-    pub albedo: Vec3,
-    pub scattering_color: Vec3,
+
     pub diffuse_scale: f32,
     pub specular_scale: f32,
-    pub emissive: f32,
+    pub scattering_scale: f32,
     pub ior: f32,
     pub refraction: f32,
     pub roughness: f32,
-    pub scattering_scale: f32,
+    pub albedo: Vec3,
+    pub scattering_color: Vec3,
+    pub emissive: f32,
 }
 impl Material {
     pub fn to_shader(&self) -> rdog_lib::Material {
@@ -408,8 +406,6 @@ impl Material {
             .with_roughness(self.roughness)
             .with_scattering_scale(self.scattering_scale)
             // nd: (normal.xyz, dist)
-            .with_normal(self.normal)
-            .with_dist(self.dist)
             // albedo: (albedo.xyz, unused)
             .with_albedo(self.albedo)
             // scattering_color: (scattering_color.xyz, unused)
@@ -426,10 +422,6 @@ impl Default for Material {
     fn default() -> Self {
         Self {
             id: 0.0,
-            dist: TMAX,
-            normal: Vec3::ZERO,
-            metallic: false,
-            refractive: false,
             albedo: Vec3::ZERO,
             scattering_color: Vec3::ZERO,
             diffuse_scale: 1.0,

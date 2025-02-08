@@ -4,14 +4,14 @@ use spirv_std::num_traits::Pow;
 #[spirv(compute(threads(1)))]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
-    #[spirv(push_constant)] params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] globals: &Globals,
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] material: &[Material],
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)] light: &[Light],
     // #[spirv(descriptor_set = 0, binding = 3)] _atmos_tx: Tex<'_>,
     // #[spirv(descriptor_set = 0, binding = 4)] _atmos_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 4)] out: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 4, uniform)] params: &PassParams,
+    #[spirv(descriptor_set = 0, binding = 5)] out: TexRgba32,
 ) {
     let compute_diffuse: bool = ((params.flags >> 0) & 1) == 1;
     let compute_scatter: bool = ((params.flags >> 1) & 1) == 1;
@@ -35,15 +35,19 @@ pub fn main(
 
     let mut col = Vec3::ZERO;
 
+    let mut s = (global_id.x + global_id.y * (camera.screen.y as u32)) * globals.seed.y;
+
     for i in 0..params.pass_count + 1 {
         let mut r = Ray::ray(
             camera.screen.xy(),
             camera.ndc_to_world,
             pos,
             globals.seed,
+            &mut s,
             i,
         );
         col += scene.rt(&mut r);
+        s = r.t;
     }
 
     col /= params.pass_count as f32;

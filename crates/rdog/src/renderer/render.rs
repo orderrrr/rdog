@@ -144,17 +144,26 @@ impl CameraController {
             *self.buffers.lights.deref_mut() = engine.config.light_pass();
         }
 
+        if engine.config.reload {
+            log::info!("Reloaded");
+            self.rebuild_buffers(engine, device);
+            self.rebuild_passes(engine, device);
+            return;
+        }
+
         if engine.config.material_tree.list_changed {
             log::info!("Material tree changed.");
             self.buffers.materials =
                 StorageBuffer::new(device, "materials", engine.config.material_pass());
             self.rebuild_passes(engine, device);
+            return;
         }
 
         if engine.config.light_tree.list_changed {
             log::info!("Light tree changed.");
             self.buffers.lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
             self.rebuild_passes(engine, device);
+            return;
         }
 
         self.recompute_static = false;

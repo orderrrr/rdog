@@ -78,9 +78,16 @@ impl Engine {
         for shader in shaders {
             log::info!("Computing shader: {}", shader.name);
             let comp = RdogShader::new(device, shader);
-            self.shaders.entry(shader.name.to_string()).insert(comp);
+
+            if comp.is_none() {
+                continue;
+            }
+
+            self.shaders
+                .entry(shader.name.to_string())
+                .insert(comp.unwrap());
         }
-        
+
         let mut cameras = mem::take(&mut self.cameras);
         for camera in cameras.iter_mut() {
             camera.invalidate(self, device);

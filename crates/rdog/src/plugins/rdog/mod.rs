@@ -101,11 +101,7 @@ impl ops::DerefMut for EngineResource {
 fn rdog_setup_scene(mut commands: Commands) {
     log::info!("Camera being setup");
 
-    let mut state = PanOrbitState::default();
-    state.center = Vec3::Y;
-    state.radius = 4.0;
-    state.pitch = 15.0_f32.to_radians();
-    state.yaw = 30.0_f32.to_radians();
+    let state = PanOrbitState::default();
 
     commands.spawn((
         RenderLayers::layer(MAIN),

@@ -1,5 +1,13 @@
 use crate::prelude::*;
 
+pub fn rand_f(rng_state: &mut u32) -> f32 {
+    *rng_state = rng_state
+        .wrapping_mul(747796405u32)
+        .wrapping_add(2891336453u32);
+    let word = ((*rng_state >> ((*rng_state >> 28) + 4)) ^ *rng_state).wrapping_mul(277803737u32);
+    return ((word >> 22) ^ word) as f32 * f32::from_bits(0x2f800004u32);
+}
+
 pub fn rng01(s: Vec2, seed: u32, width: u32) -> f32 {
     let x = (s.x as u32).wrapping_mul(seed);
     let y = (s.y as u32).wrapping_mul(seed);

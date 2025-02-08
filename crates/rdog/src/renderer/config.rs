@@ -21,6 +21,8 @@ pub struct Config {
     pub user_orbit: bool,
     pub orbit_reset: bool,
 
+    pub reload: bool,
+
     pub bounce_count: u32,
     pub pass_count: u32,
 
@@ -76,6 +78,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            reload: true,
             direct_pass: true,
             specular_pass: true,
             scatter_pass: true,

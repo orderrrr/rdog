@@ -9,15 +9,16 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct RTSingle([ComputePass<PassParams>; 1]);
+pub struct RTSingle([ComputePass<()>; 1]);
 
 impl RTSingle {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
-        let bindings: [&dyn DoubleBufferedBindable; 5] = [
+        let bindings: [&dyn DoubleBufferedBindable; 6] = [
             &buffers.curr_camera.bind_readable(),
             &buffers.globals.bind_readable(),
             &buffers.materials.bind_readable(),
             &buffers.lights.bind_readable(),
+            &buffers.config.bind_readable(),
             // &buffers.atmosphere_tx.bind_sampled(),
             &buffers.render_tx.bind_writable(),
         ];
@@ -28,7 +29,8 @@ impl RTSingle {
 
         let direct_pass = ComputePass::builder("combined")
             .bind(bindings)
-            .build(device, &engine.shaders.get("combined_main").unwrap());
+            .build(device, &engine.shaders.get("newcombined").unwrap());
+        // .build(device, &engine.shaders.get("combined_main").unwrap());
 
         Self([direct_pass])
     }
@@ -41,8 +43,8 @@ impl Pass for RTSingle {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
-        pp: &PassParams,
+        _pp: &PassParams,
     ) {
-        self.0[0].run(camera, encoder, camera.camera.viewport.size, *pp);
+        self.0[0].run(camera, encoder, camera.camera.viewport.size, ());
     }
 }
