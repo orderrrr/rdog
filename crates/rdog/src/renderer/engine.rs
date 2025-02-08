@@ -77,7 +77,7 @@ impl Engine {
     pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
         for shader in shaders {
             log::info!("Computing shader: {}", shader.name);
-            let comp = RdogShader::new(device, shader);
+            let comp = RdogShader::new(self.frame.get(), device, shader);
 
             if comp.is_none() {
                 continue;

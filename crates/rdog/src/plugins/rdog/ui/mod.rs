@@ -131,7 +131,6 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
         .striped(true)
         .spacing([40.0, 4.0])
         .show(ui, |ui| {
-            ui_state.pass_count -= 1;
             ui.label("Pass Count");
             c = ui
                 .add(
@@ -142,9 +141,7 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
                 .changed
                 || c;
             ui.end_row();
-            ui_state.pass_count += 1;
 
-            ui_state.bounce_count -= 1;
             ui.label("Bounces");
             c = ui
                 .add(
@@ -155,7 +152,6 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
                 .changed
                 || c;
             ui.end_row();
-            ui_state.bounce_count += 1;
         });
 
     c

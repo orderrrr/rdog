@@ -20,7 +20,7 @@ pub struct RdogShader {
 }
 
 impl RdogShader {
-    pub fn new(device: &wgpu::Device, asset: &RdogShaderAsset) -> Option<Self> {
+    pub fn new(u: u32, device: &wgpu::Device, asset: &RdogShaderAsset) -> Option<Self> {
         let spv = match &asset.data {
             FType::Spv(data) => wgpu::util::make_spirv(&data),
             FType::Wgsl(data) => wgpu::ShaderSource::Wgsl(data.clone()),
@@ -31,16 +31,21 @@ impl RdogShader {
             source: spv,
         };
 
-        device.push_error_scope(wgpu::ErrorFilter::Validation);
+        if u > 1 {
+            device.push_error_scope(wgpu::ErrorFilter::Validation);
+        }
         let module = device.create_shader_module(desc);
-        let error = device.pop_error_scope();
 
-        // todo maybe show parser error somewhere
-        if let Some(Some(wgpu::Error::Validation { description, .. })) = now_or_never(error) {
-            log::error!("parser error: {description:?}");
-            println!("desc: {}", description);
-            return None;
-        };
+        if u > 1 {
+            let error = device.pop_error_scope();
+
+            // todo maybe show parser error somewhere
+            if let Some(Some(wgpu::Error::Validation { description, .. })) = now_or_never(error) {
+                log::error!("parser error: {description:?}");
+                println!("desc: {}", description);
+                return None;
+            };
+        }
 
         let entry_point = match &asset.data {
             FType::Spv(_) => asset

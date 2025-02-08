@@ -89,7 +89,7 @@ impl RdogShaderAsset {
 }
 
 pub fn load_shaders(asset_server: Res<AssetServer>, mut commands: Commands) {
-    let handles: Handle<LoadedFolder> = asset_server.load_folder("shaders/rdog_shaders.spvs/");
+    let handles: Handle<LoadedFolder> = asset_server.load_folder("shaders/");
     commands.insert_resource(RdogShaderFolder(handles));
 }
 
