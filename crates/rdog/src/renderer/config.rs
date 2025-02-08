@@ -58,8 +58,6 @@ impl Config {
             m.push(mat.to_shader());
         }
 
-        m.push(Material::default());
-
         m
     }
 

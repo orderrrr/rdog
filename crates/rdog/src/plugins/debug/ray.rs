@@ -1,7 +1,7 @@
 use bevy::{
     color::palettes::css::*, prelude::*, render::camera::CameraProjection, window::PrimaryWindow,
 };
-use rdog_lib::{Camera as C, Globals, Hit, Material, PassParams, Ray, Scene, TMAX};
+use rdog_lib::{Camera as C, Globals, Hit, Material, PassParams, Ray, TMAX};
 
 use crate::{orbit::PanOrbitState, Config};
 
@@ -65,28 +65,28 @@ pub fn render_debug_ray(
     // }
 }
 
-pub trait DebugRt {
-    fn debug_rt(&self, r: &mut Ray) -> Hit;
-}
-
-impl DebugRt for Scene<'_> {
-    fn debug_rt(&self, r: &mut Ray) -> Hit {
-        let h = self.trace(r);
-        r.mv(h.d);
-
-        {
-            if h.d > TMAX {
-                return h;
-            }
-            if h.m.emissive() > 0.0 {
-                return h;
-            }
-        }
-
-        let l = h.scatter(self, r);
-
-        r.dir(l.dir);
-
-        return h;
-    }
-}
+// pub trait DebugRt {
+//     fn debug_rt(&self, r: &mut Ray) -> Hit;
+// }
+//
+// impl DebugRt for Scene<'_> {
+//     fn debug_rt(&self, r: &mut Ray) -> Hit {
+//         let h = self.trace(r);
+//         r.mv(h.d);
+//
+//         {
+//             if h.d > TMAX {
+//                 return h;
+//             }
+//             if h.m.emissive() > 0.0 {
+//                 return h;
+//             }
+//         }
+//
+//         let l = h.scatter(self, r);
+//
+//         r.dir(l.dir);
+//
+//         return h;
+//     }
+// }

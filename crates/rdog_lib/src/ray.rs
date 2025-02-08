@@ -153,13 +153,9 @@ pub struct Material {
 impl Default for Material {
     fn default() -> Self {
         Self {
-            // ifrs: (index, refraction, roughness, scattering_scale)
             irrs: Vec4::new(0.0, 0.04, 0.0, 0.0),
-            // albedo: (albedo.xyz, w unused)
             albedo: Vec4::new(0.0, 0.0, 0.0, 0.0),
-            // scattering_color: (scattering_color.xyz, w unused)
             scattering_color: Vec4::new(0.0, 0.0, 0.0, 0.0),
-            // dsei: (diffuse_scale, specular_scale, emissive, ior)
             dsei: Vec4::new(1.0, 1.0, 0.0, 0.0),
         }
     }

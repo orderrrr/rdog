@@ -23,8 +23,6 @@ struct Camera {
 @group(0) @binding(2) var<uniform> globals: Globals;
 @group(1) @binding(0) var trace: texture_storage_2d<rgba32float, read_write>;
 
-
-
 @fragment
 fn fs(@builtin(position) vertex: vec4f) -> @location(0) vec4f {
     let col = srgb_vec(textureLoad(trace, vec2u(vertex.xy)).xyz);

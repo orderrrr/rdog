@@ -396,17 +396,11 @@ pub struct Material {
 impl Material {
     pub fn to_shader(&self) -> rdog_lib::Material {
         rdog_lib::Material::default()
-            // ifrs: (index, f0, roughness, scattering_scale)
-            .with_index(self.id)
             .with_refraction(self.refraction)
             .with_roughness(self.roughness)
             .with_scattering_scale(self.scattering_scale)
-            // nd: (normal.xyz, dist)
-            // albedo: (albedo.xyz, unused)
             .with_albedo(self.albedo)
-            // scattering_color: (scattering_color.xyz, unused)
             .with_scattering_color(self.scattering_color)
-            // dsei: (diffuse_scale, specular_scale, emissive, ior)
             .with_diffuse(self.diffuse_scale)
             .with_specular(self.specular_scale)
             .with_emissive(self.emissive)

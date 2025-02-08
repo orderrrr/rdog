@@ -120,6 +120,10 @@ fn main(
 
     col /= f32(pass_params.pass_count);
 
+    // textureStore(out,
+    //     id.xy,
+    //     vec4<f32>(col, 1.0));
+
     combine(id.xy, col);
 }
 

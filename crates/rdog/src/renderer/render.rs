@@ -11,7 +11,7 @@ use super::{
 };
 use log::{debug, info};
 use rdog_lib::{self as lib, Light, Material};
-use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
+// use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 #[derive(Debug)]
 pub struct Buffers {
