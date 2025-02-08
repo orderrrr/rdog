@@ -635,7 +635,7 @@ fn sample(h: Hit, r: Ray, l: ScatterRes) -> vec3f {
         return (1.0 - l.fresnel) * (h.m.dif * h.m.a * sample_direct(r, h.n));
     }
 
-    if h.m.scat > 0.0 {
+    if rng < prob.x + prob.y {
         return (1.0 - l.fresnel) * (h.m.scat * h.m.scatter_col * sample_scattering(r, h.n));
     }
 
