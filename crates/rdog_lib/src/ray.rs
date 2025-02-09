@@ -3,7 +3,6 @@ use spirv_std::num_traits::Pow;
 
 use crate::prelude::*;
 
-const DANGER: Vec3 = vec3(1.0, 0.0, 1.0);
 const ZERO: Vec3 = Vec3::ZERO;
 const ONE: Vec3 = Vec3::ONE;
 

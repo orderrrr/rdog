@@ -123,6 +123,7 @@ fn main(
     // textureStore(out,
     //     id.xy,
     //     vec4<f32>(col, 1.0));
+    // return;
 
     combine(id.xy, col);
 }
@@ -957,5 +958,3 @@ fn mat(i: u32) -> Material {
         m.irrs.y, m.irrs.z, m.irrs.w, m.albedo.xyz, m.scattering_color.xyz, m.dsei.x, m.dsei.y, m.dsei.z, m.dsei.w
     );
 }
-
-
