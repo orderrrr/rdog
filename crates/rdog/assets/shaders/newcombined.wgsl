@@ -223,11 +223,10 @@ fn scene_1(p: vec3f) -> vec2f {
 
     let pos = aar(posi, normalize(vec3f(0.05, 0.5, 0.1)), 1.0);
     let s1 = sd_round_box(pos + vec3f(-1.0, -1.0, 1.0), vec3f(0.5, 0.5, 0.5), 0.1); // Vec3::splat(0.5) -> vec3f(0.5, 0.5, 0.5)
-    // let s1 = length(pos + vec3f(-1.0, -1.0, 1.0)) - 0.5; // Vec3::splat(0.5) -> vec3f(0.5, 0.5, 0.5)
     let s2 = shape(posi + vec3f(-0.5, -1.0, 0.0));
     let s3 = length(posi + vec3f(-1.0, -1.0, -1.0)) - 0.4;
 
-    let p1 = dot(posi, vec3f(0.0, 1.0, 0.0)) + 1.0;
+    let p1 = dot(posi, vec3f(0.0, 1.0, 0.0)) + 0.0;
 
     let p1_vec2 = vec2f(p1, 4.0); // vec2(p, 4.0) -> vec2f(p, 4.0)
     let s1_vec2 = vec2f(s1, 3.0); // vec2(s1, 3.0) -> vec2f(s1, 3.0)
