@@ -27,7 +27,8 @@ struct Camera {
 
 @fragment
 fn fs(@builtin(position) vertex: vec4f) -> @location(0) vec4f {
-    let col = srgb_vec(textureLoad(trace, vec2u(vertex.xy)).xyz);
+    // let col = srgb_vec(textureLoad(trace, vec2u(vertex.xy)).xyz);
+    let col = textureLoad(trace, vec2u(vertex.xy)).xyz;
 
     return vec4f(col, 1.0);
 }

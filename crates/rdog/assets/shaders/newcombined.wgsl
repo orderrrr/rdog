@@ -1,13 +1,16 @@
 const TSTART: f32 = 0.01;
 const RMAX: u32 = 300;
-const TMAX: f32 = 20.0;
+const TMAX: f32 = 80.0;
 const MIN_DIST: f32 = 0.001;
 const PI: f32 = 3.14159265358979323846264338327950288;
 const LIGHT_SIZE: u32 = 2;
 const EPSILON: f32 = 1.19209290e-07f;
 
 const ONE = vec3f(1.0);
+const DANGER = vec3f(1.0, 0.0, 1.0);
 const ZERO = vec3f(0.0);
+
+const DEFAULT_MAT: Material = Material(0.0, 0.0, 0.0, DANGER, DANGER, 0.0, 0.0, 0.0, 0.0);
 
 var<private> rng_state: u32; // Global or per-invocation state for RNG
 
@@ -81,6 +84,8 @@ struct ScatterRes {
     a: vec3f,
     fresnel: f32,
     radiance: vec3f,
+    refract: bool,
+    reflect: bool,
 }
 
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -103,12 +108,11 @@ fn main(
     var col = vec3f(0.0);
 
     for (var i: u32 = 0; i < pass_params.pass_count; i++) {
-        // var uv = (2.0 * pos - ss) / ss.y;
         var uv = ((pos + vec2f(0.5, 0.5)) * 2.0) / ss - vec2f(1.0, 1.0);
         uv.y *= -1.0;
 
         let position = 2.0 * rand_f() - 1.0;
-        uv += position * 0.0001;
+        uv += position * 0.002;
 
         let fp = project_point3(camera.ndc_to_world, vec3f(uv, EPSILON));
         let np = project_point3(camera.ndc_to_world, vec3f(uv, 1.0));
@@ -120,12 +124,8 @@ fn main(
 
     col /= f32(pass_params.pass_count);
 
-    // textureStore(out,
-    //     id.xy,
-    //     vec4<f32>(col, 1.0));
-    // return;
-
-    combine(id.xy, col);
+    // combine(id.xy, col);
+    combine(id.xy, srgb_vec(col));
 }
 
 
@@ -217,37 +217,36 @@ fn de(p_in: vec3f) -> f32 {
 }
 
 fn scene_1(p: vec3f) -> vec2f {
-    let l = lights(p); // Assuming lights function is defined in WGSL and takes vec3f
+    let l = lights(p);
 
     var posi = p + vec3f(1.0, 0.0, 0.0);
 
     let pos = aar(posi, normalize(vec3f(0.05, 0.5, 0.1)), 1.0);
     let s1 = sd_round_box(pos + vec3f(-1.0, -1.0, 1.0), vec3f(0.5, 0.5, 0.5), 0.1); // Vec3::splat(0.5) -> vec3f(0.5, 0.5, 0.5)
-    let s2 = shape(posi + vec3f(-0.5, -1.0, 0.0)); // Assuming shape function is defined in WGSL
-    let s3 = length(posi + vec3f(-1.0, -1.0, -1.0)) - 0.4; // Assuming sphere function is defined in WGSL
+    // let s1 = length(pos + vec3f(-1.0, -1.0, 1.0)) - 0.5; // Vec3::splat(0.5) -> vec3f(0.5, 0.5, 0.5)
+    let s2 = shape(posi + vec3f(-0.5, -1.0, 0.0));
+    let s3 = length(posi + vec3f(-1.0, -1.0, -1.0)) - 0.4;
 
-    let p1 = dot(posi, vec3f(0.0, 1.0, 0.0)) + 1.0; // Assuming plane function is defined in WGSL and takes vec4f
+    let p1 = dot(posi, vec3f(0.0, 1.0, 0.0)) + 1.0;
 
     let p1_vec2 = vec2f(p1, 4.0); // vec2(p, 4.0) -> vec2f(p, 4.0)
     let s1_vec2 = vec2f(s1, 3.0); // vec2(s1, 3.0) -> vec2f(s1, 3.0)
     let s2_vec2 = vec2f(s2, 2.0); // vec2(s2, 2.0) -> vec2f(s2, 2.0)
     let s3_vec2 = vec2f(s3, 5.0); // vec2(s3, 5.0) -> vec2f(s3, 5.0)
 
-    return sd_min(sd_min(sd_min(sd_min(s2_vec2, l), p1_vec2), s1_vec2), s3_vec2); // Assuming min_sd and lights are defined in WGSL and handle vec2f
+    return sd_min(sd_min(sd_min(sd_min(s2_vec2, l), p1_vec2), s1_vec2), s3_vec2);
 }
 
-fn shape(posi: vec3f) -> f32 { // Assuming seed is vec2u
-
-    // let pos = aar(posi + Vec3::NEG_Y, vec3(0.2, 1.0, 0.0).normalize(), el);
+fn shape(posi: vec3f) -> f32 {
     let pos = aar(posi, normalize(vec3f(0.2, 1.0, 0.0)), 0.5); // Vec3::NEG_Y -> VEC3_NEG_Y
     let po = aar(pos, normalize(vec3f(0.0, 0.0, 1.0)), radians(-90.0)); // 90.0_f32.to_radians() -> radians(-90.0)
     let pp = aar(pos, normalize(vec3f(1.0, 0.0, 0.0)), radians(-45.0)); // 45.0_f32.to_radians() -> radians(-45.0)
-    let o = sd_rounded_cylinder(pp + vec3f(0.0, 0.0, -0.35), 0.3, 0.1, 0.1); // Assuming sd_rounded_cylinder is defined in WGSL
-    let r = sd_rounded_cylinder(po + vec3f(-0.35, 0.0, 0.35), 0.3, 0.1, 0.1); // Assuming sd_rounded_cylinder is defined in WGSL
-    let v = sd_rounded_cylinder(po + vec3f(-0.35, 0.0, 0.35), 0.15, 0.1, 0.4); // Assuming sd_rounded_cylinder is defined in WGSL
-    let r_shape = op_smooth_subtraction(v, r, 0.1); // Assuming op_smooth_subtraction is defined in WGSL
+    let o = sd_rounded_cylinder(pp + vec3f(0.0, 0.0, -0.35), 0.3, 0.1, 0.1);
+    let r = sd_rounded_cylinder(po + vec3f(-0.35, 0.0, 0.35), 0.3, 0.1, 0.1);
+    let v = sd_rounded_cylinder(po + vec3f(-0.35, 0.0, 0.35), 0.15, 0.1, 0.4);
+    let r_shape = op_smooth_subtraction(v, r, 0.1);
 
-    return op_smooth_union(o, r_shape, 0.1); // Assuming op_smooth_union is defined in WGSL
+    return op_smooth_union(o, r_shape, 0.1);
 }
 
 fn op_smooth_subtraction(d1: f32, d2: f32, k: f32) -> f32 {
@@ -333,14 +332,8 @@ fn calc_normal(pos: vec3f) -> vec3f {
 
 fn map(p: vec3f) -> vec2f {
     return scene_1(p);
-    // let l = lights(p);
-    // let f = vec2f(dot(p, vec3(0.0, 1.0, 0.0)) + 1.0, 2.0);
-    // let s = vec2f(length(p + vec3(0.0, -0.5, 0.0)) - 0.7, 3.0);
-
-    // return sd_min(sd_min(s, l), f);
 }
 
-// TODO make it just return the material
 fn lights(p: vec3f) -> vec2f {
     var d = vec2(TMAX, 0.0);
     for (var i: u32 = 0; i < LIGHT_SIZE; i++) {
@@ -350,7 +343,6 @@ fn lights(p: vec3f) -> vec2f {
 
     return d;
 }
-
 
 fn trace(r: Ray) -> Hit {
     var t = 0.01;
@@ -372,11 +364,10 @@ fn trace(r: Ray) -> Hit {
         t += h.x;
     }
 
-    return Hit(t, vec3f(0.0), false, mat(u32(0)));
+    return Hit(TMAX, vec3f(0.0), false, mat(u32(0)));
 }
 
 fn rt(ri: Ray) -> vec3f {
-
     var r = ri;
     var t = vec3f(0.0);
     var a = vec3f(1.0);
@@ -388,17 +379,23 @@ fn rt(ri: Ray) -> vec3f {
         r.o = pd(r, h.d);
 
         if h.d >= TMAX {
-            t += a * sample_atmos(r) * rad;
+            t += sample_atmos(r) * a * rad * ct;
             break;
         }
+
         if h.m.emissive > 0.0 {
-            t += h.m.emissive * a * h.m.a * ct * rad;
+            t += h.m.emissive * h.m.a * a * rad;
             break;
         }
 
         h.n = calc_normal(r.o) * (2.0 * f32(!h.i) - 1.0);
 
         let l = scatter(h, &r);
+
+        if false {
+            return l.dir;
+        }
+
         ct = max(dot(h.n, l.dir), 0.0);
 
         a *= l.a * rad;
@@ -425,7 +422,7 @@ fn light_map(r: Ray) -> Light {
 }
 
 fn sample_atmos(sr: Ray) -> vec3f {
-    return vec3f(0.4, 0.35, 0.37) * 0.002;
+    return vec3f(0.4, 0.35, 0.37) * 0.0;
 }
 
 
@@ -508,29 +505,23 @@ fn dir(ri: Ray, d: vec3f) -> Ray {
 
 
 fn scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
-    if h.m.spec > 0.0 && h.m.dif > 0.0 {
-        let diffuse_weight = h.m.dif / 10.0;
-        let specular_weight = h.m.spec / 10.0;
-        let sum_weights = diffuse_weight + specular_weight;
-        let diffuse_prob = diffuse_weight / sum_weights;
 
-        if rand_f() > diffuse_prob {
-            return specular_scatter(h, r);
-        } else {
-            return diffuse_scatter(h, r);
-        }
-    } else if h.m.spec > 0.0 {
-        return specular_scatter(h, r);
-    } else if h.m.dif > 0.0 {
+    let prob = calculate_probabilities(h);
+
+    let rng = rand_f();
+
+    if rng < prob.x {
         return diffuse_scatter(h, r);
+    } else if rng < prob.x + prob.z {
+        return specular_scatter(h, r);
     } else {
-        return ScatterRes(vec3f(0.0, 1.0, 0.0), false, h.m.a, 0.0, ONE);
+        return ScatterRes(vec3f(0.0, 1.0, 0.0), false, h.m.a, 0.0, ONE, false, false);
     }
 }
 
 fn diffuse_scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
     let dir = translate_to_ws(get_random_sample(), h.n);
-    return ScatterRes(dir, true, h.m.a, 0.0, ONE);
+    return ScatterRes(dir, true, h.m.a, 0.0, ONE, false, false);
 }
 
 fn get_random_sample() -> vec3f {
@@ -539,6 +530,30 @@ fn get_random_sample() -> vec3f {
     let phi = rand_f() * 2.0 * PI;
     return vec3f(cos(phi) * st, ct, sin(phi) * st);
 }
+
+fn random_in_unit_sphere() -> vec3f {
+    let rand = vec3(rand_f(), rand_f(), rand_f());
+    let phi = 2.0 * PI * rand.x;
+    let cos_theta = 2.0 * rand.y - 1.0;
+    let u = rand.z;
+
+    let theta = acos(cos_theta);
+    let r = pow(u, 1.0 / 3.0);
+
+    let x = r * sin(theta) * cos(phi);
+    let y = r * sin(theta) * sin(phi);
+    let z = r * cos(theta);
+
+    return vec3f(x, y, z);
+}
+
+fn random_on_hemisphere(normal: vec3f) -> vec3f {
+    let rd = random_in_unit_sphere();
+    let res = rd + normal;
+
+    return normalize(res);
+}
+
 
 fn specular_scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
     var eta: f32;
@@ -574,20 +589,24 @@ fn specular_scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
     let fresnel = pow(r0, 2.0) + (1.0 - r0) * pow(1.0 - cos_theta, 5.0);
 
     var dir: vec3f;
-    if rand_f() > h.m.refraction {
+    let reflect = rand_f() > h.m.refraction;
+    if reflect {
         dir = reflect(ud, n);
     } else {
         (*r).o = ((*r).o + (h.n * (MIN_DIST * 4.0) * -1.0));
         dir = refract(ud, n, eta);
     }
 
-    let reflection_radiance = fresnel * ONE; // Placeholder for reflected light
-    let refraction_radiance = (1.0 - fresnel) * ONE; // Placeholder for refracted light
-    let radiance = reflection_radiance + refraction_radiance;
+    var radiance = ONE;
+    if reflect {
+        radiance = vec3f(saturate(1.0 - fresnel));
+    } else {
+        radiance = vec3f(saturate(1.0 - fresnel));
+    }
 
     let albedo = h.m.a; // todo may want to apply tint to reflections in future.
 
-    return ScatterRes(dir, true, radiance, fresnel, albedo);
+    return ScatterRes(dir, true, albedo, fresnel, radiance, !reflect, reflect);
 }
 
 
@@ -629,10 +648,7 @@ fn calculate_probabilities(h: Hit) -> vec3f {
     return vec3f(diffuse_prob, scatter_prob, specular_prob);
 }
 
-
-
 fn sample(h: Hit, r: Ray, l: ScatterRes) -> vec3f {
-    var col = vec3f(0.0);
     let prob = calculate_probabilities(h);
     let rng = rand_f();
 
@@ -643,8 +659,6 @@ fn sample(h: Hit, r: Ray, l: ScatterRes) -> vec3f {
     if rng < prob.x + prob.y {
         return (1.0 - l.fresnel) * (h.m.scat * h.m.scatter_col * sample_scattering(r, h.n));
     }
-
-    col *= (1.0 - l.fresnel);
 
     return h.m.spec * sample_specular(h, r, l);
 }
@@ -712,6 +726,7 @@ fn sample_direct(ri: Ray, n: vec3f) -> vec3f {
     }
 
     r = dir(r, l);
+    r.o = r.o + (n * 0.001);
 
     let h = trace(r);
 
@@ -728,8 +743,8 @@ fn sample_direct(ri: Ray, n: vec3f) -> vec3f {
 }
 
 fn calc_attenuation(r: Ray, cl: Light) -> f32 {
-    let attenuation = max((1.0 - (distance(r.o, cl.p) / cl.falloff)), 0.0);
-    return pow(attenuation, 4.0);
+    let atten = max((1.0 - length(cl.p - r.o) / cl.falloff), 0.0);
+    return pow(atten, 3.0);
 }
 
 fn spherical_light_sample(cl: Light, r: Ray) -> vec3f {
@@ -751,19 +766,21 @@ fn spherical_light_sample(cl: Light, r: Ray) -> vec3f {
     return translate_to_ws(sample_direction, lv);
 }
 
-fn translate_to_ws(direction: vec3f, normal: vec3f) -> vec3f {
-    var right: vec3f;
-
-    if abs(normal.x) > abs(normal.y) {
-        right = vec3f(normal.z, 0.0, -normal.x) / sqrt(normal.x * normal.x + normal.z * normal.z);
+fn translate_to_ws(d: vec3f, n: vec3f) -> vec3f {
+    var r = ZERO;
+    if abs(n.x) > abs(n.y) {
+        r = vec3f(n.z, 0.0, -n.x) / sqrt((n.x * n.x) + (n.z * n.z));
     } else {
-        right = vec3f(0.0, -normal.z, normal.y) / sqrt(normal.y * normal.y + normal.z * normal.z);
-    }
-    let forward = cross(normal, right);
+        r = vec3f(0.0, -n.z, n.y) / sqrt((n.y * n.y) + (n.z * n.z));
+    };
 
-    return vec3f(direction.x * forward.x + direction.y * normal.x + direction.z * right.x,
-        direction.x * forward.y + direction.y * normal.y + direction.z * right.y,
-        direction.x * forward.z + direction.y * normal.z + direction.z * right.z);
+    let f = cross(n, r);
+
+    return vec3f(
+        (d.x * f.x) + (d.y * n.x) + (d.z * r.x),
+        (d.x * f.y) + (d.y * n.y) + (d.z * r.y),
+        (d.x * f.z) + (d.y * n.z) + (d.z * r.z),
+    );
 }
 
 fn sample_specular(h: Hit, ri: Ray, l: ScatterRes) -> vec3f {
@@ -950,6 +967,7 @@ fn light(i: u32) -> Light {
         l.posf.xyz, l.rmd.x, l.rmd.z, l.posf.w, l.rmd.y
     );
 }
+
 
 fn mat(i: u32) -> Material {
     let m = material[i];

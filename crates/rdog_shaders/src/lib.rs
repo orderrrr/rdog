@@ -13,7 +13,7 @@
 // pub mod specular;
 
 // #[cfg(feature = "combined")]
-// pub mod combined;
+pub mod combined;
 
 // pub mod ray;
 // pub mod trace;

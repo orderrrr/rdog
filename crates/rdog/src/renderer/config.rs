@@ -67,8 +67,6 @@ impl Config {
             l.push(light.to_shader());
         }
 
-        l.push(Light::default());
-
         l
     }
 }

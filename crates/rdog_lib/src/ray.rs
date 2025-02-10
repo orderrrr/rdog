@@ -6,7 +6,7 @@ use crate::prelude::*;
 const ZERO: Vec3 = Vec3::ZERO;
 const ONE: Vec3 = Vec3::ONE;
 
-pub const TMAX: f32 = 4.0;
+pub const TMAX: f32 = 20.0;
 pub const MIN_DIST: f32 = 0.001;
 pub const RMAX: u32 = 300;
 pub const LIGHT_POS: Vec3 = vec3(0.0, 3.0, 2.5);
@@ -466,11 +466,11 @@ impl<'a> Scene<'a> {
 
 impl Scene<'_> {
     pub fn map(&self, pos: Vec3) -> Vec2 {
-        // scene::map_scene_1(self, pos)
+        scene::map_scene_1(self, pos)
 
-        let l = self.lights(pos);
-        let d = de(pos);
-        min_sd(l, vec2(d, 2.0))
+        // let l = self.lights(pos);
+        // let d = de(pos);
+        // min_sd(l, vec2(d, 2.0))
     }
 
     #[inline(never)]

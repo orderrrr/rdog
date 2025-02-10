@@ -32,7 +32,7 @@ fn main() {
         ))
         .add_systems(
             Update,
-            ((pan_orbit_camera).run_if(any_with_component::<PanOrbitState>),),
+            pan_orbit_camera.run_if(any_with_component::<PanOrbitState>),
         )
         .run();
 }
