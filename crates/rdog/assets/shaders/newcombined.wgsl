@@ -1,5 +1,5 @@
 const TSTART: f32 = 0.01;
-const RMAX: u32 = 300;
+const RMAX: u32 = 600;
 const TMAX: f32 = 80.0;
 const MIN_DIST: f32 = 0.001;
 const PI: f32 = 3.14159265358979323846264338327950288;
@@ -216,26 +216,28 @@ fn de(p_in: vec3f) -> f32 {
     return 0.5 * dmi / scale;
 }
 
-fn scene_1(p: vec3f) -> vec2f {
-    let l = lights(p);
 
-    var posi = p + vec3f(1.0, 0.0, 0.0);
 
-    let pos = aar(posi, normalize(vec3f(0.05, 0.5, 0.1)), 1.0);
-    let s1 = sd_round_box(pos + vec3f(-1.0, -1.0, 1.0), vec3f(0.5, 0.5, 0.5), 0.1); // Vec3::splat(0.5) -> vec3f(0.5, 0.5, 0.5)
-    let s2 = shape(posi + vec3f(-0.5, -1.0, 0.0));
-    let s3 = length(posi + vec3f(-1.0, -1.0, -1.0)) - 0.4;
-
-    let p1 = dot(posi, vec3f(0.0, 1.0, 0.0)) + 0.0;
-
-    let p1_vec2 = vec2f(p1, 4.0); // vec2(p, 4.0) -> vec2f(p, 4.0)
-    let s1_vec2 = vec2f(s1, 3.0); // vec2(s1, 3.0) -> vec2f(s1, 3.0)
-    let s2_vec2 = vec2f(s2, 2.0); // vec2(s2, 2.0) -> vec2f(s2, 2.0)
-    let s3_vec2 = vec2f(s3, 5.0); // vec2(s3, 5.0) -> vec2f(s3, 5.0)
-
-    return sd_min(sd_min(sd_min(sd_min(s2_vec2, l), p1_vec2), s1_vec2), s3_vec2);
-}
-
+// fn scene_1(p: vec3f) -> vec2f {
+//     let l = lights(p);
+//
+//     var posi = p + vec3f(1.0, 0.0, 0.0);
+//
+//     let pos = aar(posi, normalize(vec3f(0.05, 0.5, 0.1)), 1.0);
+//     let s1 = sd_round_box(pos + vec3f(-1.0, -1.0, 1.0), vec3f(0.5, 0.5, 0.5), 0.1); // Vec3::splat(0.5) -> vec3f(0.5, 0.5, 0.5)
+//     let s2 = shape(posi + vec3f(-0.5, -1.0, 0.0));
+//     let s3 = length(posi + vec3f(-1.0, -1.0, -1.0)) - 0.4;
+//
+//     let p1 = dot(posi, vec3f(0.0, 1.0, 0.0)) + 0.0;
+//
+//     let p1_vec2 = vec2f(p1, 4.0); // vec2(p, 4.0) -> vec2f(p, 4.0)
+//     let s1_vec2 = vec2f(s1, 3.0); // vec2(s1, 3.0) -> vec2f(s1, 3.0)
+//     let s2_vec2 = vec2f(s2, 2.0); // vec2(s2, 2.0) -> vec2f(s2, 2.0)
+//     let s3_vec2 = vec2f(s3, 5.0); // vec2(s3, 5.0) -> vec2f(s3, 5.0)
+//
+//     return sd_min(sd_min(sd_min(sd_min(s2_vec2, l), p1_vec2), s1_vec2), s3_vec2);
+// }
+//
 fn shape(posi: vec3f) -> f32 {
     let pos = aar(posi, normalize(vec3f(0.2, 1.0, 0.0)), 0.5); // Vec3::NEG_Y -> VEC3_NEG_Y
     let po = aar(pos, normalize(vec3f(0.0, 0.0, 1.0)), radians(-90.0)); // 90.0_f32.to_radians() -> radians(-90.0)
@@ -271,6 +273,35 @@ fn sd_rounded_cylinder(p: vec3f, ra: f32, rb: f32, h: f32) -> f32 {
 fn max_element(v: vec2f) -> f32 {
     return max(v.x, v.y);
 }
+
+// https://www.shadertoy.com/view/MXfXzM
+fn smin(a: vec2f, b: vec2f, ki: f32) -> vec3f {
+    let k = ki * 6.0;
+    let h = max(k - abs(a.x - b.x), 0.0) / k;
+    let m = h * h * h * 0.5;
+    let s = m * k * (1.0 / 3.0);
+    if a.x < b.x {
+        return vec3f(a.x - s, pack_material_ids(a.y, b.y), m);
+    }
+
+    return vec3f(b.x - s, pack_material_ids(a.y, b.y), 1.0-m);
+}
+
+fn pack_material_ids(id1: f32, id2: f32) -> f32 {
+    let intId1 = u32(id1);
+    let intId2 = u32(id2);
+    let shiftedId1 = intId1 << 5;
+    let packedInt = shiftedId1 | intId2;
+    return bitcast<f32>(packedInt);
+}
+
+fn unpack_material_ids(packedFloat: f32) -> vec2<f32> {
+    let packedInt = bitcast<u32>(packedFloat);
+    let id2Int = packedInt & 31u; // 31u is 0b11111 in binary
+    let id1Int = packedInt >> 5;
+    return vec2<f32>(f32(id1Int), f32(id2Int));
+}
+
 
 
 
@@ -329,15 +360,27 @@ fn calc_normal(pos: vec3f) -> vec3f {
     );
 }
 
-fn map(p: vec3f) -> vec2f {
-    return scene_1(p);
+// -- returns a vec3f containing:
+// 1. distance
+// 2. material bitmap (containing 1 or 2 materials)
+// 3. k constant 0->1 of how much weight each material has
+
+fn map(p: vec3f) -> vec3f {
+    let l = lights(p);
+
+    let p1 = vec2f(dot(p, vec3f(0.0, 1.0, 0.0)) + 0.0, 4.0);
+    let s1 = vec2f(length(p + vec3f(0.0, -0.5, 0.0)) - 1.0, 2.0);
+
+    let s = smin(p1, s1, 0.3);
+
+    return sd_min3(s, l);
 }
 
-fn lights(p: vec3f) -> vec2f {
-    var d = vec2(TMAX, 0.0);
+fn lights(p: vec3f) -> vec3f {
+    var d = vec3f(TMAX, 0.0, 0.0);
     for (var i: u32 = 0; i < LIGHT_SIZE; i++) {
         let l = light(i);
-        d = sd_min(d, vec2f(length(p - l.p) - l.r, l.mi));
+        d = sd_min3(d, vec3f(length(p - l.p) - l.r, l.mi, 0.0));
     }
 
     return d;
@@ -353,7 +396,7 @@ fn trace(r: Ray) -> Hit {
         h.x = abs(h.x);
 
         if h.x < MIN_DIST {
-            return Hit(t, vec3f(0.0), interior, mat(u32(h.y)));
+            return Hit(t, vec3f(0.0), interior, mat_2(h));
         }
 
         if t > TMAX {
@@ -363,7 +406,7 @@ fn trace(r: Ray) -> Hit {
         t += h.x;
     }
 
-    return Hit(TMAX, vec3f(0.0), false, mat(u32(0)));
+    return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
 }
 
 fn ray_trace(ri: Ray) -> vec3f {
@@ -421,7 +464,7 @@ fn light_map(r: Ray) -> Light {
 }
 
 fn sample_atmos(sr: Ray) -> vec3f {
-    return vec3f(0.4, 0.35, 0.37) * 0.0;
+    return vec3f(0.4, 0.35, 0.37) * 1.0;
 }
 
 
@@ -886,6 +929,14 @@ fn sd_min(d1: vec2f, d2: vec2f) -> vec2f {
     return d2;
 }
 
+fn sd_min3(d1: vec3f, d2: vec3f) -> vec3f {
+    if d1.x < d2.x {
+        return d1;
+    }
+
+    return d2;
+}
+
 
 
 
@@ -973,5 +1024,28 @@ fn mat(i: u32) -> Material {
 
     return Material(
         m.irrs.y, m.irrs.z, m.irrs.w, m.albedo.xyz, m.scattering_color.xyz, m.dsei.x, m.dsei.y, m.dsei.z, m.dsei.w
+    );
+}
+
+fn mat_2(h: vec3f) -> Material {
+
+    let unpack = unpack_material_ids(h.y);
+    let mat1 = mat(u32(unpack.x));
+    let mat2 = mat(u32(unpack.y));
+    return lerp_mat(mat1, mat2, h.z);
+}
+
+fn lerp_mat(a: Material, b: Material, k: f32) -> Material {
+
+    return Material(
+        mix(a.refraction, b.refraction, k),
+        mix(a.roughness, b.roughness, k),
+        mix(a.scat, b.scat, k),
+        mix(a.a, b.a, k),
+        mix(a.scatter_col, b.scatter_col, k),
+        mix(a.dif, b.dif, k),
+        mix(a.spec, b.spec, k),
+        mix(a.emissive, b.emissive, k),
+        mix(a.ior, b.ior, k)
     );
 }
