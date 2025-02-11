@@ -119,13 +119,13 @@ fn main(
 
         let r = Ray(np, normalize(fp - np));
 
-        col += rt(r);
+        col += ray_trace(r);
     }
 
     col /= f32(pass_params.pass_count);
 
     // combine(id.xy, col);
-    combine(id.xy, srgb_vec(col));
+    combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 
 
@@ -366,7 +366,7 @@ fn trace(r: Ray) -> Hit {
     return Hit(TMAX, vec3f(0.0), false, mat(u32(0)));
 }
 
-fn rt(ri: Ray) -> vec3f {
+fn ray_trace(ri: Ray) -> vec3f {
     var r = ri;
     var t = vec3f(0.0);
     var a = vec3f(1.0);
@@ -743,7 +743,7 @@ fn sample_direct(ri: Ray, n: vec3f) -> vec3f {
 
 fn calc_attenuation(r: Ray, cl: Light) -> f32 {
     let atten = max((1.0 - length(cl.p - r.o) / cl.falloff), 0.0);
-    return pow(atten, 3.0);
+    return pow(atten, 1.0);
 }
 
 fn spherical_light_sample(cl: Light, r: Ray) -> vec3f {
