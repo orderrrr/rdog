@@ -1,7 +1,8 @@
 # TODO LIST
 - Depth of field.
 - Improve debug UI.
-- support different resolution to window resolution.
-- separate out debug gizmo rendering and rdog rendering.
+- Dispersion effect.
+- Support different resolution to window resolution.
+- Separate out debug gizmo rendering and rdog rendering.
 - SVO impl.
-- anti aliasing.
+- Anti aliasing.
