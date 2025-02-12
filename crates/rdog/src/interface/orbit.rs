@@ -6,7 +6,7 @@ use bevy::{
 };
 use glam::vec2;
 
-use crate::Config;
+use crate::{Config, DebugConfig};
 
 // The internal state of the pan-orbit controller
 #[derive(Component)]
@@ -83,7 +83,12 @@ pub fn pan_orbit_camera(
     mut evr_scroll: EventReader<MouseWheel>,
     mut config: ResMut<Config>,
     mut q_camera: Query<(&PanOrbitSettings, &mut PanOrbitState, &mut Transform)>,
+    debug_config: Res<DebugConfig>,
 ) {
+    if debug_config.pointer_in_egui {
+        return;
+    }
+
     // First, accumulate the total amount of
     // mouse motion and scroll, from all pending events:
     let total_motion: Vec2 = evr_motion.read().map(|ev| ev.delta).sum();

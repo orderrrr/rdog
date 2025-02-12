@@ -29,7 +29,7 @@ impl RTSingle {
 
         let direct_pass = ComputePass::builder("combined")
             .bind(bindings)
-            .build(device, &engine.shaders.get("newcombined").unwrap());
+            .build(device, &engine.shaders.get("combined").unwrap());
             // .build(device, &engine.shaders.get("combined_main").unwrap());
 
         Self([direct_pass])

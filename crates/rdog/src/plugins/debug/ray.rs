@@ -1,23 +1,13 @@
-use bevy::{
-    color::palettes::css::*, prelude::*, render::camera::CameraProjection, window::PrimaryWindow,
-};
-use rdog_lib::{Camera as C, Globals, Hit, Material, PassParams, Ray, TMAX};
-
-use crate::{orbit::PanOrbitState, Config};
-
-use super::DebugConfig;
-
-pub fn render_debug_ray(
-    mut dconf: ResMut<DebugConfig>,
-    config: ResMut<Config>,
-    mut gizmos: Gizmos,
-    q_windows: Query<&Window, With<PrimaryWindow>>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    cameras: Query<(&Projection, &Transform, &Camera, &PanOrbitState)>,
+pub fn render_debug_ray(// mut dconf: ResMut<DebugConfig>,
+    // config: ResMut<Config>,
+    // mut gizmos: Gizmos,
+    // q_windows: Query<&Window, With<PrimaryWindow>>,
+    // mouse: Res<ButtonInput<MouseButton>>,
+    // cameras: Query<(&Projection, &Transform, &Camera, &PanOrbitState)>,
 ) {
-    if !config.ray_debug {
-        return;
-    }
+    // if !config.ray_debug {
+    //     return;
+    // }
     // if let Ok((p, t, c, _)) = cameras.get_single() {
     //     if mouse.just_pressed(MouseButton::Left) {
     //         dconf.i += 1;

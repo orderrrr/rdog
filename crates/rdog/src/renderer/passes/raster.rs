@@ -44,7 +44,7 @@ impl RasterPass {
             label: Some("rdog_raster_pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &engine.shaders.get("newraster").unwrap().module, // TODO actually error handle.
+                module: &engine.shaders.get("raster").unwrap().module, // TODO actually error handle.
                 entry_point: Some("vs"),
                 buffers: &[],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
@@ -53,7 +53,7 @@ impl RasterPass {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
-                module: &engine.shaders.get("newraster").unwrap().module,
+                module: &engine.shaders.get("raster").unwrap().module,
                 entry_point: Some("fs"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {

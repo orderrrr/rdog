@@ -8,15 +8,27 @@ use bevy_egui::{
 use glam::vec3;
 use serde::{Deserialize, Serialize};
 
-use crate::Config;
+use crate::{plugins::rdog::config::read_config, Config};
 
-use super::read_config;
+use super::{DebugConfig, SelectedTab};
 
-pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
+pub fn ui_system(
+    mut ui_state: ResMut<Config>,
+    mut debug_state: ResMut<DebugConfig>,
+    mut contexts: EguiContexts,
+) {
     ui_state.reload = false;
     let mut c = false;
 
     let ctx = contexts.ctx_mut();
+
+    debug_state.pointer_in_egui = ctx.is_pointer_over_area();
+
+    // debug_state.pointer_in_egui = ui.ui_contains_pointer();
+    println!(
+        "debug_state.pointer_in_egui: {}",
+        debug_state.pointer_in_egui
+    );
 
     egui::Window::new("Config")
         .vscroll(true)
@@ -24,59 +36,77 @@ pub fn ui_system(mut ui_state: ResMut<Config>, mut contexts: EguiContexts) {
         .default_pos(Pos2::new(10.0, 10.0))
         .current_pos(Pos2::new(10.0, 10.0))
         .show(ctx, |ui| {
-            ui.heading("Config Panel");
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut debug_state.selected_tab, SelectedTab::Render, "Render");
+                ui.selectable_value(
+                    &mut debug_state.selected_tab,
+                    SelectedTab::Materials,
+                    "Materials",
+                );
+                ui.selectable_value(&mut debug_state.selected_tab, SelectedTab::Lights, "Lights");
+                ui.selectable_value(&mut debug_state.selected_tab, SelectedTab::System, "System");
+            });
 
-            ui.separator();
-
-            CollapsingHeader::new("Passes")
-                .default_open(false)
-                .show(ui, |ui| c = c || passes(&mut ui_state, ui));
-
-            CollapsingHeader::new("Atmosphere")
-                .default_open(false)
-                .show(ui, |ui| c = c || atmosphere(&mut ui_state, ui));
-
-            ui.separator();
-
-            CollapsingHeader::new("Material Tree")
-                .default_open(false)
-                .show(ui, |ui| c = c || ui_state.material_tree.ui(ui));
-
-            CollapsingHeader::new("Light List")
-                .default_open(false)
-                .show(ui, |ui| c = c || ui_state.light_tree.ui(ui));
-
-            ui.separator();
-
-            if ui.button("Reset Camera").clicked() {
-                ui_state.orbit_reset = true;
-                c = true;
+            match debug_state.selected_tab {
+                SelectedTab::Render => render_tab(ui, &mut ui_state, &mut debug_state, &mut c),
+                SelectedTab::Materials => mats_tab(ui, &mut ui_state, &mut debug_state, &mut c),
+                SelectedTab::Lights => lights_tab(ui, &mut ui_state, &mut debug_state, &mut c),
+                SelectedTab::System => system_tab(ui, &mut ui_state, &mut debug_state, &mut c),
             }
-
-            ui.separator();
-
-            egui::Grid::new("")
-                .num_columns(2)
-                .striped(true)
-                .spacing([40.0, 4.0])
-                .show(ui, |ui| {
-                    if ui.button("Reload").clicked() {
-                        *ui_state = read_config().unwrap_or(Config::default());
-                        ui_state.reload = true;
-                        c = true;
-                    }
-
-                    if ui.button("Save").clicked() {
-                        fs::write(
-                            "crates/rdog/assets/config.json",
-                            serde_json::to_string(ui_state.deref()).unwrap(),
-                        )
-                        .unwrap();
-                    }
-                });
         });
 
     ui_state.multi_frame = !(c || ui_state.user_orbit || !ui_state.multi_frame_override);
+}
+
+fn render_tab(ui: &mut Ui, ui_state: &mut Config, _debug_state: &mut DebugConfig, c: &mut bool) {
+    CollapsingHeader::new("Passes")
+        .default_open(false)
+        .show(ui, |ui| *c = *c || passes(ui_state, ui));
+
+    CollapsingHeader::new("Atmosphere")
+        .default_open(false)
+        .show(ui, |ui| *c = *c || atmosphere(ui_state, ui));
+}
+
+fn mats_tab(ui: &mut Ui, ui_state: &mut Config, _debug_state: &mut DebugConfig, c: &mut bool) {
+    CollapsingHeader::new("Material Tree")
+        .default_open(false)
+        .show(ui, |ui| *c = *c || ui_state.material_tree.ui(ui));
+}
+
+fn lights_tab(ui: &mut Ui, ui_state: &mut Config, _debug_state: &mut DebugConfig, c: &mut bool) {
+    CollapsingHeader::new("Light List")
+        .default_open(false)
+        .show(ui, |ui| *c = *c || ui_state.light_tree.ui(ui));
+}
+
+fn system_tab(ui: &mut Ui, ui_state: &mut Config, _debug_state: &mut DebugConfig, c: &mut bool) {
+    if ui.button("Reset Camera").clicked() {
+        ui_state.orbit_reset = true;
+        *c = true;
+    }
+
+    ui.separator();
+
+    egui::Grid::new("")
+        .num_columns(2)
+        .striped(true)
+        .spacing([40.0, 4.0])
+        .show(ui, |ui| {
+            if ui.button("Reload").clicked() {
+                *ui_state = read_config().unwrap_or(Config::default());
+                ui_state.reload = true;
+                *c = true;
+            }
+
+            if ui.button("Save").clicked() {
+                fs::write(
+                    "crates/rdog/assets/config.json",
+                    serde_json::to_string(ui_state.deref()).unwrap(),
+                )
+                .unwrap();
+            }
+        });
 }
 
 fn atmosphere(ui_state: &mut Config, ui: &mut Ui) -> bool {
@@ -251,16 +281,15 @@ impl TUi for Material {
     fn ui(&mut self, ui: &mut Ui) -> bool {
         let mut c = false;
 
-        ui.heading("Material Instance");
-        egui::Grid::new("")
-            .num_columns(2)
+        egui::Grid::new("Material Instance")
+            .num_columns(4)
             .striped(true)
-            .spacing([40.0, 4.0])
+            .spacing([10.0, 4.0])
             .show(ui, |ui| {
                 ui.label("ID");
                 // ui.add(egui::DragValue::new(&mut self.id).speed(1).range(0..=255));
                 ui.label(self.id.to_string());
-                ui.end_row();
+                // ui.end_row();
 
                 let mut albedo = self.albedo.to_c32();
                 ui.label("Albedo");
@@ -272,7 +301,7 @@ impl TUi for Material {
                 ui.label("Scatter Col");
                 c = ui.color_edit_button_srgba(&mut scattering_col).changed || c;
                 self.scattering_color = Vec3::from_c32(scattering_col);
-                ui.end_row();
+                // ui.end_row();
 
                 ui.label("Diffuse Scale");
                 c = ui
@@ -294,7 +323,7 @@ impl TUi for Material {
                     )
                     .changed
                     || c;
-                ui.end_row();
+                // ui.end_row();
 
                 ui.label("Scatter Scale");
                 c = ui
@@ -316,7 +345,7 @@ impl TUi for Material {
                     )
                     .changed
                     || c;
-                ui.end_row();
+                // ui.end_row();
 
                 ui.label("Ior");
                 c = ui
@@ -338,7 +367,7 @@ impl TUi for Material {
                     )
                     .changed
                     || c;
-                ui.end_row();
+                // ui.end_row();
 
                 ui.label("Roughness");
                 c = ui
@@ -349,7 +378,6 @@ impl TUi for Material {
                     )
                     .changed
                     || c;
-                ui.end_row();
             });
 
         c
@@ -521,11 +549,10 @@ impl TUi for Light {
     fn ui(&mut self, ui: &mut Ui) -> bool {
         let mut c = false;
 
-        ui.heading("Light Instance");
-        egui::Grid::new("")
+        egui::Grid::new("Light Instance")
             .num_columns(4)
             .striped(true)
-            .spacing([40.0, 4.0])
+            .spacing([10.0, 4.0])
             .show(ui, |ui| {
                 ui.label("Material Id");
                 c = ui
@@ -536,6 +563,17 @@ impl TUi for Light {
                     )
                     .changed
                     || c;
+
+                ui.label("PosX");
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.pos.x)
+                            .speed(0.01)
+                            .range(-10.0..=10.0),
+                    )
+                    .changed
+                    || c;
+
                 ui.end_row();
 
                 ui.label("Radius");
@@ -544,6 +582,16 @@ impl TUi for Light {
                         egui::DragValue::new(&mut self.radius)
                             .speed(0.01)
                             .range(0.0..=10.0),
+                    )
+                    .changed
+                    || c;
+
+                ui.label("PosY");
+                c = ui
+                    .add(
+                        egui::DragValue::new(&mut self.pos.y)
+                            .speed(0.01)
+                            .range(-10.0..=10.0),
                     )
                     .changed
                     || c;
@@ -558,25 +606,8 @@ impl TUi for Light {
                     )
                     .changed
                     || c;
-                ui.end_row();
 
-                ui.label("Pos");
-                c = ui
-                    .add(
-                        egui::DragValue::new(&mut self.pos.x)
-                            .speed(0.01)
-                            .range(-10.0..=10.0),
-                    )
-                    .changed
-                    || c;
-                c = ui
-                    .add(
-                        egui::DragValue::new(&mut self.pos.y)
-                            .speed(0.01)
-                            .range(-10.0..=10.0),
-                    )
-                    .changed
-                    || c;
+                ui.label("PosZ");
                 c = ui
                     .add(
                         egui::DragValue::new(&mut self.pos.z)

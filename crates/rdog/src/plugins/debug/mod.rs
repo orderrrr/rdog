@@ -1,34 +1,45 @@
-use bevy::color::palettes::css::PURPLE;
 use bevy::prelude::*;
 use bevy::{app::Plugin, render::view::RenderLayers};
 use ray::render_debug_ray;
-use rdog_lib::{LIGHT_POS, LIGHT_RAD};
 
 use crate::orbit::{PanOrbitSettings, PanOrbitState};
 use crate::GIZMO;
 
 use super::shader::RdogShaderState;
 use serde::{Deserialize, Serialize};
+use ui::ui_system;
 
+pub mod ui;
 pub mod ray;
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub enum SelectedTab {
+    #[default]
+    Render,
+    Materials,
+    Lights,
+    System,
+}
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
 pub struct DebugConfig {
-    pub i: u32,
-    pub ndc: Mat4,
-    pub uv: Vec2,
-    pub pressed: bool,
+    pub selected_tab: SelectedTab,
+    pub pointer_in_egui: bool,
 }
 pub struct RdogDebugPlugin;
 
 impl Plugin for RdogDebugPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(RdogShaderState::Finished), rdog_debug_setup_scene)
+        app
+            .insert_resource(DebugConfig::default())
+            .add_systems(OnEnter(RdogShaderState::Finished), rdog_debug_setup_scene)
             .add_systems(
                 Update,
                 (
                     update_bevy_cam.run_if(any_with_component::<PanOrbitState>),
                     render_debug_ray,
+                    ui_system,
                 ),
             );
     }

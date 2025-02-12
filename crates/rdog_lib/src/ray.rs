@@ -29,7 +29,7 @@ pub struct Ray {
 }
 
 impl Ray {
-    pub fn ray(ss: Vec2, ndc_to_world: Mat4, pos: Vec2, seed: UVec2, s: &mut u32, i: u32) -> Ray {
+    pub fn ray(ss: Vec2, ndc_to_world: Mat4, pos: Vec2, _seed: UVec2, s: &mut u32, _i: u32) -> Ray {
         let mut uv = ((pos + vec2(0.5, 0.5)) * 2.0) / ss - Vec2::ONE;
         uv.y = -uv.y;
 
@@ -378,7 +378,7 @@ fn translate_to_ws(d: Vec3, n: Vec3) -> Vec3 {
 }
 
 pub struct Scene<'a> {
-    camera: &'a Camera,
+    _camera: &'a Camera,
     pub globals: &'a Globals,
     materials: &'a [Material],
     pub lights: &'a [Light],
@@ -410,7 +410,7 @@ impl<'a> Scene<'a> {
         specular: bool,
     ) -> Scene<'a> {
         Self {
-            camera,
+            _camera: camera,
             globals,
             materials,
             lights,
@@ -512,7 +512,7 @@ impl Scene<'_> {
         let mut cos_theta = 1.0;
         let mut radiance = ONE;
 
-        for i in 0..self.bounces + 1 {
+        for _ in 0..self.bounces + 1 {
             let mut h = self.trace(r);
             r.mv(h.d);
 

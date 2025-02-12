@@ -6,9 +6,7 @@ use std::{
 };
 
 use bevy::{prelude::DerefMut, utils::hashbrown::HashMap};
-use bevy_egui::egui::debug_text::print;
 use futures::task::noop_waker;
-use log::info;
 use wgpu::ShaderModuleDescriptor;
 
 use crate::shader::{FType, RdogShaderAsset};

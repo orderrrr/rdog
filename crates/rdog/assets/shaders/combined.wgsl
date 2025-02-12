@@ -236,7 +236,7 @@ fn de(p_in: vec3f) -> f32 {
 //
 //     return sd_min(sd_min(sd_min(sd_min(s2_vec2, l), p1_vec2), s1_vec2), s3_vec2);
 // }
-//
+
 fn shape(posi: vec3f) -> f32 {
     let pos = aar(posi, normalize(vec3f(0.2, 1.0, 0.0)), 0.5); // Vec3::NEG_Y -> VEC3_NEG_Y
     let po = aar(pos, normalize(vec3f(0.0, 0.0, 1.0)), radians(-90.0)); // 90.0_f32.to_radians() -> radians(-90.0)
@@ -457,7 +457,7 @@ fn ray_trace(ri: Ray) -> vec3f {
 }
 
 fn light_map(r: Ray) -> Light {
-    var l = light(u32(floor(rand_f() * f32(LIGHT_SIZE))));
+    var l = light(u32(floor(rand_f() * f32(arrayLength(&light_in)))));
     l.d = length(r.o - l.p) - l.r;
     return l;
 }
