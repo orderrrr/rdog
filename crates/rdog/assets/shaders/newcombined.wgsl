@@ -3,7 +3,6 @@ const RMAX: u32 = 600;
 const TMAX: f32 = 80.0;
 const MIN_DIST: f32 = 0.001;
 const PI: f32 = 3.14159265358979323846264338327950288;
-const LIGHT_SIZE: u32 = 2;
 const EPSILON: f32 = 1.19209290e-07f;
 
 const ONE = vec3f(1.0);
@@ -284,7 +283,7 @@ fn smin(a: vec2f, b: vec2f, ki: f32) -> vec3f {
         return vec3f(a.x - s, pack_material_ids(a.y, b.y), m);
     }
 
-    return vec3f(b.x - s, pack_material_ids(a.y, b.y), 1.0-m);
+    return vec3f(b.x - s, pack_material_ids(a.y, b.y), 1.0 - m);
 }
 
 fn pack_material_ids(id1: f32, id2: f32) -> f32 {
@@ -378,9 +377,9 @@ fn map(p: vec3f) -> vec3f {
 
 fn lights(p: vec3f) -> vec3f {
     var d = vec3f(TMAX, 0.0, 0.0);
-    for (var i: u32 = 0; i < LIGHT_SIZE; i++) {
+    for (var i: u32 = 0; i < arrayLength(&light_in); i++) {
         let l = light(i);
-        d = sd_min3(d, vec3f(length(p - l.p) - l.r, l.mi, 0.0));
+        d = sd_min3(d, vec3f(length(p - l.p) - l.r, pack_material_ids(l.mi, l.mi), 0.0));
     }
 
     return d;
@@ -464,7 +463,7 @@ fn light_map(r: Ray) -> Light {
 }
 
 fn sample_atmos(sr: Ray) -> vec3f {
-    return vec3f(0.4, 0.35, 0.37) * 1.0;
+    return vec3f(0.4, 0.35, 0.37) * 0.0;
 }
 
 
@@ -690,9 +689,12 @@ fn calculate_probabilities(h: Hit) -> vec3f {
     return vec3f(diffuse_prob, scatter_prob, specular_prob);
 }
 
-fn sample(h: Hit, r: Ray, l: ScatterRes) -> vec3f {
+fn sample(h: Hit, ri: Ray, l: ScatterRes) -> vec3f {
     let prob = calculate_probabilities(h);
     let rng = rand_f();
+
+    var r = ri;
+    r.o = r.o + (h.n * 0.005);
 
     if rng < prob.x {
         return (1.0 - l.fresnel) * (h.m.dif * h.m.a * sample_direct(r, h.n));
@@ -768,7 +770,6 @@ fn sample_direct(ri: Ray, n: vec3f) -> vec3f {
     }
 
     r = dir(r, l);
-    r.o = r.o + (n * 0.001);
 
     let h = trace(r);
 
