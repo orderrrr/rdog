@@ -19,6 +19,7 @@ struct PassParams {
     pass_count: u32,
     bounce_count: u32,
     flags: u32,
+    octree_dim: u32,
 }
 
 struct Globals {
@@ -87,12 +88,19 @@ struct ScatterRes {
     reflect: bool,
 }
 
+struct OCTree {
+    upper_mask: u32,
+    lower_mask: u32,
+}
+
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> globals: Globals;
 @group(0) @binding(2) var<storage, read> material: array<MaterialIn>;
 @group(0) @binding(3) var<storage, read> light_in: array<LightIn>;
 @group(0) @binding(4) var<uniform> pass_params: PassParams;
 @group(0) @binding(5) var out: texture_storage_2d<rgba32float, read_write>;
+
+@group(1) @binding(0) var<storage, read> octrees: array<OCTree>;
 
 @compute @workgroup_size(1)
 fn main(
@@ -123,8 +131,9 @@ fn main(
 
     col /= f32(pass_params.pass_count);
 
+    textureStore(out, id.xy, vec4f(col, 1.0));
     // combine(id.xy, col);
-    combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
+    // combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 
 
@@ -367,12 +376,53 @@ fn calc_normal(pos: vec3f) -> vec3f {
 fn map(p: vec3f) -> vec3f {
     let l = lights(p);
 
+    // let m = vec3f(brute_octree_sample(p), pack_material_ids(2.0, 2.0), 1.0);
+    //
+    // return sd_min3(l, m);
+
+
     let p1 = vec2f(dot(p, vec3f(0.0, 1.0, 0.0)) + 0.0, 4.0);
     let s1 = vec2f(length(p + vec3f(0.0, -0.5, 0.0)) - 1.0, 2.0);
 
     let s = smin(p1, s1, 0.3);
 
     return sd_min3(s, l);
+}
+
+fn id_to_vec3u_bitwise(idx: u32) -> vec3u {
+    let x = idx & 3u;        // Extract least significant 2 bits (0b11 = 3)
+    let y = (idx >> 2u) & 3u; // Shift right by 2, then extract least significant 2 bits
+    let z = (idx >> 4u) & 3u; // Shift right by 4, then extract least significant 2 bits
+    return vec3u(x, y, z);
+}
+
+fn brute_octree_sample(p: vec3f) -> f32 {
+
+    var d = TMAX;
+    for (var i: u32 = 0; i < 64; i++) {
+
+        var b: u32 = 0;
+        if i < 32 {
+            b = extractBits(octrees[0].lower_mask, i, 1u);
+        } else {
+            b = extractBits(octrees[0].upper_mask, i - 32, 1u);
+        }
+
+        if b < 1 {
+            continue;
+        }
+
+        var id = id_to_vec3u_bitwise(i);
+
+        // let nd = sd_round_box(p, vec3f(2.0), 0.00);
+        let nd = length(p - vec3f(id)) - 0.3;
+
+        if d > nd {
+            d = nd;
+        }
+    }
+
+    return d;
 }
 
 fn lights(p: vec3f) -> vec3f {
@@ -383,6 +433,114 @@ fn lights(p: vec3f) -> vec3f {
     }
 
     return d;
+}
+
+// fn trace(r: Ray) -> Hit {
+//     var t = 0.01;
+//
+//     for (var i: u32 = 0; i < RMAX; i++) {
+//         let p = pd(r, t);
+//         var h = map(p);
+//         let interior = h.x <= 0.0;
+//         h.x = abs(h.x);
+//
+//         if h.x < MIN_DIST {
+//             return Hit(t, vec3f(0.0), interior, mat_2(h));
+//         }
+//
+//         if t > TMAX {
+//             break;
+//         }
+//
+//         t += h.x;
+//     }
+//
+//     return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
+// }
+
+fn trace_voxel_mask(ri: Ray, octee_idx: u32) -> vec3<bool> {
+    var r = ri;
+    r.o -= r.d * 0.00001;
+
+    var map_pos = vec3i(floor(r.o));
+
+    let delta_dist = abs(vec3(length(r.d)) / r.d);
+    let ray_step = vec3i(sign(r.d));
+    var side_dist = (sign(r.d) * (vec3f(map_pos) - r.o) + (sign(r.d) * 0.5) + 0.5) * delta_dist;
+
+    var mask = vec3<bool>(false); // calculate normal here
+
+    for (var i: u32 = 0; i < RMAX; i++) {
+        if any(map_pos < vec3i(-1) || map_pos > vec3i(4)) {
+            return vec3<bool>(false);
+        }
+
+        if get_voxel(map_pos, octee_idx) {
+            if any(mask) {
+                return mask;
+            } else {
+                return less_than_equal(side_dist.xyz, min(side_dist.yzx, side_dist.zxy));
+            }
+        }
+
+        mask = less_than_equal(side_dist.xyz, min(side_dist.yzx, side_dist.zxy));
+        side_dist += vec3f(mask) * delta_dist;
+        map_pos += vec3i(vec3f(mask)) * ray_step;
+    }
+
+    return vec3<bool>(false);
+}
+
+fn trace_mask(ri: Ray, s: ptr<function, i32>) -> vec4<i32> {
+    var r = ri;
+    r.o += f32(2u << u32(log2(f32(pass_params.octree_dim)) + 1.0)) / 4.0;
+
+    let idir = vec3(1.0) / r.d;
+    let sgn = signBit_vec3(r.d);
+    let stp = vec3(1i) - (select(vec3(0i), vec3(1i), sgn) * 2i);
+    var level = i32(u32(log2(f32(pass_params.octree_dim)) + 1.0) - 1);
+    var bnd = vec3<i32>(r.o) >> vec3(u32(level));
+    var previdx = 0i;
+
+    for (var iter = 0i; iter < 1000i; iter++) {
+        *s = iter;
+
+        if any(bmix(bnd >= vec3((1i << u32(log2(f32(pass_params.octree_dim)) + 1.0)) >> u32(level)), bnd < (vec3(0i) << vec3(u32(level))), sgn)) {
+            return vec4(-1i);
+        }
+
+        if mip(bnd, level) {
+            let dists = (vec3<f32>((bnd + select(vec3(0i), vec3(1i), sgn)) << vec3(u32(level))) - r.o) * idir;
+            level--;
+            let dist = max(dists[previdx], 0.0);
+            if level == 0i {
+
+                let id = u32(bnd.x) + u32(bnd.y) * pass_params.octree_dim + u32(bnd.z) * pass_params.octree_dim * pass_params.octree_dim;
+
+                let vm = trace_voxel_mask(Ray((((r.o + r.d * dist) - vec3f(bnd.xyz * 2)) * 2.0), r.d), u32(id));
+                if any(vm) {
+                    return vec4(vec3i(vm), previdx + (select(0i, 1i, sgn[previdx]) * 3i));
+                } else {
+                    level ++;
+                }
+            } else {
+                bnd = clamp(vec3<i32>(r.o + r.d * dist) >> vec3(u32(level)), bnd << vec3(1u), (bnd << vec3(1u)) + vec3(1i));
+                continue;
+            }
+        }
+
+        if !mip(bnd >> vec3(1u), level + 1i) {
+            level++;
+            bnd >>= vec3(1u);
+        }
+
+        let dists = (vec3<f32>((bnd + select(vec3(0i), vec3(1i), !sgn)) << vec3(u32(level))) - r.o) * idir;
+        let min_dist = min3(dists);
+        let idx = select(select(2i, 1i, dists.y == min_dist), 0i, dists.x == min_dist);
+        bnd[idx] += stp[idx];
+        previdx = idx;
+    }
+    return vec4(-1i);
 }
 
 fn trace(r: Ray) -> Hit {
@@ -408,6 +566,39 @@ fn trace(r: Ray) -> Hit {
     return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
 }
 
+fn get_voxel(c: vec3i, octree_id: u32) -> bool {
+    if any(c < vec3i(0) || c > vec3i(3)) {
+        return false;
+    }
+
+    let ci = vec3u(c);
+    let idx = min(ci.x + ci.y * 4 + ci.z * 4 * 4, 64u);
+
+    var b = 0u;
+    if idx < 32 {
+        b = extractBits(octrees[octree_id].lower_mask, idx, 1u);
+    } else {
+        b = extractBits(octrees[octree_id].upper_mask, idx - 32, 1u);
+    }
+
+    return b > 0;
+}
+
+fn get_octree(c: vec3i) -> bool {
+
+    let p = vec3f(c) + vec3f(0.5);
+
+    if c.y == 0 && c.x == 0 && c.z == 0 {
+        return true;
+    }
+
+    return false;
+}
+
+fn less_than_equal(a: vec3f, b: vec3f) -> vec3<bool> {
+    return vec3<bool>(a.x <= b.x, a.y <= b.y, a.z <= b.z);
+}
+
 fn ray_trace(ri: Ray) -> vec3f {
     var r = ri;
     var t = vec3f(0.0);
@@ -416,41 +607,56 @@ fn ray_trace(ri: Ray) -> vec3f {
     var rad = ONE;
 
     for (var i: u32 = 0; i < pass_params.bounce_count; i++) {
-        var h = trace(r);
-        r.o = pd(r, h.d);
+        var s: i32 = 0;
 
-        if h.d >= TMAX {
-            t += sample_atmos(r) * a * rad * ct;
-            break;
+        var ri = r;
+
+        // var h = trace_voxel_mask(r);
+        // if any(h) {t += 1.0; }
+        // return t;
+
+        var h = trace_mask(r, &s);
+        if h.w != -1 {
+            t = vec3f(h.xyz);
         }
+        t += vec3f(f32(s) / 64.0);
+        return t;
 
-        if h.m.emissive > 0.0 {
-            t += h.m.emissive * h.m.a * a * rad;
-            break;
-        }
-
-        h.n = calc_normal(r.o) * (2.0 * f32(!h.i) - 1.0);
-
-        let l = scatter(h, &r);
-
-        if false {
-            return l.dir;
-        }
-
-        ct = max(dot(h.n, l.dir), 0.0);
-
-        a *= l.a * rad;
-
-        let s = sample(h, r, l);
-        t += a * s * rad;
-
-        rad *= l.radiance;
-
-        if !l.scatter {
-            break;
-        }
-
-        r.d = l.dir;
+        // var h = trace(r);
+        // r.o = pd(r, h.d);
+        //
+        // if h.d >= TMAX {
+        //     t += sample_atmos(r) * a * rad * ct;
+        //     break;
+        // }
+        //
+        // if h.m.emissive > 0.0 {
+        //     t += h.m.emissive * h.m.a * a * rad;
+        //     break;
+        // }
+        //
+        // h.n = calc_normal(r.o) * (2.0 * f32(!h.i) - 1.0);
+        //
+        // let l = scatter(h, &r);
+        //
+        // if false {
+        //     return l.dir;
+        // }
+        //
+        // ct = max(dot(h.n, l.dir), 0.0);
+        //
+        // a *= l.a * rad;
+        //
+        // let s = sample(h, r, l);
+        // t += a * s * rad;
+        //
+        // rad *= l.radiance;
+        //
+        // if !l.scatter {
+        //     break;
+        // }
+        //
+        // r.d = l.dir;
     }
 
     return t;
@@ -1049,4 +1255,61 @@ fn lerp_mat(a: Material, b: Material, k: f32) -> Material {
         mix(a.emissive, b.emissive, k),
         mix(a.ior, b.ior, k)
     );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+fn signBit(x: f32) -> bool { return (bitcast<i32>(x) & i32(-2147483648)) != 0i; }
+fn signBit_vec3(v: vec3<f32>) -> vec3<bool> { return vec3<bool>(signBit(v.x), signBit(v.y), signBit(v.z)); }
+fn min3(v: vec3<f32>) -> f32 { return min(min(v.x, v.y), v.z); }
+fn max3(v: vec3<f32>) -> f32 { return max(max(v.x, v.y), v.z); }
+
+fn mip(pos: vec3<i32>, level: i32) -> bool {
+    if u32(level) >= u32(log2(f32(pass_params.octree_dim)) + 1.0) { return true; }
+
+    var p = (pos * i32(pass_params.octree_dim) + 1i) << vec3(u32(level));
+    let bounds = 1i << (u32(log2(f32(pass_params.octree_dim)) + 1.0) - u32(level));
+
+    if any(pos < vec3i(0)) || any(pos >= vec3i(bounds)) {
+        return false;
+    }
+
+    if u32(level) == 1 {
+        let po = vec3u(pos);
+        let id = po.x + po.y * pass_params.octree_dim + po.z * pass_params.octree_dim * pass_params.octree_dim;
+        return octrees[id].upper_mask > 1 || octrees[id].lower_mask > 1;
+    }
+
+    return true;
+}
+
+fn bmix(a: vec3<bool>, b: vec3<bool>, s: vec3<bool>) -> vec3<bool> {
+    return vec3(select(a.x, b.x, s.x), select(a.y, b.y, s.y), select(a.z, b.z, s.z));
 }

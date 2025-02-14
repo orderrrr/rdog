@@ -65,6 +65,13 @@ where
             read_only: true,
         }
     }
+
+    pub fn bind_writable(&self) -> impl Bindable + '_ {
+        StorageBufferBinder {
+            parent: self,
+            read_only: false,
+        }
+    }
 }
 
 pub struct StorageBufferBinder<'a, T> {

@@ -9,9 +9,9 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct RTSingle([ComputePass<()>; 1]);
+pub struct TracePass([ComputePass<()>; 1]);
 
-impl RTSingle {
+impl TracePass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
         let bindings: [&dyn DoubleBufferedBindable; 6] = [
             &buffers.curr_camera.bind_readable(),
@@ -27,16 +27,17 @@ impl RTSingle {
         //     .bind(bindings)
         //     .build(device, engine.shaders.get("trace_main").unwrap()); // TODO - proper error handling
 
-        let direct_pass = ComputePass::builder("combined")
+        let direct_pass = ComputePass::builder("trace")
             .bind(bindings)
-            .build(device, &engine.shaders.get("trace").unwrap());
-            // .build(device, &engine.shaders.get("combined_main").unwrap());
+            .bind([&buffers.octrees.bind_readable()])
+            .build(device, "main", &engine.shaders.get("trace").unwrap().module);
+        // .build(device, &engine.shaders.get("combined_main").unwrap());
 
         Self([direct_pass])
     }
 }
 
-impl Pass for RTSingle {
+impl Pass for TracePass {
     fn run(
         &self,
         _engine: &Engine,
@@ -45,6 +46,6 @@ impl Pass for RTSingle {
         _view: &wgpu::TextureView,
         _pp: &PassParams,
     ) {
-        self.0[0].run(camera, encoder, camera.camera.viewport.size, ());
+        self.0[0].run(camera, encoder, camera.camera.viewport.size.extend(1), ());
     }
 }

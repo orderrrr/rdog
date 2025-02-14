@@ -2,17 +2,17 @@ use std::marker::PhantomData;
 use std::mem;
 
 use bytemuck::Pod;
-use glam::UVec2;
+use glam::UVec3;
 use log::debug;
 use rdog_lib::PassParams;
-use wgpu::PipelineCompilationOptions;
+use wgpu::{PipelineCompilationOptions, ShaderModule};
 
 use crate::{
     bind_group::{BindGroup, BindGroupBuilder},
     bindable::DoubleBufferedBindable,
 };
 
-use super::{render::CameraController, shaders::RdogShader};
+use super::render::CameraController;
 
 #[derive(Debug)]
 pub struct ComputePass<P = PassParams> {
@@ -38,7 +38,7 @@ where
         &self,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
-        size: UVec2,
+        size: UVec3,
         params: P,
     ) {
         let label = format!("rdog_{}_pass", self.label);
@@ -62,7 +62,7 @@ where
             );
         }
 
-        pass.dispatch_workgroups(size.x, size.y, 1);
+        pass.dispatch_workgroups(size.x, size.y, size.z);
     }
 }
 
@@ -88,8 +88,13 @@ where
         self
     }
 
-    pub fn build(self, device: &wgpu::Device, shader: &RdogShader) -> ComputePass<P> {
-        debug!("Initializing pass: {}:{}", self.label, shader.entry_point);
+    pub fn build(
+        self,
+        device: &wgpu::Device,
+        entry_point: &str,
+        module: &ShaderModule,
+    ) -> ComputePass<P> {
+        debug!("Initializing pass: {}:{}", self.label, entry_point);
 
         let bind_groups: Vec<_> = self
             .bind_groups
@@ -121,8 +126,8 @@ where
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some(&pipeline_label),
             layout: Some(&pipeline_layout),
-            module: &shader.module,
-            entry_point: Some(&shader.entry_point),
+            module,
+            entry_point: Some(&entry_point),
             compilation_options: PipelineCompilationOptions::default(),
             cache: None,
         });

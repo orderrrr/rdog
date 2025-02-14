@@ -7,10 +7,11 @@ use std::ops::DerefMut;
 use super::{
     config::Camera,
     engine::Engine,
-    passes::{Pass, Passes},
+    passes::{OCTreePass, Pass, Passes},
 };
+use bytemuck::Zeroable;
 use log::{debug, info};
-use rdog_lib::{self as lib, Light, Material};
+use rdog_lib::{self as lib, Light, Material, OCTree};
 // use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
 
 #[derive(Debug)]
@@ -22,6 +23,9 @@ pub struct Buffers {
     pub materials: StorageBuffer<Material>,
     pub lights: StorageBuffer<Light>,
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
+
+    pub octrees: StorageBuffer<OCTree>,
+    pub local_octrees: StorageBuffer<OCTree>,
 
     pub render_tx: Texture,
     pub render_alt_tx: Texture,
@@ -40,6 +44,13 @@ impl Buffers {
         let config = MappedUniformBuffer::new(device, "config", engine.config.to_pass_params());
         let materials = StorageBuffer::new(device, "materials", engine.config.material_pass());
         let lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
+
+        let octrees = StorageBuffer::new(
+            device,
+            "octrees",
+            vec![OCTree::zeroed(); engine.config.octree_dim.pow(3) as usize],
+        );
+        let local_octrees = StorageBuffer::new(device, "octrees", vec![OCTree::zeroed(); 64]);
 
         let render_tx = Texture::builder("render")
             .with_size(camera.viewport.size)
@@ -92,6 +103,8 @@ impl Buffers {
             config,
             materials,
             lights,
+            octrees,
+            local_octrees,
         }
     }
 }
@@ -214,6 +227,8 @@ impl CameraController {
         self.buffers.config.flush(queue);
         self.buffers.materials.flush(queue);
         self.buffers.lights.flush(queue);
+        self.buffers.octrees.flush(queue);
+        self.buffers.local_octrees.flush(queue);
     }
 }
 

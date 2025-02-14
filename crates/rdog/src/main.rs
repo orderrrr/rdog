@@ -1,4 +1,7 @@
-use bevy::{prelude::*, window::WindowResolution};
+use bevy::{
+    prelude::*,
+    window::{PresentMode, WindowResolution},
+};
 
 use bevy_egui::EguiPlugin;
 use rand::Rng;
@@ -18,6 +21,7 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         resolution: WindowResolution::new(W as f32, H as f32),
+                        present_mode: PresentMode::AutoNoVsync,
                         ..default()
                     }),
                     ..default()

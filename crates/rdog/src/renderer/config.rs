@@ -21,6 +21,8 @@ pub struct Config {
     pub user_orbit: bool,
     pub orbit_reset: bool,
 
+    pub octree_dim: u32,
+
     pub reload: bool,
 
     pub bounce_count: u32,
@@ -49,6 +51,7 @@ impl Config {
             sun_y: self.sun_pos.y,
             pass_count: self.pass_count,
             bounce_count: self.bounce_count,
+            octree_dim: self.octree_dim,
         }
     }
 
@@ -88,6 +91,7 @@ impl Default for Config {
             pass_count: 8,
             bounce_count: 8,
             ray_debug: false,
+            octree_dim: 8,
             light_tree: LightList::default(),
         }
     }

@@ -791,3 +791,11 @@ fn g_term_schlick_ggx(n_dot_v: f32, n_dot_l: f32, k: f32) -> f32 {
     let g_term_l = n_dot_l / (n_dot_l * (1.0 - k) + k);
     g_term_v * g_term_l
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable, Default)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct OCTree {
+    pub upper_mask: u32,
+    pub lower_mask: u32,
+}

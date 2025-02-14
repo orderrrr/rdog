@@ -70,7 +70,8 @@ macro_rules! passes {
 #[cfg(feature = "combined")]
 passes!([
     // atmosphere => AtmospherePass,
-    rt_single => RTSingle,
+    octree => OCTreePass,
+    trace => TracePass,
     raster => RasterPass,
 ]);
 

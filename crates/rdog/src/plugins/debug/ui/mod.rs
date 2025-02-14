@@ -24,12 +24,6 @@ pub fn ui_system(
 
     debug_state.pointer_in_egui = ctx.is_pointer_over_area();
 
-    // debug_state.pointer_in_egui = ui.ui_contains_pointer();
-    println!(
-        "debug_state.pointer_in_egui: {}",
-        debug_state.pointer_in_egui
-    );
-
     egui::Window::new("Config")
         .vscroll(true)
         .default_open(false)

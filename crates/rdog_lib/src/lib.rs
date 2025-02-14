@@ -19,6 +19,7 @@ pub mod smoothstep;
 pub mod util;
 pub mod ray;
 pub mod scene;
+pub mod octree;
 
 pub use self::pass::*;
 pub use self::camera::*;
@@ -33,6 +34,7 @@ pub use self::smoothstep::*;
 pub use self::util::*;
 pub use self::ray::*;
 pub use self::scene::*;
+pub use self::octree::*;
 
 pub mod prelude {
     #![allow(unexpected_cfgs)]
