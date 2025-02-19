@@ -1,5 +1,4 @@
 use log::debug;
-use rdog_lib::PassParams;
 use wgpu::StoreOp;
 
 use crate::{
@@ -77,7 +76,6 @@ impl Pass for RasterPass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        _pp: &PassParams,
     ) {
         let alternate = camera.is_alternate();
 

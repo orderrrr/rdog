@@ -795,7 +795,14 @@ fn g_term_schlick_ggx(n_dot_v: f32, n_dot_l: f32, k: f32) -> f32 {
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable, Default)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct OCTree {
+pub struct Brick {
     pub upper_mask: u32,
     pub lower_mask: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable, Default)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct OCTree {
+    pub mask: u32,
 }

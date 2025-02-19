@@ -1,10 +1,12 @@
+var<private> rng_state: u32;
+
 struct PassParams {
     sun_x: f32,
     sun_y: f32,
     pass_count: u32,
     bounce_count: u32,
     flags: u32,
-    octree_dim: u32,
+    voxel_dim: u32,
 }
 
 struct Globals {
@@ -14,63 +16,49 @@ struct Globals {
 
 @group(0) @binding(0) var<uniform> pass_params: PassParams;
 @group(0) @binding(1) var<uniform> globals: Globals;
-@group(0) @binding(2) var<storage, read_write> octrees: array<OCTree>;
-// @group(0) @binding(3) var<uniform, read_write> valid_octrees: atomic_u32; // atmoic to count valid octrees
+@group(0) @binding(2) var out: texture_storage_3d<rgba16float, read_write>;
 
-struct OCTree {
-    upper_mask: u32,
-    lower_mask: u32,
-}
-
-// octree mask contains 64 Voxel Masks
-
-struct Voxel {
-    id: u64,
-}
-
-// voxel id contains 8 sdf ids.
-// 00000000
-// 00000000
-// 00000000
-// 00000000
-
-fn map(pos: vec3f) -> bool {
-    return length(pos - vec3f(5.0)) - 10.0 < 0.0 || length(pos - vec3f(25.0, (sin(globals.time.x) + 1.0) * 20.0, 12.0)) - 15.0 < 0.0;
+fn map(pos: vec3f) -> vec4f {
+    let rng = vec3f(rand_f(), rand_f(), rand_f());
+    let s1 = length(pos) - ((sin(0.0) * 0.25) + 0.5);
+    let s2 = length(pos - vec3f(-0.5)) - 0.2;
+    return vec4f(rng, smin(s1, s2, 0.15).x);
 }
 
 @compute @workgroup_size(1,1,1)
 fn main(
     @builtin(global_invocation_id) id: vec3u,
-    @builtin(local_invocation_id) local_id: vec3u,
-    @builtin(workgroup_id) workgroup_id: vec3u,
 ) {
+    let vd = pass_params.voxel_dim;
+    rng_state = u32(id.x + (id.y * vd) + (id.z * vd * vd)) * globals.seed.y;
 
-    let idx = id.x + id.y * pass_params.octree_dim + id.z * pass_params.octree_dim * pass_params.octree_dim;
+    let pos = ((vec3f(id) / f32(vd)) - .5) * 2.;
 
-    octrees[idx].upper_mask = 0u;
-    octrees[idx].lower_mask = 0u;
+    let col = map(pos);
 
-    for (var i: u32 = 0u; i < 4; i++) {
-        for (var j: u32 = 0u; j < 4; j++) {
-            for (var k: u32 = 0u; k < 4; k++) {
-                let local_idx = vec3u(i, j, k);
-                let local_idxx = i + j * 4 + k * 4 * 4;
+    textureStore(out, vec3u(id), col);
+}
 
-                let pos = 4 * vec3f(id) + vec3f(local_idx);
+fn rand_f() -> f32 {
+    rng_state = rng_state * 747796405u + 2891336453u;
+    let word = ((rng_state >> ((rng_state >> 28u) + 4u)) ^ rng_state) * 277803737u;
+    return f32((word >> 22u) ^ word) * bitcast<f32>(0x2f800004u);
+}
 
-                // if (id.x == 0) {
-                //         octrees[idx].lower_mask = 0xffffffffu;
-                //         octrees[idx].upper_mask = 0xffffffffu;
-                // }
+fn sd_min(d1: vec2f, d2: vec2f) -> vec2f {
+    if d1.x < d2.x { return d1; }
+    return d2;
+}
 
-                if map(pos) {
-                    if local_idxx < 32 {
-                        octrees[idx].lower_mask = octrees[idx].lower_mask | (1u << local_idxx);
-                    } else {
-                        octrees[idx].upper_mask = octrees[idx].upper_mask | (1u << (local_idxx - 32));
-                    }
-                }
-            }
-        }
+// https://www.shadertoy.com/view/MXfXzM
+fn smin(a: f32, b: f32, ki: f32) -> vec2f {
+    let k = ki * 6.0;
+    let h = max(k - abs(a - b), 0.0) / k;
+    let m = h * h * h * 0.5;
+    let s = m * k * (1.0 / 3.0);
+    if a < b {
+        return vec2f(a - s, m);
     }
+
+    return vec2f(b - s, 1.0 - m);
 }

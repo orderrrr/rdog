@@ -20,6 +20,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
+                        name: Some("rdog".to_string()),
                         resolution: WindowResolution::new(W as f32, H as f32),
                         present_mode: PresentMode::AutoNoVsync,
                         ..default()
@@ -28,7 +29,7 @@ fn main() {
                 })
                 .set(AssetPlugin {
                     watch_for_changes_override: Some(true),
-                    ..Default::default()
+                    ..default()
                 }),
             RdogPlugin(rand::thread_rng().gen_range(0..4_294_967_295)),
             RdogDebugPlugin,

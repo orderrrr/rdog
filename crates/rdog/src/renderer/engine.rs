@@ -7,7 +7,7 @@ use super::{
     shaders::{RdogShader, ShaderCache},
     utils, Camera, CameraHandle, Config, Image,
 };
-use bevy::{asset::AssetId, prelude::Image as BevyImage};
+use bevy::{asset::AssetId, prelude::Image as BevyImage, utils::default};
 use glam::Vec2;
 use std::{mem, time::Instant};
 
@@ -34,9 +34,9 @@ impl Engine {
         Self {
             shaders: ShaderCache::new_cache(),
             frame: lib::Frame::new(1),
-            cameras: Default::default(),
             images: Images::new(device),
-            time: Default::default(),
+            time: default(),
+            cameras: default(),
             has_dirty_images: false,
             seed,
             config: Config::default(),

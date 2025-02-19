@@ -10,7 +10,7 @@ pub struct PassParams {
     pub pass_count: u32,
     pub bounce_count: u32,
     pub flags: u32,
-    pub octree_dim: u32,
+    pub voxel_dim: u32,
 }
 
 impl PassParams {
@@ -21,7 +21,7 @@ impl PassParams {
             pass_count,
             bounce_count,
             flags,
-            octree_dim,
+            voxel_dim: octree_dim,
         }
     }
 }

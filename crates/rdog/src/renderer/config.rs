@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-use bevy::prelude::Resource;
+use bevy::{prelude::Resource, utils::default};
 use glam::{uvec2, Mat4, UVec2, Vec2};
 use log::info;
 use rdog_lib::{self as gpu, Light, Material, PassParams};
@@ -21,7 +21,7 @@ pub struct Config {
     pub user_orbit: bool,
     pub orbit_reset: bool,
 
-    pub octree_dim: u32,
+    pub voxel_dim: u32,
 
     pub reload: bool,
 
@@ -51,7 +51,7 @@ impl Config {
             sun_y: self.sun_pos.y,
             pass_count: self.pass_count,
             bounce_count: self.bounce_count,
-            octree_dim: self.octree_dim,
+            voxel_dim: self.voxel_dim,
         }
     }
 
@@ -91,7 +91,7 @@ impl Default for Config {
             pass_count: 8,
             bounce_count: 8,
             ray_debug: false,
-            octree_dim: 8,
+            voxel_dim: 8,
             light_tree: LightList::default(),
         }
     }
@@ -114,13 +114,13 @@ impl Camera {
                 .transform
                 .to_scale_rotation_translation()
                 .2
-                .extend(Default::default()),
+                .extend(default()),
             screen: self
                 .viewport
                 .size
                 .as_vec2()
-                .extend(Default::default())
-                .extend(Default::default()),
+                .extend(default())
+                .extend(default()),
         }
     }
 

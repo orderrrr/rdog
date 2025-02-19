@@ -1,11 +1,12 @@
 use std::marker::PhantomData;
 use std::mem;
 
+use bevy::utils::default;
 use bytemuck::Pod;
 use glam::UVec3;
 use log::debug;
 use rdog_lib::PassParams;
-use wgpu::{PipelineCompilationOptions, ShaderModule};
+use wgpu::{BindGroupLayout, PipelineCompilationOptions, ShaderModule};
 
 use crate::{
     bind_group::{BindGroup, BindGroupBuilder},
@@ -29,8 +30,8 @@ where
     pub fn builder<'a>(label: impl ToString) -> CameraPassBuilder<'a, P> {
         CameraPassBuilder {
             label: label.to_string(),
-            bind_groups: Default::default(),
-            _params: Default::default(),
+            bind_groups: default(),
+            _params: default(),
         }
     }
 

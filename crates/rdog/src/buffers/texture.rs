@@ -1,12 +1,14 @@
 use super::bindable::Bindable;
+use bevy::utils::default;
+use glam::{uvec3, UVec2, UVec3};
 use log::debug;
-use glam::UVec2;
 
 #[derive(Debug)]
 pub struct Texture {
     tex: wgpu::Texture,
     format: wgpu::TextureFormat,
     view: wgpu::TextureView,
+    dimension: wgpu::TextureViewDimension,
     sampler: wgpu::Sampler,
     filterable: bool,
 }
@@ -15,7 +17,7 @@ impl Texture {
     pub fn builder(label: impl AsRef<str>) -> TextureBuilder {
         TextureBuilder {
             label: label.as_ref().to_owned(),
-            ..Default::default()
+            ..default()
         }
     }
 
@@ -70,7 +72,7 @@ impl Texture {
 #[derive(Clone, Default)]
 pub struct TextureBuilder {
     label: String,
-    size: Option<UVec2>,
+    size: Option<UVec3>,
     format: Option<wgpu::TextureFormat>,
     usage: Option<wgpu::TextureUsages>,
     sampler: wgpu::SamplerDescriptor<'static>,
@@ -87,6 +89,11 @@ impl TextureBuilder {
     }
 
     pub fn with_size(mut self, size: UVec2) -> Self {
+        self.size = Some(uvec3(size.x, size.y, 1));
+        self
+    }
+
+    pub fn with_size_3d(mut self, size: UVec3) -> Self {
         self.size = Some(size);
         self
     }
@@ -126,16 +133,21 @@ impl TextureBuilder {
         assert!(size.x > 0);
         assert!(size.y > 0);
 
+        let (dimension, view_dimension) = match size.z {
+            1 => (wgpu::TextureDimension::D2, wgpu::TextureViewDimension::D2),
+            _ => (wgpu::TextureDimension::D3, wgpu::TextureViewDimension::D3),
+        };
+
         let tex = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&format!("{label}_texture")),
             size: wgpu::Extent3d {
                 width: size.x,
                 height: size.y,
-                depth_or_array_layers: 1,
+                depth_or_array_layers: size.z,
             },
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+            dimension,
             format,
             usage,
             view_formats: &[],
@@ -144,7 +156,7 @@ impl TextureBuilder {
         let filterable = sampler.mag_filter != wgpu::FilterMode::Nearest
             || sampler.min_filter != wgpu::FilterMode::Nearest;
 
-        let view = tex.create_view(&Default::default());
+        let view = tex.create_view(&default());
         let sampler_label = format!("{label}_sampler");
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -158,6 +170,7 @@ impl TextureBuilder {
             view,
             sampler,
             filterable,
+            dimension: view_dimension,
         }
     }
 }
@@ -215,7 +228,7 @@ impl Bindable for StorageTextureBinder<'_> {
             ty: wgpu::BindingType::StorageTexture {
                 access: wgpu::StorageTextureAccess::ReadWrite,
                 format: self.parent.format,
-                view_dimension: wgpu::TextureViewDimension::D2,
+                view_dimension: self.parent.dimension,
             },
             count: None,
         };

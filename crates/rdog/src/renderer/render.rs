@@ -7,12 +7,12 @@ use std::ops::DerefMut;
 use super::{
     config::Camera,
     engine::Engine,
-    passes::{OCTreePass, Pass, Passes},
+    passes::{Pass, Passes},
 };
-use bytemuck::Zeroable;
+use bevy::utils::default;
+use glam::uvec3;
 use log::{debug, info};
-use rdog_lib::{self as lib, Light, Material, OCTree};
-// use rdog_shaders::atmosphere::{ATMOS_MULT, NOISE_DIM};
+use rdog_lib::{self as lib, Light, Material};
 
 #[derive(Debug)]
 pub struct Buffers {
@@ -24,8 +24,7 @@ pub struct Buffers {
     pub lights: StorageBuffer<Light>,
     pub globals: MappedUniformBuffer<lib::shader::Globals>,
 
-    pub octrees: StorageBuffer<OCTree>,
-    pub local_octrees: StorageBuffer<OCTree>,
+    pub voxels: Texture,
 
     pub render_tx: Texture,
     pub render_alt_tx: Texture,
@@ -45,13 +44,6 @@ impl Buffers {
         let materials = StorageBuffer::new(device, "materials", engine.config.material_pass());
         let lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
 
-        let octrees = StorageBuffer::new(
-            device,
-            "octrees",
-            vec![OCTree::zeroed(); engine.config.octree_dim.pow(3) as usize],
-        );
-        let local_octrees = StorageBuffer::new(device, "octrees", vec![OCTree::zeroed(); 64]);
-
         let render_tx = Texture::builder("render")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
@@ -63,6 +55,18 @@ impl Buffers {
         let render_alt_tx = Texture::builder("renderalt")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_linear_filtering_sampler()
+            .build(device);
+
+        let voxels = Texture::builder("voxels")
+            .with_size_3d(uvec3(
+                engine.config.voxel_dim,
+                engine.config.voxel_dim,
+                engine.config.voxel_dim,
+            ))
+            .with_format(wgpu::TextureFormat::Rgba16Float) // TODO - pack 8 here instead of a single voxel
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_linear_filtering_sampler()
@@ -103,8 +107,7 @@ impl Buffers {
             config,
             materials,
             lights,
-            octrees,
-            local_octrees,
+            voxels,
         }
     }
 }
@@ -129,7 +132,7 @@ impl CameraController {
             camera,
             buffers,
             passes,
-            frame: Default::default(),
+            frame: default(),
             recompute_static: true,
         }
     }
@@ -206,10 +209,8 @@ impl CameraController {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) {
-        let pp = engine.config.to_pass_params();
-
         for pass in &self.passes.0 {
-            pass.run(engine, self, encoder, view, &pp);
+            pass.run(engine, self, encoder, view);
         }
     }
 
@@ -227,8 +228,6 @@ impl CameraController {
         self.buffers.config.flush(queue);
         self.buffers.materials.flush(queue);
         self.buffers.lights.flush(queue);
-        self.buffers.octrees.flush(queue);
-        self.buffers.local_octrees.flush(queue);
     }
 }
 

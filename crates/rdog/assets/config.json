@@ -1,5 +1,5 @@
 {
-  "octree_dim": 16,
+  "voxel_dim": 256,
   "direct_pass": true,
   "specular_pass": true,
   "scatter_pass": true,

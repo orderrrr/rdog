@@ -8,7 +8,7 @@ use bevy_egui::{
 use glam::vec3;
 use serde::{Deserialize, Serialize};
 
-use crate::{plugins::rdog::config::read_config, Config};
+use crate::{plugins::rdog::plugin_config::read_config, Config};
 
 use super::{DebugConfig, SelectedTab};
 

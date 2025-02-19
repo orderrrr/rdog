@@ -4,7 +4,7 @@ use bevy::{
     prelude::*,
     render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, RenderApp},
 };
-use config::read_config;
+use plugin_config::read_config;
 use event::RdogEvent;
 use shader::{
     check_textures, load_shaders, RdogShaderAsset, RdogShaderAssetLoader, RdogShaderState,
@@ -18,7 +18,7 @@ pub const GIZMO: usize = 1;
 pub const MAIN: usize = 0;
 
 pub mod camera;
-pub mod config;
+pub mod plugin_config;
 pub mod event;
 pub mod graph;
 pub mod rendering;

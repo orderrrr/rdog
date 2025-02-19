@@ -74,7 +74,7 @@ fn rdog_debug_setup_scene(mut commands: Commands, mut config_store: ResMut<Gizmo
         Transform::from_xyz(0., 1.5, 6.).looking_at(Vec3::ZERO, Vec3::Y),
         Camera {
             hdr: true,
-            ..Default::default()
+            ..default()
         },
     ));
 }

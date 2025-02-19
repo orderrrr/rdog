@@ -1,5 +1,4 @@
 use log::debug;
-use rdog_lib::PassParams;
 
 use crate::renderer::config::Camera;
 use crate::renderer::engine::Engine;
@@ -14,7 +13,6 @@ pub trait Pass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        pp: &PassParams,
     );
 }
 
@@ -36,10 +34,9 @@ macro_rules! passes {
                 camera: &CameraController,
                 encoder: &mut wgpu::CommandEncoder,
                 view: &wgpu::TextureView,
-                pp: &PassParams,
             ) {
                 match self {
-                    $( PassTypes::$class(pass) => pass.run(engine, camera, encoder, view, pp), )*
+                    $( PassTypes::$class(pass) => pass.run(engine, camera, encoder, view), )*
                 }
             }
         }
@@ -67,7 +64,7 @@ macro_rules! passes {
     };
 }
 
-#[cfg(feature = "combined")]
+// #[cfg(feature = "combined")]
 passes!([
     // atmosphere => AtmospherePass,
     octree => OCTreePass,
@@ -75,9 +72,9 @@ passes!([
     raster => RasterPass,
 ]);
 
-#[cfg(not(feature = "combined"))]
-passes!([
-    atmosphere => AtmospherePass,
-    rt => RTPass,
-    raster => RasterPass,
-]);
+// #[cfg(not(feature = "combined"))]
+// passes!([
+//     atmosphere => AtmospherePass,
+//     rt => RTPass,
+//     raster => RasterPass,
+// ]);

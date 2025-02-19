@@ -1,3 +1,5 @@
+use bevy::utils::default;
+
 use super::bindable::DoubleBufferedBindable;
 
 #[derive(Debug)]
@@ -11,8 +13,8 @@ impl BindGroup {
     pub fn builder<'ctx>(label: impl ToString) -> BindGroupBuilder<'ctx> {
         BindGroupBuilder {
             label: label.to_string(),
-            layouts: Default::default(),
-            resources: Default::default(),
+            layouts: default(),
+            resources: default(),
         }
     }
 
