@@ -19,10 +19,11 @@ struct Globals {
 @group(0) @binding(2) var out: texture_storage_3d<rgba16float, read_write>;
 
 fn map(pos: vec3f) -> vec4f {
-    let rng = vec3f(rand_f(), rand_f(), rand_f());
+    let rng = vec3f(worley(pos, 4.0));
     let s1 = length(pos) - ((sin(0.0) * 0.25) + 0.5);
     let s2 = length(pos - vec3f(-0.5)) - 0.2;
-    return vec4f(rng, smin(s1, s2, 0.15).x);
+    let d = smin(s1, s2, 0.15).x;
+    return vec4f(rng, d);
 }
 
 @compute @workgroup_size(1,1,1)
@@ -61,4 +62,31 @@ fn smin(a: f32, b: f32, ki: f32) -> vec2f {
     }
 
     return vec2f(b - s, 1.0 - m);
+}
+
+// https://www.shadertoy.com/view/3d3fWN
+fn hash33(p3: vec3f) -> vec3f {
+    var p = fract(p3 * vec3f(.1031, .11369, .13787));
+    p += dot(p, p.yxz + 19.19);
+    return -1.0 + 2.0 * fract(vec3((p.x + p.y) * p.z, (p.x + p.z) * p.y, (p.y + p.z) * p.x));
+}
+fn worley(p: vec3f, s: f32) -> f32 {
+    let id = floor(p * s);
+    let fd = fract(p * s);
+    var md = 1.;
+    for (var x = -1; x <= 1; x++) {
+        for (var y = -1; y <= 1; y++) {
+            for (var z = -1; z <= 1; z++) {
+                let c = vec3f(vec3i(x, y, z));
+                let rId = hash33(mod33(id + c, vec3f(s))) * .5 + .5;
+                let r = c + rId - fd;
+                let d = dot(r, r);
+                if d < md { md = d; }
+            }
+        }
+    }
+    return 1. - md;
+}
+fn mod33(x: vec3f, y: vec3f) -> vec3f {
+    return x - y * floor(x / y);
 }

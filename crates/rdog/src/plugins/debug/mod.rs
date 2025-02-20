@@ -7,32 +7,22 @@ use crate::GIZMO;
 
 use super::shader::RdogShaderState;
 use serde::{Deserialize, Serialize};
-use ui::ui_system;
+use ui::{ui_system, SelectedTab};
 
-pub mod ui;
 pub mod ray;
-
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub enum SelectedTab {
-    #[default]
-    Render,
-    Materials,
-    Lights,
-    System,
-}
+pub mod ui;
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
 pub struct DebugConfig {
     pub selected_tab: SelectedTab,
     pub pointer_in_egui: bool,
 }
+
 pub struct RdogDebugPlugin;
 
 impl Plugin for RdogDebugPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(DebugConfig::default())
+        app.insert_resource(DebugConfig::default())
             .add_systems(OnEnter(RdogShaderState::Finished), rdog_debug_setup_scene)
             .add_systems(
                 Update,

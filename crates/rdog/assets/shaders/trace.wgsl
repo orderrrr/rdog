@@ -134,8 +134,8 @@ fn main(
     col /= f32(pass_params.pass_count);
 
     // textureStore(out, id.xy, vec4f(col, 1.0));
-    // combine(id.xy, col);
-    combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
+    combine(id.xy, col);
+    // combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 
 
@@ -434,29 +434,6 @@ fn lights(p: vec3f) -> vec3f {
     return d;
 }
 
-// fn trace(r: Ray) -> Hit {
-//     var t = 0.01;
-//
-//     for (var i: u32 = 0; i < RMAX; i++) {
-//         let p = pd(r, t);
-//         var h = map(p);
-//         let interior = h.x <= 0.0;
-//         h.x = abs(h.x);
-//
-//         if h.x < MIN_DIST {
-//             return Hit(t, vec3f(0.0), interior, mat_2(h));
-//         }
-//
-//         if t > TMAX {
-//             break;
-//         }
-//
-//         t += h.x;
-//     }
-//
-//     return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
-// }
-
 fn trace_voxel_mask(ri: Ray) -> vec4f {
     var r = ri;
     let vd = f32(pass_params.voxel_dim);
@@ -470,7 +447,7 @@ fn trace_voxel_mask(ri: Ray) -> vec4f {
         if dist == -1.0 {
             return total;
         }
-        r.o += r.d * (dist - 0.0001);
+        r.o += r.d * dist;
         map_pos = vec3i(floor(r.o));
     }
 
@@ -488,10 +465,9 @@ fn trace_voxel_mask(ri: Ray) -> vec4f {
         side_dist += vec3f(mask) * delta_dist;
         map_pos += vec3i(vec3f(mask)) * ray_step;
 
-        if any(mask) && any(map_pos < vec3i(0) || map_pos >= vec3i(pass_params.voxel_dim)) {
+        if i > 1 && any(map_pos < vec3i(0) || map_pos >= vec3i(pass_params.voxel_dim)) {
             return total;
         }
-
     }
 
     return total;
