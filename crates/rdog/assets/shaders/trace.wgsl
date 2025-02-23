@@ -21,11 +21,14 @@ struct PassParams {
     bounce_count: u32,
     flags: u32,
     voxel_dim: u32,
+    mouse_x: f32,
+    mouse_y: f32,
 }
 
 struct Globals {
     time: vec2f,
     seed: vec2u,
+    mouse: vec2f,
 }
 
 struct Camera {
@@ -33,6 +36,8 @@ struct Camera {
     ndc_to_world: mat4x4f,
     origin: vec4f,
     screen: vec4f,
+    fpd: vec4f,
+    ftd: vec4f,
 }
 
 struct Ray {
@@ -99,7 +104,8 @@ struct OCTree {
 @group(0) @binding(2) var<storage, read> material: array<MaterialIn>;
 @group(0) @binding(3) var<storage, read> light_in: array<LightIn>;
 @group(0) @binding(4) var<uniform> pass_params: PassParams;
-@group(0) @binding(5) var out: texture_storage_2d<rgba32float, read_write>;
+@group(0) @binding(5) var<storage, read> march: vec4f;
+@group(0) @binding(6) var out: texture_storage_2d<rgba32float, read_write>;
 
 @group(1) @binding(0) var voxels: texture_storage_3d<rgba16float, read_write>;
 
@@ -112,29 +118,72 @@ fn main(
     num_levels = u32(log2(f32(pass_params.voxel_dim))) + 1;
 
     let pos = vec2f(id.xy);
+
     let ss = vec2f(camera.screen.xy);
 
     var col = vec3f(0.0);
 
     for (var i: u32 = 0; i < pass_params.pass_count; i++) {
+        // Compute uv from the pixel position and screen size.
         var uv = ((pos + vec2f(0.5, 0.5)) * 2.0) / ss - vec2f(1.0, 1.0);
         uv.y *= -1.0;
 
-        let position = 2.0 * rand_f() - 1.0;
-        uv += position * 0.002;
+        // Apply a small random jitter (the "position" offset).
+        let jitter = (vec2f(2.0 * rand_f() - 1.0)) * 0.002;
+        uv += jitter;
 
+        // Use uv to get two points in world space. 
+        // (EPSILON is a small value; here fp is close to the near plane and np is a point further out.)
         let fp = project_point3(camera.ndc_to_world, vec3f(uv, EPSILON));
         let np = project_point3(camera.ndc_to_world, vec3f(uv, 1.0));
 
-        let r = Ray(np, normalize(fp - np));
+        // Compute the primary ray direction.
+        let primary_direction = normalize(fp - np);
+
+        // --- Depth of Field Setup ---
+        // Compute the camera’s forward vector. One way is to transform a canonical forward point 
+        // (here (0,0,1)) and subtract the camera’s origin. (Assuming camera.origin.xyz is the camera center.)
+        let forward = normalize(project_point3(camera.ndc_to_world, vec3f(0.0, 0.0, 1.0)) - camera.origin.xyz);
+
+        // Define a focus distance (1 unit ahead in the camera’s local z-axis)
+        let focus_distance: f32 = 1.0;
+        // You can compute the focus point using the primary ray direction or the camera's forward.
+        // For a per-pixel effect, one option is:
+        let focus_point = camera.origin.xyz + primary_direction * focus_distance;
+
+        // Compute a camera basis for lens sampling.
+        // Here we assume a world up vector of (0, 1, 0). 
+        // This yields a right vector, and then an up vector that is perpendicular to both.
+        let world_up = vec3f(0.0, 1.0, 0.0);
+        let right = normalize(cross(forward, world_up));
+        let up = cross(right, forward);
+
+        // Sample a random point on a disk (the lens aperture) for DOF.
+        let defocus_amount: f32 = 0.0;  // Adjust this to control the blur strength.
+        let rand_angle = rand_f() * 6.28318530718; // Random angle between 0 and 2π.
+        let rand_radius = sqrt(rand_f()) * defocus_amount;
+        let lens_offset = right * (cos(rand_angle) * rand_radius) + up * (sin(rand_angle) * rand_radius);
+
+        // The new ray origin is the camera’s origin plus the lens offset.
+        let new_origin = camera.origin.xyz + lens_offset;
+        // Recompute the ray direction so that it goes through the focus point.
+        let new_direction = normalize(focus_point - new_origin);
+        let r = Ray(new_origin, new_direction);
 
         col += ray_trace(r);
+
+        // let fp = project_point3(camera.ndc_to_world, vec3f(uv, EPSILON));
+        // let np = project_point3(camera.ndc_to_world, vec3f(uv, 1.0));
+        //
+        // let r = Ray(np, normalize(fp - np));
+        //
+        // col += ray_trace(r);
     }
 
     col /= f32(pass_params.pass_count);
 
-    // textureStore(out, id.xy, vec4f(col, 1.0));
-    combine(id.xy, col);
+    textureStore(out, id.xy, saturate(march));
+    // combine(id.xy, col);
     // combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 
@@ -178,6 +227,16 @@ fn project_point3(transform: mat4x4f, rhs: vec3f) -> vec3f {
     return res.xyz;
 }
 
+fn random_in_unit_disk() -> vec2f {
+    var p: vec2f;
+    for (var i = 0; i < 100; i++) {
+        p = 2.0 * vec2f(rand_f(), rand_f()) - vec2f(1.0, 1.0);
+        if dot(p, p) < 1.0 {
+            break;
+        }
+    }
+    return p;
+}
 
 
 
@@ -380,10 +439,11 @@ fn map(p: vec3f) -> vec3f {
     // return sd_min3(l, m);
 
 
-    let p1 = vec2f(dot(p, vec3f(0.0, 1.0, 0.0)) + 0.0, 4.0);
-    let s1 = vec2f(length(p + vec3f(0.0, -0.5, 0.0)) - 1.0, 2.0);
-
-    let s = smin(p1, s1, 0.3);
+    // let p1 = vec2f(dot(p, vec3f(0.0, 1.0, 0.0)) + 0.0, 4.0);
+    // let s1 = vec2f(length(p + vec3f(0.0, -0.5, 0.0)) - 1.0, 2.0);
+    //
+    // let s = smin(p1, s1, 0.3);
+    let s = vec3f(sd_round_box(p - vec3f(0.0, 1.0, 1.0), vec3f(1.0), 0.1), pack_material_ids(2.0, 2.0), .0);
 
     return sd_min3(s, l);
 }
@@ -517,55 +577,44 @@ fn ray_trace(ri: Ray) -> vec3f {
     var rad = ONE;
 
     for (var i: u32 = 0; i < pass_params.bounce_count; i++) {
-        var s: i32 = 0;
+        // var h = trace_voxel_mask(r);
+        // return h.xyz / h.w;
 
-        var ri = r;
+        var h = trace(r);
+        r.o = pd(r, h.d);
 
-        var h = trace_voxel_mask(r);
-        return h.xyz / h.w;
+        if h.d >= TMAX {
+            t += sample_atmos(r) * a * rad * ct;
+            break;
+        }
 
-        // var h = trace_mask(r, &s);
-        // if h.w != -1 {
-        //     t = vec3f(h.xyz);
-        // }
-        // t += vec3f(f32(s) / 64.0);
-        // return t;
+        if h.m.emissive > 0.0 {
+            t += h.m.emissive * h.m.a * a * rad;
+            break;
+        }
 
-        // var h = trace(r);
-        // r.o = pd(r, h.d);
-        //
-        // if h.d >= TMAX {
-        //     t += sample_atmos(r) * a * rad * ct;
-        //     break;
-        // }
-        //
-        // if h.m.emissive > 0.0 {
-        //     t += h.m.emissive * h.m.a * a * rad;
-        //     break;
-        // }
-        //
-        // h.n = calc_normal(r.o) * (2.0 * f32(!h.i) - 1.0);
-        //
-        // let l = scatter(h, &r);
-        //
-        // if false {
-        //     return l.dir;
-        // }
-        //
-        // ct = max(dot(h.n, l.dir), 0.0);
-        //
-        // a *= l.a * rad;
-        //
-        // let s = sample(h, r, l);
-        // t += a * s * rad;
-        //
-        // rad *= l.radiance;
-        //
-        // if !l.scatter {
-        //     break;
-        // }
-        //
-        // r.d = l.dir;
+        h.n = calc_normal(r.o) * (2.0 * f32(!h.i) - 1.0);
+
+        let l = scatter(h, &r);
+
+        if false {
+            return l.dir;
+        }
+
+        ct = max(dot(h.n, l.dir), 0.0);
+
+        a *= l.a * rad;
+
+        let s = sample(h, r, l);
+        t += a * s * rad;
+
+        rad *= l.radiance;
+
+        if !l.scatter {
+            break;
+        }
+
+        r.d = l.dir;
     }
 
     return t;

@@ -1,4 +1,4 @@
-use crate::shader::RdogShaderAsset;
+use crate::{bufferable::Bufferable, camera, shader::RdogShaderAsset};
 
 use super::{
     camera_controllers::RenderControllers,
@@ -7,24 +7,29 @@ use super::{
     shaders::{RdogShader, ShaderCache},
     utils, Camera, CameraHandle, Config, Image,
 };
-use bevy::{asset::AssetId, prelude::Image as BevyImage, utils::default};
-use glam::Vec2;
-use std::{mem, time::Instant};
+use bevy::{asset::AssetId, prelude::Image as BevyImage, tasks::block_on, utils::default};
+use glam::{Vec2, Vec4};
+use std::{mem, sync::Arc, time::Instant};
+use wgpu::Buffer;
 
 use log::info;
 use rdog_lib::{self as lib};
 
 #[derive(Debug)]
 pub struct Engine {
+    pub config: Config,
+
     pub shaders: ShaderCache,
     pub frame: lib::Frame,
+
     pub time: Vec2,
     pub seed: u32,
-    pub config: Config,
-    // world: MappedUniformBuffer<gpu::World>,
+
     cameras: RenderControllers,
     images: Images,
     has_dirty_images: bool,
+
+    pub mouse: Vec2,
 }
 
 impl Engine {
@@ -40,6 +45,7 @@ impl Engine {
             has_dirty_images: false,
             seed,
             config: Config::default(),
+            mouse: Vec2::default(),
         }
     }
 
@@ -72,6 +78,10 @@ impl Engine {
         self.frame = lib::Frame::new(self.frame.get() + 1);
 
         utils::metric("tick", tt);
+    }
+
+    pub fn get_buffer(&self, buffer_name: &str) -> Arc<Buffer> {
+        return self.cameras.get_first().buffers.get(&buffer_name).buffer();
     }
 
     pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {

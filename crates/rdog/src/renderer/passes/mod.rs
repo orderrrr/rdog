@@ -2,7 +2,7 @@ use log::debug;
 
 use crate::renderer::config::Camera;
 use crate::renderer::engine::Engine;
-use crate::renderer::render::Buffers;
+use crate::renderer::buffers::Buffers;
 
 use super::render::CameraController;
 
@@ -64,17 +64,10 @@ macro_rules! passes {
     };
 }
 
-// #[cfg(feature = "combined")]
 passes!([
     // atmosphere => AtmospherePass,
     octree => OCTreePass,
+    readback => ReadbackPass,
     trace => TracePass,
     raster => RasterPass,
 ]);
-
-// #[cfg(not(feature = "combined"))]
-// passes!([
-//     atmosphere => AtmospherePass,
-//     rt => RTPass,
-//     raster => RasterPass,
-// ]);

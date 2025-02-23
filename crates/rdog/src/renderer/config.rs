@@ -2,13 +2,37 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 use bevy::{prelude::Resource, utils::default};
-use glam::{uvec2, Mat4, UVec2, Vec2};
+use glam::{uvec2, vec4, Mat4, UVec2, Vec2, Vec3};
 use log::info;
 use rdog_lib::{self as gpu, Light, Material, PassParams};
 
 use crate::ui::{LightList, MaterialList};
 
 use super::Engine;
+
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
+pub enum FocusType {
+    #[default]
+    Dist,
+    Cust,
+}
+
+impl FocusType {
+    pub fn to_f32(&self) -> f32 {
+        match self {
+            Self::Dist => 0.0,
+            Self::Cust => 1.0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
+pub struct CameraConfig {
+    pub focus_type: FocusType,
+    pub focus_dist: f32,
+    pub focus_point: Vec3,
+    pub defocus_amount: f32,
+}
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize)]
 pub struct Config {
@@ -34,6 +58,8 @@ pub struct Config {
     pub light_tree: LightList,
 
     pub ray_debug: bool,
+
+    pub camera_config: CameraConfig,
 }
 
 impl Config {
@@ -93,6 +119,7 @@ impl Default for Config {
             ray_debug: false,
             voxel_dim: 8,
             light_tree: LightList::default(),
+            camera_config: CameraConfig::default(),
         }
     }
 }
@@ -103,6 +130,10 @@ pub struct Camera {
     pub viewport: CameraViewport,
     pub transform: Mat4,
     pub projection: Mat4,
+    pub focus_type: FocusType,
+    pub focus_dist: f32,
+    pub focus_point: Vec3,
+    pub defocus_amount: f32,
 }
 
 impl Camera {
@@ -121,6 +152,8 @@ impl Camera {
                 .as_vec2()
                 .extend(default())
                 .extend(default()),
+            fpd: self.focus_point.extend(self.defocus_amount),
+            ftd: vec4(self.focus_type.to_f32(), self.focus_dist, 0.0, 0.0),
         }
     }
 
@@ -214,6 +247,7 @@ impl CameraHandle {
 pub struct Globals {
     time: Vec2,
     seed: UVec2,
+    mouse: Vec2,
 }
 
 impl Globals {
@@ -221,6 +255,7 @@ impl Globals {
         Self {
             time: engine.time,
             seed: uvec2(engine.seed, engine.seed + engine.frame.get()), // seed offset with current frame (for rays)
+            mouse: engine.mouse,
         }
     }
 
@@ -228,6 +263,7 @@ impl Globals {
         gpu::shader::Globals {
             time: self.time,
             seed: self.seed,
+            mouse: self.mouse,
         }
     }
 }

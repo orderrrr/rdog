@@ -10,6 +10,8 @@ pub struct Camera {
     pub ndc_to_world: Mat4,
     pub origin: Vec4,
     pub screen: Vec4,
+    pub fpd: Vec4,
+    pub ftd: Vec4,
 }
 
 impl Camera {
@@ -19,6 +21,8 @@ impl Camera {
             ndc_to_world: Mat4::ZERO,
             origin: Vec4::ZERO,
             screen,
+            fpd: Vec4::ZERO,
+            ftd: Vec4::ZERO,
         }
     }
 

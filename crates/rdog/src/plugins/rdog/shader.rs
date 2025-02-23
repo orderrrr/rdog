@@ -5,10 +5,14 @@ use bevy::{
         io::Reader, Asset, AssetEvent, AssetLoader, AssetServer, AsyncReadExt, Handle, LoadContext,
         LoadedFolder,
     },
+    ecs::observer::Trigger,
+    log::info,
     prelude::{Commands, Deref, DerefMut, EventReader, NextState, Res, ResMut, Resource, States},
     reflect::TypePath,
 };
 use thiserror::Error;
+
+use crate::readback::{Readback, ReadbackComplete};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
 pub enum RdogShaderState {
@@ -58,7 +62,10 @@ impl AssetLoader for RdogShaderAssetLoader {
     ) -> Result<Self::Asset, Self::Error> {
         let fname = String::from(load_context.path().file_name().unwrap().to_str().unwrap());
 
-        let name = fname.replace("-", "_").replace(".spv", "").replace(".wgsl", "");
+        let name = fname
+            .replace("-", "_")
+            .replace(".spv", "")
+            .replace(".wgsl", "");
 
         let data = match load_context.path().extension().unwrap().to_str().unwrap() {
             "spv" => RdogShaderAsset::read_spv(reader).await?,

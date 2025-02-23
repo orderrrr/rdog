@@ -5,6 +5,7 @@ use ray::render_debug_ray;
 use crate::orbit::{PanOrbitSettings, PanOrbitState};
 use crate::GIZMO;
 
+use super::readback::{Readback, ReadbackComplete};
 use super::shader::RdogShaderState;
 use serde::{Deserialize, Serialize};
 use ui::{ui_system, SelectedTab};
@@ -30,6 +31,7 @@ impl Plugin for RdogDebugPlugin {
                     update_bevy_cam.run_if(any_with_component::<PanOrbitState>),
                     render_debug_ray,
                     ui_system,
+                    readback_test,
                 ),
             );
     }
@@ -67,4 +69,17 @@ fn rdog_debug_setup_scene(mut commands: Commands, mut config_store: ResMut<Gizmo
             ..default()
         },
     ));
+}
+
+pub fn readback_test(buttons: Res<ButtonInput<MouseButton>>, mut commands: Commands) {
+    // if buttons.just_pressed(MouseButton::Left) {
+    //     commands
+    //         .spawn(Readback::buffer("march_readback".to_string()))
+    //         .observe(|trigger: Trigger<ReadbackComplete>| {
+    //             let data: Vec<u32> = trigger.event().to_shader_type();
+    //             info!("Buffer {:?}", data);
+    //         });
+    // } else {
+    //
+    // }
 }

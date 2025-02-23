@@ -1,4 +1,5 @@
 use bytemuck::Pod;
+use glam::Vec4;
 use rdog_lib::{self as gpu, camera::Camera, Light, Material, Brick, PassParams};
 use std::slice;
 
@@ -54,6 +55,12 @@ impl Bufferable for Brick {
 }
 
 impl Bufferable for Light {
+    fn data(&self) -> &[u8] {
+        bytemuck::cast_slice(slice::from_ref(self))
+    }
+}
+
+impl Bufferable for Vec4 {
     fn data(&self) -> &[u8] {
         bytemuck::cast_slice(slice::from_ref(self))
     }

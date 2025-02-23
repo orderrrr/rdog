@@ -1,5 +1,5 @@
 {
-  "voxel_dim": 256,
+  "voxel_dim": 8,
   "direct_pass": true,
   "specular_pass": true,
   "scatter_pass": true,

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::info;
+
 use super::{render::CameraController, CameraHandle};
 
 #[derive(Debug, Default)]
@@ -19,23 +21,22 @@ impl RenderControllers {
     }
 
     pub fn get(&self, camera_handle: CameraHandle) -> &CameraController {
-        self.cameras.get(&camera_handle).unwrap_or_else(|| {
-            panic!("camera does not exist: {:?}", camera_handle)
-        })
+        self.cameras
+            .get(&camera_handle)
+            .unwrap_or_else(|| panic!("camera does not exist: {:?}", camera_handle))
     }
 
-    pub fn get_mut(
-        &mut self,
-        camera_handle: CameraHandle,
-    ) -> &mut CameraController {
-        self.cameras.get_mut(&camera_handle).unwrap_or_else(|| {
-            panic!("camera does not exist: {:?}", camera_handle)
-        })
+    pub fn get_first(&self) -> &CameraController {
+        &self.cameras.get(&CameraHandle::new(1)).unwrap()
     }
 
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut CameraController> + '_ {
+    pub fn get_mut(&mut self, camera_handle: CameraHandle) -> &mut CameraController {
+        self.cameras
+            .get_mut(&camera_handle)
+            .unwrap_or_else(|| panic!("camera does not exist: {:?}", camera_handle))
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut CameraController> + '_ {
         self.cameras.values_mut()
     }
 

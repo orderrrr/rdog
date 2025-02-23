@@ -1,4 +1,4 @@
-use super::{DebugConfig, TUi};
+use super::TUi;
 use crate::Config;
 use bevy::prelude::*;
 use bevy_egui::egui::{self, CollapsingHeader, RichText, Ui};

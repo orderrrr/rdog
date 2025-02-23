@@ -6,7 +6,7 @@ use bytemuck::Pod;
 use glam::UVec3;
 use log::debug;
 use rdog_lib::PassParams;
-use wgpu::{BindGroupLayout, PipelineCompilationOptions, ShaderModule};
+use wgpu::{PipelineCompilationOptions, ShaderModule};
 
 use crate::{
     bind_group::{BindGroup, BindGroupBuilder},

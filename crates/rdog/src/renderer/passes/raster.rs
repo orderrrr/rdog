@@ -3,11 +3,7 @@ use wgpu::StoreOp;
 
 use crate::{
     buffers::bind_group::BindGroup,
-    renderer::{
-        config::Camera,
-        engine::Engine,
-        render::{Buffers, CameraController},
-    },
+    renderer::{buffers::Buffers, config::Camera, engine::Engine, render::CameraController},
 };
 
 use super::Pass;
@@ -24,13 +20,13 @@ impl RasterPass {
         debug!("Initializing pass: raster");
 
         let bg0 = BindGroup::builder("raster_bg0")
-            .add(&buffers.config.bind_readable())
-            .add(&buffers.curr_camera.bind_readable())
-            .add(&buffers.globals.bind_readable())
+            .add(&buffers.get("config").bind_readable())
+            .add(&buffers.get("curr_camera").bind_readable())
+            .add(&buffers.get("globals").bind_readable())
             .build(device);
 
         let bg1 = BindGroup::builder("raster_bg1")
-            .add(&buffers.render_tx.bind_readable())
+            .add(&buffers.get("render_tx").bind_readable())
             .build(device);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

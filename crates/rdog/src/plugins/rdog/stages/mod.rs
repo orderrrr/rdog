@@ -18,7 +18,14 @@ pub(crate) fn setup(render_app: &mut SubApp) {
         ExtractSchedule,
         extract::config.in_set(RenderSet::ExtractCommands),
     );
-    render_app.add_systems(ExtractSchedule, cache::shader.in_set(RenderSet::ExtractCommands));
+    render_app.add_systems(
+        ExtractSchedule,
+        extract::extras.in_set(RenderSet::ExtractCommands),
+    );
+    render_app.add_systems(
+        ExtractSchedule,
+        cache::shader.in_set(RenderSet::ExtractCommands),
+    );
 
     render_app.add_systems(Render, prepare::images.in_set(RenderSet::Prepare));
     render_app.add_systems(Render, prepare::cameras.in_set(RenderSet::Prepare));

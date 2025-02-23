@@ -1,9 +1,7 @@
 use glam::UVec3;
 
 use crate::{
-    compute_pass::ComputePass,
-    passes::Pass,
-    render::{Buffers, CameraController},
+    compute_pass::ComputePass, passes::Pass, render::CameraController, renderer::buffers::Buffers,
     Camera, Engine,
 };
 
@@ -14,9 +12,9 @@ impl OCTreePass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
         let octree_pass = ComputePass::builder("octree")
             .bind([
-                &buffers.config.bind_readable(),
-                &buffers.globals.bind_readable(),
-                &buffers.voxels.bind_writable(),
+                &buffers.get("config").bind_readable(),
+                &buffers.get("globals").bind_readable(),
+                &buffers.get("voxels").bind_writable(),
             ])
             .build(
                 device,

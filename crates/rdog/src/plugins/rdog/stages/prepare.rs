@@ -17,7 +17,7 @@ use glam::vec2;
 use crate::images::ImageData;
 use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
 use crate::plugins::rdog::EngineResource;
-use crate::state::ExtractedConfig;
+use crate::state::{ExtractedConfig, RdogExtractedExtras};
 use crate::CameraMode;
 
 use super::cache::RdogShaderCache;
@@ -111,9 +111,13 @@ pub(crate) fn cameras(
                     position,
                 }
             },
-
             transform: bevy_ext_view.world_from_view.compute_matrix(),
             projection: bevy_ext_view.clip_from_view,
+
+            focus_point: engine.config.camera_config.focus_point,
+            defocus_amount: engine.config.camera_config.defocus_amount,
+            focus_type: engine.config.camera_config.focus_type.clone(),
+            focus_dist: engine.config.camera_config.focus_dist,
         };
 
         match state.cameras.entry(entity) {
@@ -148,10 +152,15 @@ pub(crate) fn cameras(
 
 pub(crate) fn extras(
     mut engine: ResMut<EngineResource>,
+    extras: Res<RdogExtractedExtras>,
     config: ResMut<ExtractedConfig>,
     time: Res<Time>,
 ) {
     let engine = &mut *engine;
     engine.time = vec2(time.elapsed_secs(), time.delta_secs());
     engine.config = config.clone();
+    engine.mouse = match extras.mouse {
+        Some(x) => x,
+        _ => Vec2::ZERO,
+    };
 }

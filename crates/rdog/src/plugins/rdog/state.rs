@@ -46,6 +46,11 @@ pub struct RdogExtractedCamera {
     pub mode: Option<crate::CameraMode>,
 }
 
+#[derive(Resource, Debug, Component)]
+pub struct RdogExtractedExtras {
+    pub mouse: Option<Vec2>,
+}
+
 #[derive(Debug, Resource)]
 pub struct ExtractedImages {
     pub changed: Vec<ExtractedImage>,

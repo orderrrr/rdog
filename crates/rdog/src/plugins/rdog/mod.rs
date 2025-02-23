@@ -4,8 +4,8 @@ use bevy::{
     prelude::*,
     render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, RenderApp},
 };
-use plugin_config::read_config;
 use event::RdogEvent;
+use plugin_config::read_config;
 use shader::{
     check_textures, load_shaders, RdogShaderAsset, RdogShaderAssetLoader, RdogShaderState,
 };
@@ -14,13 +14,15 @@ use state::SyncedState;
 
 use crate::{orbit::PanOrbitState, Config};
 
+use super::readback::{RdogReadbackPlugin, Readback, ReadbackComplete};
+
 pub const GIZMO: usize = 1;
 pub const MAIN: usize = 0;
 
 pub mod camera;
-pub mod plugin_config;
 pub mod event;
 pub mod graph;
+pub mod plugin_config;
 pub mod rendering;
 pub mod shader;
 pub mod stages;
@@ -39,8 +41,9 @@ impl Plugin for RdogPlugin {
             .add_systems(OnEnter(RdogShaderState::Finished), rdog_setup_scene)
             .add_systems(
                 Update,
-                check_textures.run_if(in_state(RdogShaderState::Setup)),
-            );
+                (check_textures).run_if(in_state(RdogShaderState::Setup)),
+            )
+            .add_plugins(RdogReadbackPlugin::default());
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.insert_resource(SyncedState::default());

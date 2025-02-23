@@ -15,7 +15,7 @@ pub mod util;
 
 pub use lights::*;
 pub use materials::*;
-pub use objects::*;
+// pub use objects::*;
 pub use render::*;
 use strum::IntoEnumIterator;
 pub use system::*;

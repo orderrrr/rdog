@@ -1,40 +1,41 @@
 use std::{
     mem,
-    ops::{Deref, DerefMut}, sync::Arc,
+    ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
 use bytemuck::Pod;
 use log::debug;
 
 use super::{bindable::Bindable, bufferable::Bufferable};
-use crate::utils;
 
-/// Storage buffer that exists only in VRAM.
+/// MapWrite buffer that exists only in VRAM.
 ///
 /// This kind of storage buffer should be used for data structures that don't
 /// have to be accessed on the host machine.
 #[derive(Debug)]
-pub struct StorageBuffer {
+pub struct MapWriteBuffer {
     pub buffer: Arc<wgpu::Buffer>,
     data: Vec<u8>,
     dirty: bool,
 }
 
-impl StorageBuffer {
-    // TODO provide `::builder()` pattern
+impl MapWriteBuffer {
     pub fn new<T: Bufferable + Pod>(
         device: &wgpu::Device,
         label: impl AsRef<str>,
-        data: Vec<T>,
+        data: T,
     ) -> Self {
         let label = label.as_ref();
-        let size = utils::pad_size(data.len() * size_of::<T>());
+        let size = size_of::<T>();
 
         debug!("Allocating storage buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
-            usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::STORAGE,
             size: size as _,
             mapped_at_creation: false,
         });
@@ -61,41 +62,44 @@ impl StorageBuffer {
     /// items: &[T],
     /// ```
     pub fn bind_readable(&self) -> impl Bindable + '_ {
-        StorageBufferBinder {
+        MapWriteBufferBinder {
             parent: self,
             read_only: true,
         }
     }
 
     pub fn bind_writable(&self) -> impl Bindable + '_ {
-        StorageBufferBinder {
+        MapWriteBufferBinder {
             parent: self,
             read_only: false,
         }
     }
+
+    pub fn size(&self) -> usize {
+        self.data.size()
+    }
 }
 
-pub struct StorageBufferBinder<'a> {
-    parent: &'a StorageBuffer,
+pub struct MapWriteBufferBinder<'a> {
+    parent: &'a MapWriteBuffer,
     read_only: bool,
 }
 
-impl Deref for StorageBuffer {
+impl Deref for MapWriteBuffer {
     type Target = Vec<u8>;
-
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
 
-impl DerefMut for StorageBuffer {
+impl DerefMut for MapWriteBuffer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.dirty = true;
         &mut self.data
     }
 }
 
-impl Bindable for StorageBufferBinder<'_> {
+impl Bindable for MapWriteBufferBinder<'_> {
     fn bind(&self, binding: u32) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
         let layout = wgpu::BindGroupLayoutEntry {
             binding,

@@ -1,116 +1,16 @@
-use crate::{
-    buffers::mapped_uniform_buffer::MappedUniformBuffer, storage_buffer::StorageBuffer,
-    texture::Texture, Globals,
-};
-use std::ops::DerefMut;
-
 use super::{
+    buffers::Buffers,
     config::Camera,
     engine::Engine,
     passes::{Pass, Passes},
 };
+use crate::{
+    bufferable::Bufferable, renderer::buffers::BT, storage_buffer::StorageBuffer, Globals,
+};
 use bevy::utils::default;
-use glam::uvec3;
+use glam::Vec4;
 use log::{debug, info};
-use rdog_lib::{self as lib, Light, Material};
-
-#[derive(Debug)]
-pub struct Buffers {
-    pub curr_camera: MappedUniformBuffer<lib::camera::Camera>,
-    pub prev_camera: MappedUniformBuffer<lib::camera::Camera>,
-    pub config: MappedUniformBuffer<lib::PassParams>,
-
-    pub materials: StorageBuffer<Material>,
-    pub lights: StorageBuffer<Light>,
-    pub globals: MappedUniformBuffer<lib::shader::Globals>,
-
-    pub voxels: Texture,
-
-    pub render_tx: Texture,
-    pub render_alt_tx: Texture,
-    // pub atmosphere_tx: Texture,
-    // pub atmos_noise_tx: Texture,
-}
-
-impl Buffers {
-    pub fn new(engine: &Engine, device: &wgpu::Device, camera: &Camera) -> Self {
-        debug!("Initializing camera buffers");
-
-        let curr_camera = MappedUniformBuffer::new(device, "camera", camera.serialize());
-        let prev_camera = MappedUniformBuffer::new(device, "prev_camera", camera.serialize());
-        let globals =
-            MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
-        let config = MappedUniformBuffer::new(device, "config", engine.config.to_pass_params());
-        let materials = StorageBuffer::new(device, "materials", engine.config.material_pass());
-        let lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
-
-        let render_tx = Texture::builder("render")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
-
-        let render_alt_tx = Texture::builder("renderalt")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
-
-        let voxels = Texture::builder("voxels")
-            .with_size_3d(uvec3(
-                engine.config.voxel_dim,
-                engine.config.voxel_dim,
-                engine.config.voxel_dim,
-            ))
-            .with_format(wgpu::TextureFormat::Rgba16Float) // TODO - pack 8 here instead of a single voxel
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
-
-        // let prev_tx = Texture::builder("prev_tx")
-        //     .with_size(camera.viewport.size)
-        //     .with_format(wgpu::TextureFormat::Rgba32Float)
-        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-        //     .with_linear_filtering_sampler()
-        //     .build(device);
-
-        // let atmosphere_tx = Texture::builder("atmosphere")
-        //     .with_size((camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2()) // should be larger maybe? not sure
-        //     .with_format(wgpu::TextureFormat::Rgba16Float)
-        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-        //     .with_linear_filtering_sampler()
-        //     .build(device);
-
-        // let atmos_noise_tx = Texture::builder("atmos_noise")
-        //     .with_size(NOISE_DIM)
-        //     .with_format(wgpu::TextureFormat::Rgba16Float)
-        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-        //     .with_linear_filtering_sampler()
-        //     .build(device);
-
-        Self {
-            prev_camera,
-            curr_camera,
-            // atmos_noise_tx,
-            globals,
-            render_tx,
-            render_alt_tx,
-            // atmosphere_tx,
-            config,
-            materials,
-            lights,
-            voxels,
-        }
-    }
-}
+use rdog_lib::{self as lib};
 
 #[derive(Debug)]
 pub struct CameraController {
@@ -147,17 +47,29 @@ impl CameraController {
         let is_invalidated = self.camera.is_invalidated_by(&camera);
 
         self.camera = camera;
-        *self.buffers.prev_camera.deref_mut() = *self.buffers.curr_camera;
-        *self.buffers.curr_camera.deref_mut() = self.camera.serialize();
-        *self.buffers.globals.deref_mut() = Globals::from_engine(engine).serialize();
-        *self.buffers.config.deref_mut() = engine.config.to_pass_params();
+        self.buffers.update(
+            "prev_camera",
+            (self.buffers.get("curr_camera").data()).into(),
+        );
+        self.buffers
+            .update("curr_camera", self.camera.serialize().data().into());
+        self.buffers.update(
+            "globals",
+            Globals::from_engine(engine).serialize().data().into(),
+        );
+        self.buffers
+            .update("config", engine.config.to_pass_params().data().into());
+        // self.buffers
+        //     .update("march_readback", Vec4::ZERO.data().into());
 
         if engine.config.material_tree.modified {
-            *self.buffers.materials.deref_mut() = engine.config.material_pass();
+            self.buffers
+                .update("materials", engine.config.material_pass().data().into());
         }
 
         if engine.config.light_tree.modified {
-            *self.buffers.lights.deref_mut() = engine.config.light_pass();
+            self.buffers
+                .update("lights", engine.config.light_pass().data().into());
         }
 
         if engine.config.reload {
@@ -169,15 +81,22 @@ impl CameraController {
 
         if engine.config.material_tree.list_changed {
             log::info!("Material tree changed.");
-            self.buffers.materials =
-                StorageBuffer::new(device, "materials", engine.config.material_pass());
+            *self.buffers.get_mut("materials") = BT::from(StorageBuffer::new(
+                device,
+                "materials",
+                engine.config.material_pass(),
+            ));
             self.rebuild_passes(engine, device);
             return;
         }
 
         if engine.config.light_tree.list_changed {
             log::info!("Light tree changed.");
-            self.buffers.lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
+            *self.buffers.get_mut("lights") = BT::from(StorageBuffer::new(
+                device,
+                "lights",
+                engine.config.light_pass(),
+            ));
             self.rebuild_passes(engine, device);
             return;
         }
@@ -193,7 +112,6 @@ impl CameraController {
 
     fn rebuild_buffers(&mut self, engine: &Engine, device: &wgpu::Device) {
         debug!("Rebuilding buffers for camera `{}`", self.camera);
-
         self.buffers = Buffers::new(engine, device, &self.camera);
     }
 
@@ -222,12 +140,13 @@ impl CameraController {
 
     pub fn flush(&mut self, frame: lib::Frame, queue: &wgpu::Queue) {
         self.frame = frame;
-        self.buffers.curr_camera.flush(queue);
-        self.buffers.prev_camera.flush(queue);
-        self.buffers.globals.flush(queue);
-        self.buffers.config.flush(queue);
-        self.buffers.materials.flush(queue);
-        self.buffers.lights.flush(queue);
+        self.buffers.get_mut("curr_camera").flush(queue);
+        self.buffers.get_mut("prev_camera").flush(queue);
+        self.buffers.get_mut("globals").flush(queue);
+        self.buffers.get_mut("config").flush(queue);
+        self.buffers.get_mut("march_readback").flush(queue);
+        self.buffers.get_mut("materials").flush(queue);
+        self.buffers.get_mut("lights").flush(queue);
     }
 }
 

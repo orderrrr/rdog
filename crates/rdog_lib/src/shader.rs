@@ -7,6 +7,7 @@ use bytemuck::{Pod, Zeroable};
 pub struct Globals {
     pub time: Vec2,
     pub seed: UVec2,
+    pub mouse: Vec2,
 }
 
 impl Globals {
@@ -14,6 +15,7 @@ impl Globals {
         Globals {
             time: self.time,
             seed,
+            mouse: self.mouse,
         }
     }
 }

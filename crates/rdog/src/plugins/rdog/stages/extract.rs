@@ -6,6 +6,7 @@ use bevy::{
         Extract,
     },
     utils::HashSet,
+    window::PrimaryWindow,
 };
 
 use crate::{
@@ -14,9 +15,22 @@ use crate::{
         event::RdogEvent,
         state::{ExtractedImage, ExtractedImageData, ExtractedImages, RdogExtractedCamera},
     },
-    state::ExtractedConfig,
+    state::{ExtractedConfig, RdogExtractedExtras},
     Config,
 };
+
+pub(crate) fn extras(
+    mut commands: Commands,
+    q_windows: Extract<Query<&Window, With<PrimaryWindow>>>,
+) {
+    let mut pos = None;
+    if let Ok(window) = q_windows.get_single() {
+        if let Some(position) = window.cursor_position() {
+            pos = Some(position);
+        }
+    }
+    commands.insert_resource(RdogExtractedExtras { mouse: pos });
+}
 
 pub(crate) fn images(
     mut commands: Commands,

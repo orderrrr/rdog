@@ -2,7 +2,7 @@ use log::debug;
 
 use std::{
     mem,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut}, sync::Arc,
 };
 
 use crate::renderer::utils;
@@ -10,17 +10,14 @@ use crate::renderer::utils;
 use super::{bindable::Bindable, bufferable::Bufferable};
 
 #[derive(Debug)]
-pub struct MappedUniformBuffer<T> {
-    buffer: wgpu::Buffer,
-    data: T,
+pub struct MappedUniformBuffer {
+    pub buffer: Arc<wgpu::Buffer>,
+    data: Vec<u8>,
     dirty: bool,
 }
 
-impl<T> MappedUniformBuffer<T>
-where
-    T: Bufferable,
-{
-    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
+impl MappedUniformBuffer {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: impl Bufferable ) -> Self {
         let label = format!("rdog_{}", label.as_ref());
         let size = utils::pad_size(data.size());
 
@@ -34,8 +31,8 @@ where
         });
 
         Self {
-            buffer,
-            data,
+            buffer: Arc::new(buffer),
+            data: data.data().into(),
             dirty: true,
         }
     }
@@ -59,15 +56,15 @@ where
     }
 }
 
-impl<T> Deref for MappedUniformBuffer<T> {
-    type Target = T;
+impl Deref for MappedUniformBuffer {
+    type Target = Vec<u8>;
 
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
 
-impl<T> DerefMut for MappedUniformBuffer<T> {
+impl DerefMut for MappedUniformBuffer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.dirty = true;
 
@@ -75,11 +72,11 @@ impl<T> DerefMut for MappedUniformBuffer<T> {
     }
 }
 
-pub struct MappedUniformBufferBinder<'a, T> {
-    parent: &'a MappedUniformBuffer<T>,
+pub struct MappedUniformBufferBinder<'a> {
+    parent: &'a MappedUniformBuffer,
 }
 
-impl<T> Bindable for MappedUniformBufferBinder<'_, T> {
+impl Bindable for MappedUniformBufferBinder<'_> {
     fn bind(&self, binding: u32) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
         let layout = wgpu::BindGroupLayoutEntry {
             binding,
