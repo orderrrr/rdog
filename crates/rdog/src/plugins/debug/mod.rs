@@ -1,9 +1,13 @@
+use bevy::utils::HashMap;
+use bytemuck::cast_slice;
+use std::sync::{Arc, Mutex};
+
 use bevy::prelude::*;
 use bevy::{app::Plugin, render::view::RenderLayers};
 use ray::render_debug_ray;
 
 use crate::orbit::{PanOrbitSettings, PanOrbitState};
-use crate::GIZMO;
+use crate::{Config, GIZMO};
 
 use super::readback::{Readback, ReadbackComplete};
 use super::shader::RdogShaderState;
@@ -17,13 +21,20 @@ pub mod ui;
 pub struct DebugConfig {
     pub selected_tab: SelectedTab,
     pub pointer_in_egui: bool,
+    pub point_picker: bool,
 }
+
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct ReadbackData(HashMap<String, (Entity, Arc<Mutex<Option<Vec<u32>>>>)>);
 
 pub struct RdogDebugPlugin;
 
 impl Plugin for RdogDebugPlugin {
     fn build(&self, app: &mut App) {
+        info!("Debug plugin init");
+
         app.insert_resource(DebugConfig::default())
+            .insert_resource(ReadbackData::default())
             .add_systems(OnEnter(RdogShaderState::Finished), rdog_debug_setup_scene)
             .add_systems(
                 Update,
@@ -31,7 +42,8 @@ impl Plugin for RdogDebugPlugin {
                     update_bevy_cam.run_if(any_with_component::<PanOrbitState>),
                     render_debug_ray,
                     ui_system,
-                    readback_test,
+                    readback_setup,
+                    readback_poll_system.after(readback_setup),
                 ),
             );
     }
@@ -71,15 +83,64 @@ fn rdog_debug_setup_scene(mut commands: Commands, mut config_store: ResMut<Gizmo
     ));
 }
 
-pub fn readback_test(buttons: Res<ButtonInput<MouseButton>>, mut commands: Commands) {
-    // if buttons.just_pressed(MouseButton::Left) {
-    //     commands
-    //         .spawn(Readback::buffer("march_readback".to_string()))
-    //         .observe(|trigger: Trigger<ReadbackComplete>| {
-    //             let data: Vec<u32> = trigger.event().to_shader_type();
-    //             info!("Buffer {:?}", data);
-    //         });
-    // } else {
-    //
-    // }
+pub fn readback_setup(
+    buttons: Res<ButtonInput<MouseButton>>,
+    mut commands: Commands,
+    mut debug_config: ResMut<DebugConfig>,
+    mut readback_data: ResMut<ReadbackData>,
+) {
+    if buttons.just_pressed(MouseButton::Left)
+        && debug_config.point_picker
+        && !debug_config.pointer_in_egui
+    {
+        debug_config.point_picker = false;
+
+        info!("system requested");
+
+        let data: Arc<Mutex<Option<Vec<u32>>>> = Arc::new(Mutex::new(None));
+        let data_clone = data.clone();
+
+        let entity = commands
+            .spawn(Readback::buffer(
+                "readback".to_string(),
+                "march_readback".to_string(),
+            ))
+            .observe(move |e: Trigger<ReadbackComplete>| {
+                let d: Vec<u32> = e.to_shader_type();
+                *data_clone.lock().unwrap() = Some(d);
+            })
+            .id();
+
+        *readback_data
+            .entry("march_readback".to_string())
+            .or_insert((entity, data.clone())) = (entity, data.clone());
+    }
+}
+
+pub fn readback_poll_system(
+    mut commands: Commands,
+    mut config: ResMut<Config>,
+    readback_data: Res<ReadbackData>,
+) {
+    for (k, v) in readback_data.iter() {
+        if let Some(b) = v.1.lock().unwrap().take() {
+            match k.as_str() {
+                "march_readback" => {
+                    let vec4_slice: &[Vec4] = cast_slice(&b);
+                    let out: Vec4 = vec4_slice[0];
+
+                    info!("march_readback data: {:?}", out);
+
+                    config.camera_config.focus_point = out.xyz();
+
+                    if let Some(mut e) = commands.get_entity(v.0) {
+                        e.despawn();
+                    }
+
+                    config.camera_config.focus_dist = out.w;
+                }
+                _ => (),
+            }
+        }
+    }
 }

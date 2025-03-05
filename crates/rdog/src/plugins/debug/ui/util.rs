@@ -3,7 +3,7 @@ use glam::{vec3, Vec3};
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 
-use crate::Config;
+use crate::{Config, DebugConfig};
 
 use super::{lights_tab, mats_tab, render_tab, system_tab};
 
@@ -60,9 +60,9 @@ impl SelectedTab {
         .to_string()
     }
 
-    pub fn render(&self, ui: &mut Ui, ui_state: &mut Config, c: &mut bool) {
+    pub fn render(&self, ui: &mut Ui, ui_state: &mut Config, d: &mut DebugConfig, c: &mut bool) {
         match self {
-            Self::Render => render_tab(ui, ui_state, c),
+            Self::Render => render_tab(ui, ui_state, d, c),
             Self::Mats => mats_tab(ui, ui_state, c),
             Self::Lights => lights_tab(ui, ui_state, c),
             Self::System => system_tab(ui, ui_state, c),

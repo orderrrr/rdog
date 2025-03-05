@@ -1,13 +1,10 @@
 use std::{
-    future::Future,
-    ops::Deref,
-    pin::Pin,
-    task::{Context, Poll},
+    borrow::Cow, future::Future, ops::Deref, pin::Pin, task::{Context, Poll}
 };
 
 use bevy::{prelude::DerefMut, utils::hashbrown::HashMap};
 use futures::task::noop_waker;
-use wgpu::ShaderModuleDescriptor;
+use naga_oil::compose::{Composer, NagaModuleDescriptor};
 
 use crate::shader::{FType, RdogShaderAsset};
 
@@ -18,21 +15,29 @@ pub struct RdogShader {
 }
 
 impl RdogShader {
-    pub fn new(u: u32, device: &wgpu::Device, asset: &RdogShaderAsset) -> Option<Self> {
-        let spv = match &asset.data {
-            FType::Spv(data) => wgpu::util::make_spirv(&data),
-            FType::Wgsl(data) => wgpu::ShaderSource::Wgsl(data.clone()),
+    pub fn new(
+        u: u32,
+        device: &wgpu::Device,
+        asset: &RdogShaderAsset,
+        composer: &mut Composer,
+    ) -> Option<Self> {
+        let data = match &asset.data {
+            FType::Wgsl(data) => data.clone(),
+            FType::Spv(_) => return None,
         };
 
-        let desc = ShaderModuleDescriptor {
-            label: Some(&asset.name),
-            source: spv,
-        };
+        let module = composer
+            .make_naga_module(NagaModuleDescriptor {
+                source: &data,
+                file_path: &asset.name,
+                ..Default::default()
+            })
+            .unwrap();
 
-        if u > 1 {
-            device.push_error_scope(wgpu::ErrorFilter::Validation);
-        }
-        let module = device.create_shader_module(desc);
+        let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
+            label: None,
+        });
 
         if u > 1 {
             let error = device.pop_error_scope();
@@ -40,7 +45,7 @@ impl RdogShader {
             // todo maybe show parser error somewhere
             if let Some(Some(wgpu::Error::Validation { description, .. })) = now_or_never(error) {
                 log::error!("parser error: {description:?}");
-                println!("desc: {}", description);
+                log::info!("desc: {}", description);
                 return None;
             };
         }

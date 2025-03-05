@@ -25,7 +25,7 @@ pub(crate) fn extras(
 ) {
     let mut pos = None;
     if let Ok(window) = q_windows.get_single() {
-        if let Some(position) = window.cursor_position() {
+        if let Some(position) = window.physical_cursor_position() {
             pos = Some(position);
         }
     }

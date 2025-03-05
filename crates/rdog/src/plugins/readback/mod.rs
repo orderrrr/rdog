@@ -2,13 +2,11 @@ use std::sync::Arc;
 
 use async_channel::{Receiver, Sender};
 use bevy::{
-    core_pipeline::upscaling::UpscalingNode,
     prelude::*,
     render::{
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         render_graph::{
-            Node, NodeRunError, RenderGraph, RenderGraphApp, RenderGraphContext, RenderLabel,
-            RenderSubGraph, ViewNode, ViewNodeRunner,
+            NodeRunError, RenderGraphApp, RenderGraphContext, ViewNode, ViewNodeRunner,
         },
         render_resource::{
             encase::private::{ReadFrom, Reader},
@@ -21,9 +19,14 @@ use bevy::{
     },
     utils::HashMap,
 };
-use wgpu::{BufferUsages, CommandEncoderDescriptor};
+use wgpu::BufferUsages;
 
-use super::{rendering::RdogRenderingNode, state::SyncedState, EngineResource};
+use crate::state::SyncedState;
+
+use super::{
+    graph::{Rdog, RdogE},
+    EngineResource,
+};
 
 pub struct RdogReadbackPlugin {
     max_unused_frames: usize,
@@ -32,13 +35,15 @@ pub struct RdogReadbackPlugin {
 impl Default for RdogReadbackPlugin {
     fn default() -> Self {
         Self {
-            max_unused_frames: 10,
+            max_unused_frames: 1,
         }
     }
 }
 
 impl Plugin for RdogReadbackPlugin {
     fn build(&self, app: &mut App) {
+        info!("Readback plugin init");
+
         app.add_plugins(ExtractComponentPlugin::<Readback>::default());
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
@@ -51,37 +56,15 @@ impl Plugin for RdogReadbackPlugin {
                     Render,
                     (
                         prepare_buffers.in_set(RenderSet::PrepareResources),
-                        (map_buffers).after(RenderSet::Render),
-                        // submit_readback_commands.after(RenderSet::Render),
+                        (map_buffers).after(render_system).in_set(RenderSet::Render),
                     ),
                 );
 
-            let mut graph = render_app.world_mut().resource_mut::<RenderGraph>();
-            graph.add_node(RB, RBRenderingNode);
-
-            // setup(render_app);
-        }
-    }
-}
-
-fn submit_readback_commands(readbacks: Res<GpuReadbacks>, render_device: Res<RenderDevice>) {
-    for readback in &readbacks.requested {
-        match &readback.src {
-            ReadbackSource::Buffer {
-                src_start,
-                dst_start,
-                buffer,
-            } => {
-                render_device
-                    .create_command_encoder(&CommandEncoderDescriptor::default())
-                    .copy_buffer_to_buffer(
-                        buffer,
-                        *src_start,
-                        &readback.buffer,
-                        *dst_start,
-                        buffer.size(),
-                    );
-            }
+            render_app.add_render_graph_node::<ViewNodeRunner<RBRenderingNode>>(
+                Rdog,
+                RdogE::RBRenderingNode,
+            );
+            render_app.add_render_graph_edges(Rdog, (RdogE::Upscaling, RdogE::RBRenderingNode));
         }
     }
 }
@@ -110,12 +93,18 @@ struct GpuReadbackMaxUnusedFrames(usize);
 
 #[derive(Component, ExtractComponent, Clone, Debug)]
 pub enum Readback {
-    Buffer(String),
+    Buffer(BufferReadback),
+}
+
+#[derive(Clone, Debug)]
+pub struct BufferReadback {
+    pass: String,
+    buffer: String,
 }
 
 impl Readback {
-    pub fn buffer(name: String) -> Self {
-        Self::Buffer(name)
+    pub fn buffer(pass: String, buffer: String) -> Self {
+        Self::Buffer(BufferReadback { pass, buffer })
     }
 }
 
@@ -124,7 +113,6 @@ impl Readback {
 pub struct ReadbackComplete(pub Vec<u8>);
 
 impl ReadbackComplete {
-    /// Convert the raw bytes of the event to a shader type.
     pub fn to_shader_type<T: ShaderType + ReadFrom + Default>(&self) -> T {
         let mut val = T::default();
         let mut reader = Reader::new::<T>(&self.0, 0).expect("Failed to create Reader");
@@ -135,11 +123,6 @@ impl ReadbackComplete {
 
 #[derive(Resource, Default)]
 struct GpuReadbackBufferPool {
-    // Map of buffer size to list of buffers, with a flag for whether the buffer is taken and how
-    // many frames it has been unused for.
-    // TODO: We could ideally write all readback data to one big buffer per frame, the assumption
-    // here is that very few entities well actually be read back at once, and their size is
-    // unlikely to change.
     buffers: HashMap<u64, Vec<GpuReadbackBuffer>>,
 }
 
@@ -169,7 +152,6 @@ impl GpuReadbackBufferPool {
         buffer
     }
 
-    // Returns the buffer to the pool so it can be used in a future frame
     fn return_buffer(&mut self, buffer: &Buffer) {
         let size = buffer.size();
         let buffers = self
@@ -185,18 +167,13 @@ impl GpuReadbackBufferPool {
 
     fn update(&mut self, max_unused_frames: usize) {
         for (_, buffers) in &mut self.buffers {
-            // Tick all the buffers
             for buf in &mut *buffers {
                 if !buf.taken {
                     buf.frames_unused += 1;
                 }
             }
-
-            // Remove buffers that haven't been used for MAX_UNUSED_FRAMES
             buffers.retain(|x| x.frames_unused < max_unused_frames);
         }
-
-        // Remove empty buffer sizes
         self.buffers.retain(|_, buffers| !buffers.is_empty());
     }
 }
@@ -215,6 +192,7 @@ struct GpuReadbacks {
 
 struct GpuReadback {
     pub entity: Entity,
+    pub pass: String,
     pub src: ReadbackSource,
     pub buffer: Buffer,
     pub rx: Receiver<(Entity, Buffer, Vec<u8>)>,
@@ -239,12 +217,14 @@ fn prepare_buffers(
     for (entity, readback) in handles.iter() {
         match readback {
             Readback::Buffer(buffer) => {
-                let read_buffer = engine.get_buffer(&buffer);
+                let read_buffer = engine.get_buffer(&buffer.buffer);
 
                 let write_buffer = buffer_pool.get(&render_device, read_buffer.size());
                 let (tx, rx) = async_channel::bounded(1);
+
                 readbacks.requested.push(GpuReadback {
                     entity: entity.id(),
+                    pass: buffer.pass.clone(),
                     src: ReadbackSource::Buffer {
                         src_start: 0,
                         dst_start: 0,
@@ -281,29 +261,20 @@ fn map_buffers(mut readbacks: ResMut<GpuReadbacks>) {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-pub struct RB;
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-pub enum RBE {
-    Rendering,
-    ToneMapping,
-    FXAA,
-    Upscaling,
-}
-
 #[derive(Default)]
-pub struct RBRenderingNode;
+struct RBRenderingNode;
 
-impl Node for RBRenderingNode {
+// NOTE: Unlike the bevy readback plugin, we need to be part of a rendering node to get the command_encoder.
+impl ViewNode for RBRenderingNode {
+    type ViewQuery = &'static ViewTarget;
+
     fn run(
         &self,
-        _graph: &mut RenderGraphContext,
+        graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
+        target: &ViewTarget,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        info!("HERE?");
-
         let readbacks = world.resource::<GpuReadbacks>();
         for readback in &readbacks.requested {
             match &readback.src {
@@ -312,6 +283,21 @@ impl Node for RBRenderingNode {
                     dst_start,
                     buffer,
                 } => {
+                    let entity = graph.view_entity();
+                    let engine = world.resource::<EngineResource>();
+                    let state = world.resource::<SyncedState>();
+
+                    let Some(camera) = state.cameras.get(&entity) else {
+                        return Ok(());
+                    };
+
+                    engine.render_camera_pass(
+                        camera.handle,
+                        render_context.command_encoder(),
+                        target.main_texture_view(),
+                        &readback.pass,
+                    );
+
                     render_context.command_encoder().copy_buffer_to_buffer(
                         buffer,
                         *src_start,

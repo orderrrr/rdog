@@ -4477,6 +4477,7 @@ dependencies = [
  "guillotiere",
  "humantime",
  "log",
+ "naga_oil 0.16.0",
  "rand",
  "rdog_lib",
  "rdog_shaders",

@@ -10,28 +10,23 @@ use crate::ui::{LightList, MaterialList};
 
 use super::Engine;
 
-#[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
-pub enum FocusType {
-    #[default]
-    Dist,
-    Cust,
-}
-
-impl FocusType {
-    pub fn to_f32(&self) -> f32 {
-        match self {
-            Self::Dist => 0.0,
-            Self::Cust => 1.0,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize)]
 pub struct CameraConfig {
-    pub focus_type: FocusType,
     pub focus_dist: f32,
     pub focus_point: Vec3,
-    pub defocus_amount: f32,
+    pub focal_length: f32,
+    pub aperture: f32,
+}
+
+impl Default for CameraConfig {
+    fn default() -> Self {
+        Self {
+            focus_dist: 3.0,
+            focus_point: Vec3::ZERO,
+            focal_length: 1.4,
+            aperture: 0.52,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize)]
@@ -70,6 +65,9 @@ impl Config {
         flags |= (self.scatter_pass as u32) << 1;
         flags |= (self.specular_pass as u32) << 2;
         flags |= (self.multi_frame as u32) << 3;
+
+        self.camera_config.focus_point;
+        self.camera_config.focus_dist;
 
         PassParams {
             flags,
@@ -130,10 +128,10 @@ pub struct Camera {
     pub viewport: CameraViewport,
     pub transform: Mat4,
     pub projection: Mat4,
-    pub focus_type: FocusType,
     pub focus_dist: f32,
     pub focus_point: Vec3,
-    pub defocus_amount: f32,
+    pub focal_length: f32,
+    pub aperture: f32,
 }
 
 impl Camera {
@@ -152,8 +150,8 @@ impl Camera {
                 .as_vec2()
                 .extend(default())
                 .extend(default()),
-            fpd: self.focus_point.extend(self.defocus_amount),
-            ftd: vec4(self.focus_type.to_f32(), self.focus_dist, 0.0, 0.0),
+            fpd: self.focus_point.extend(self.focus_dist),
+            af: vec4(self.aperture, self.focal_length, 0.0, 0.0),
         }
     }
 

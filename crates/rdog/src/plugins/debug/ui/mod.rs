@@ -2,7 +2,7 @@ use super::DebugConfig;
 use crate::Config;
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, Pos2},
+    egui::{self, CursorIcon, Pos2},
     EguiContexts,
 };
 
@@ -33,6 +33,10 @@ pub fn ui_system(
 
     debug_state.pointer_in_egui = ctx.is_pointer_over_area();
 
+    if !debug_state.pointer_in_egui && debug_state.point_picker {
+        ctx.set_cursor_icon(CursorIcon::Crosshair);
+    }
+
     egui::Window::new("Config")
         .vscroll(true)
         .default_open(false)
@@ -45,7 +49,10 @@ pub fn ui_system(
                 });
             });
 
-            debug_state.selected_tab.render(ui, &mut ui_state, &mut c);
+            debug_state
+                .selected_tab
+                .clone()
+                .render(ui, &mut ui_state, &mut debug_state, &mut c);
         });
 
     ui_state.multi_frame = !(c || ui_state.user_orbit || !ui_state.multi_frame_override);

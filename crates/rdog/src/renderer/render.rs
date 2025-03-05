@@ -59,8 +59,8 @@ impl CameraController {
         );
         self.buffers
             .update("config", engine.config.to_pass_params().data().into());
-        // self.buffers
-        //     .update("march_readback", Vec4::ZERO.data().into());
+        self.buffers
+            .update("march_readback", Vec4::ZERO.data().into());
 
         if engine.config.material_tree.modified {
             self.buffers
@@ -127,9 +127,31 @@ impl CameraController {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) {
-        for pass in &self.passes.0 {
-            pass.run(engine, self, encoder, view);
-        }
+        self.passes
+            .get("octree")
+            .unwrap()
+            .run(engine, self, encoder, view);
+        self.passes
+            .get("trace")
+            .unwrap()
+            .run(engine, self, encoder, view);
+        self.passes
+            .get("raster")
+            .unwrap()
+            .run(engine, self, encoder, view);
+    }
+
+    pub fn render_pass(
+        &self,
+        engine: &Engine,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        pass_type: &str,
+    ) {
+        self.passes
+            .get(pass_type)
+            .unwrap()
+            .run(engine, self, encoder, view);
     }
 
     pub fn invalidate(&mut self, engine: &Engine, device: &wgpu::Device) {

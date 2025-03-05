@@ -3,7 +3,7 @@ use std::mem;
 use bevy::render::camera::ExtractedCamera as BevyExtractedCamera;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::texture::GpuImage;
-use bevy::render::view::ExtractedView;
+use bevy::render::view::{ExtractedView, RenderLayers};
 use bevy::utils::{Entry, HashSet};
 use bevy::{
     prelude::*,
@@ -18,7 +18,7 @@ use crate::images::ImageData;
 use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
 use crate::plugins::rdog::EngineResource;
 use crate::state::{ExtractedConfig, RdogExtractedExtras};
-use crate::CameraMode;
+use crate::{CameraMode, MAIN};
 
 use super::cache::RdogShaderCache;
 
@@ -82,14 +82,24 @@ pub(crate) fn cameras(
     device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
     mut engine: ResMut<EngineResource>,
-    mut cameras: Query<(Entity, &ViewTarget, &ExtractedView, &BevyExtractedCamera)>,
+    mut cameras: Query<(
+        Entity,
+        &ViewTarget,
+        &ExtractedView,
+        &BevyExtractedCamera,
+        &RenderLayers,
+    )>,
 ) {
     let device = device.wgpu_device();
     let state = &mut *state;
     let engine = &mut *engine;
     let mut alive_cameras = HashSet::new();
 
-    for (entity, view_target, bevy_ext_view, bevy_ext_camera) in cameras.iter_mut() {
+    for (entity, view_target, bevy_ext_view, bevy_ext_camera, layer) in cameras.iter_mut() {
+        if *layer != RenderLayers::layer(MAIN) {
+            continue;
+        }
+
         let camera = crate::Camera {
             mode: CameraMode::Image,
             viewport: {
@@ -115,9 +125,9 @@ pub(crate) fn cameras(
             projection: bevy_ext_view.clip_from_view,
 
             focus_point: engine.config.camera_config.focus_point,
-            defocus_amount: engine.config.camera_config.defocus_amount,
-            focus_type: engine.config.camera_config.focus_type.clone(),
             focus_dist: engine.config.camera_config.focus_dist,
+            aperture: engine.config.camera_config.aperture,
+            focal_length: engine.config.camera_config.focal_length.clone(),
         };
 
         match state.cameras.entry(entity) {

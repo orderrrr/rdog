@@ -35,7 +35,10 @@ fn main(
 
     let pos = ((vec3f(id) / f32(vd)) - .5) * 2.;
 
-    let col = map(pos);
+    var col = map(pos);
+
+    let voxel_size = 2.0 / f32(vd);
+    col.w = floor(col.w / voxel_size);
 
     textureStore(out, vec3u(id), col);
 }

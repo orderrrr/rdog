@@ -1,8 +1,8 @@
 use log::debug;
 
+use crate::renderer::buffers::Buffers;
 use crate::renderer::config::Camera;
 use crate::renderer::engine::Engine;
-use crate::renderer::buffers::Buffers;
 
 use super::render::CameraController;
 
@@ -18,6 +18,9 @@ pub trait Pass {
 
 macro_rules! passes {
     ([ $( $name:ident => $class:ident, )* ]) => {
+        use bevy::utils::HashMap;
+        use bevy::prelude::{Deref, DerefMut};
+
         $( mod $name; )*
         $(  #[allow(unused_imports)]
             pub use self::$name::*; )*
@@ -41,8 +44,8 @@ macro_rules! passes {
             }
         }
 
-        #[derive(Debug)]
-        pub struct Passes(pub Vec<PassTypes>);
+        #[derive(Debug, Deref, DerefMut)]
+        pub struct Passes(pub HashMap<String, PassTypes>);
 
         impl Passes {
             pub fn new(
@@ -52,9 +55,11 @@ macro_rules! passes {
                 buffers: &Buffers,
             ) -> Self {
                 debug!("Initializing camera passes");
-                let mut passes = Vec::new();
+                let mut passes: HashMap<String, PassTypes> = HashMap::new();
+
                 $(
-                    passes.push(
+                    passes.insert(
+                        stringify!($name).to_string(),
                         PassTypes::$class($class::new(engine, device, config, buffers))
                     );
                 )*

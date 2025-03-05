@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
-use log::info;
-
 use super::{render::CameraController, CameraHandle};
+use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 pub struct RenderControllers {
@@ -27,7 +24,7 @@ impl RenderControllers {
     }
 
     pub fn get_first(&self) -> &CameraController {
-        &self.cameras.get(&CameraHandle::new(1)).unwrap()
+        &self.cameras.get(&CameraHandle::new(0)).unwrap()
     }
 
     pub fn get_mut(&mut self, camera_handle: CameraHandle) -> &mut CameraController {

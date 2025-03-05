@@ -1,4 +1,4 @@
-use crate::{bufferable::Bufferable, camera, shader::RdogShaderAsset};
+use crate::shader::{FType, RdogShaderAsset, ShaderType};
 
 use super::{
     camera_controllers::RenderControllers,
@@ -7,8 +7,9 @@ use super::{
     shaders::{RdogShader, ShaderCache},
     utils, Camera, CameraHandle, Config, Image,
 };
-use bevy::{asset::AssetId, prelude::Image as BevyImage, tasks::block_on, utils::default};
-use glam::{Vec2, Vec4};
+use bevy::{asset::AssetId, log::error, prelude::Image as BevyImage, utils::default};
+use glam::Vec2;
+use naga_oil::compose::{ComposableModuleDescriptor, Composer};
 use std::{mem, sync::Arc, time::Instant};
 use wgpu::Buffer;
 
@@ -25,7 +26,7 @@ pub struct Engine {
     pub time: Vec2,
     pub seed: u32,
 
-    cameras: RenderControllers,
+    pub cameras: RenderControllers,
     images: Images,
     has_dirty_images: bool,
 
@@ -85,9 +86,44 @@ impl Engine {
     }
 
     pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
+        let mut composer = Composer::default();
+
+        let mut load_composable = |source: &str, file_path: &str| match composer
+            .add_composable_module(ComposableModuleDescriptor {
+                source,
+                file_path,
+                ..Default::default()
+            }) {
+            Ok(_module) => {
+                info!("module loaded: {}", file_path)
+            }
+            Err(e) => {
+                error!("? -> {e:#?}")
+            }
+        };
+
         for shader in shaders {
+            match shader.stype {
+                ShaderType::Shader => continue,
+                _ => (),
+            }
+
+            let data = match &shader.data {
+                FType::Wgsl(s) => s,
+                FType::Spv(_) => continue,
+            };
+
+            load_composable(&data, &shader.name);
+        }
+
+        for shader in shaders {
+            match shader.stype {
+                ShaderType::Lib => continue,
+                _ => (),
+            }
+
             log::info!("Computing shader: {}", shader.name);
-            let comp = RdogShader::new(self.frame.get(), device, shader);
+            let comp = RdogShader::new(self.frame.get(), device, shader, &mut composer);
 
             if comp.is_none() {
                 continue;
@@ -119,6 +155,18 @@ impl Engine {
         view: &wgpu::TextureView,
     ) {
         self.cameras.get(handle).render(self, encoder, view);
+    }
+
+    pub fn render_camera_pass(
+        &self,
+        handle: CameraHandle,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        pass: &str,
+    ) {
+        self.cameras
+            .get(handle)
+            .render_pass(self, encoder, view, pass);
     }
 
     /// Updates camera, changing its mode, position, size etc.

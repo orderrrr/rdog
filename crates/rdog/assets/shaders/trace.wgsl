@@ -1,3 +1,10 @@
+#import scene::{
+    sample_atmos,
+}
+#import types::{
+    Ray,
+}
+
 const TSTART: f32 = 0.01;
 const RMAX: u32 = 600;
 const TMAX: f32 = 80.0;
@@ -11,8 +18,8 @@ const ZERO = vec3f(0.0);
 
 const DEFAULT_MAT: Material = Material(0.0, 0.0, 0.0, DANGER, DANGER, 0.0, 0.0, 0.0, 0.0);
 
-var<private> rng_state: u32; // Global or per-invocation state for RNG
-var<private> num_levels: u32; // Global or per-invocation state for RNG
+var<private> rng_state: u32;
+var<private> num_levels: u32;
 
 struct PassParams {
     sun_x: f32,
@@ -21,8 +28,6 @@ struct PassParams {
     bounce_count: u32,
     flags: u32,
     voxel_dim: u32,
-    mouse_x: f32,
-    mouse_y: f32,
 }
 
 struct Globals {
@@ -37,12 +42,7 @@ struct Camera {
     origin: vec4f,
     screen: vec4f,
     fpd: vec4f,
-    ftd: vec4f,
-}
-
-struct Ray {
-    o: vec3f,
-    d: vec3f,
+    af: vec4f,
 }
 
 struct Hit {
@@ -124,69 +124,54 @@ fn main(
     var col = vec3f(0.0);
 
     for (var i: u32 = 0; i < pass_params.pass_count; i++) {
-        // Compute uv from the pixel position and screen size.
-        var uv = ((pos + vec2f(0.5, 0.5)) * 2.0) / ss - vec2f(1.0, 1.0);
+        var uv = ((pos + vec2f(0.5)) * 2.0) / ss - vec2f(1.0);
         uv.y *= -1.0;
 
-        // Apply a small random jitter (the "position" offset).
-        let jitter = (vec2f(2.0 * rand_f() - 1.0)) * 0.002;
-        uv += jitter;
+        let focal_dist = camera.fpd.w;
+        let world_pos = camera.fpd.xyz;
+        let coc = calculate_coc(world_pos, focal_dist);
 
-        // Use uv to get two points in world space. 
-        // (EPSILON is a small value; here fp is close to the near plane and np is a point further out.)
+        let dof_jitter = depth_aware_jitter(abs(coc));
+        uv += dof_jitter * (rand_f() * 2.0 - 1.0);
+
         let fp = project_point3(camera.ndc_to_world, vec3f(uv, EPSILON));
         let np = project_point3(camera.ndc_to_world, vec3f(uv, 1.0));
 
-        // Compute the primary ray direction.
-        let primary_direction = normalize(fp - np);
-
-        // --- Depth of Field Setup ---
-        // Compute the camera’s forward vector. One way is to transform a canonical forward point 
-        // (here (0,0,1)) and subtract the camera’s origin. (Assuming camera.origin.xyz is the camera center.)
-        let forward = normalize(project_point3(camera.ndc_to_world, vec3f(0.0, 0.0, 1.0)) - camera.origin.xyz);
-
-        // Define a focus distance (1 unit ahead in the camera’s local z-axis)
-        let focus_distance: f32 = 1.0;
-        // You can compute the focus point using the primary ray direction or the camera's forward.
-        // For a per-pixel effect, one option is:
-        let focus_point = camera.origin.xyz + primary_direction * focus_distance;
-
-        // Compute a camera basis for lens sampling.
-        // Here we assume a world up vector of (0, 1, 0). 
-        // This yields a right vector, and then an up vector that is perpendicular to both.
-        let world_up = vec3f(0.0, 1.0, 0.0);
-        let right = normalize(cross(forward, world_up));
-        let up = cross(right, forward);
-
-        // Sample a random point on a disk (the lens aperture) for DOF.
-        let defocus_amount: f32 = 0.0;  // Adjust this to control the blur strength.
-        let rand_angle = rand_f() * 6.28318530718; // Random angle between 0 and 2π.
-        let rand_radius = sqrt(rand_f()) * defocus_amount;
-        let lens_offset = right * (cos(rand_angle) * rand_radius) + up * (sin(rand_angle) * rand_radius);
-
-        // The new ray origin is the camera’s origin plus the lens offset.
-        let new_origin = camera.origin.xyz + lens_offset;
-        // Recompute the ray direction so that it goes through the focus point.
-        let new_direction = normalize(focus_point - new_origin);
-        let r = Ray(new_origin, new_direction);
+        let focal_point = np + normalize(fp - np) * focal_dist;
+        let jittered_origin = np + vec3f(rand_f(), rand_f(), rand_f()) * camera.af.x;
+        let r = Ray(jittered_origin, normalize(focal_point - jittered_origin));
 
         col += ray_trace(r);
-
-        // let fp = project_point3(camera.ndc_to_world, vec3f(uv, EPSILON));
-        // let np = project_point3(camera.ndc_to_world, vec3f(uv, 1.0));
-        //
-        // let r = Ray(np, normalize(fp - np));
-        //
-        // col += ray_trace(r);
     }
 
     col /= f32(pass_params.pass_count);
 
-    textureStore(out, id.xy, saturate(march));
-    // combine(id.xy, col);
+    // textureStore(out, id.xy, saturate(march));
+    combine(id.xy, col);
     // combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 
+fn calculate_coc(world_pos: vec3f, focal_dist: f32) -> f32 {
+    // Calculate circle of confusion based on depth difference
+    let depth = length(world_pos - camera.origin.xyz);
+    return (depth - focal_dist) * camera.af.y * camera.af.x / focal_dist;
+}
+
+fn depth_aware_jitter(coc: f32) -> vec2f {
+    // Poisson disk samples for quality jittering
+    let poisson = array<vec2f, 12>(
+        vec2f(-0.326, -0.406), vec2f(-0.840, -0.074),
+        vec2f(-0.696, 0.457), vec2f(-0.203, 0.621),
+        vec2f(0.962, -0.195), vec2f(0.519, 0.767),
+        vec2f(0.507, -0.641), vec2f(0.185, -0.893),
+        vec2f(0.896, 0.412), vec2f(-0.322, -0.933),
+        vec2f(-0.792, -0.598), vec2f(0.291, 0.195)
+    );
+    
+    // Select jitter sample based on RNG state
+    let idx = u32(rand_f() * 12.0);
+    return poisson[idx] * coc * 0.05;
+}
 
 fn srgb_vec(col: vec3f) -> vec3f {
     return vec3f(srgb(col.x), srgb(col.y), srgb(col.z));
@@ -625,11 +610,6 @@ fn light_map(r: Ray) -> Light {
     l.d = length(r.o - l.p) - l.r;
     return l;
 }
-
-fn sample_atmos(sr: Ray) -> vec3f {
-    return vec3f(0.4, 0.35, 0.37) * 0.0;
-}
-
 
 
 
