@@ -1,3 +1,6 @@
+#import rng::{
+    rng_state, rand_f
+}
 #import scene::{
     sample_atmos,
 }
@@ -18,7 +21,6 @@ const ZERO = vec3f(0.0);
 
 const DEFAULT_MAT: Material = Material(0.0, 0.0, 0.0, DANGER, DANGER, 0.0, 0.0, 0.0, 0.0);
 
-var<private> rng_state: u32;
 var<private> num_levels: u32;
 
 struct PassParams {
@@ -147,8 +149,8 @@ fn main(
     col /= f32(pass_params.pass_count);
 
     // textureStore(out, id.xy, saturate(march));
-    combine(id.xy, col);
-    // combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
+    // combine(id.xy, col);
+    combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 
 fn calculate_coc(world_pos: vec3f, focal_dist: f32) -> f32 {
@@ -428,7 +430,7 @@ fn map(p: vec3f) -> vec3f {
     // let s1 = vec2f(length(p + vec3f(0.0, -0.5, 0.0)) - 1.0, 2.0);
     //
     // let s = smin(p1, s1, 0.3);
-    let s = vec3f(sd_round_box(p - vec3f(0.0, 1.0, 1.0), vec3f(1.0), 0.1), pack_material_ids(2.0, 2.0), .0);
+    let s = vec3f(length(p - vec3f(0.0, 1.0, 1.0)) - 1.0, pack_material_ids(2.0, 2.0), .0);
 
     return sd_min3(s, l);
 }
@@ -562,13 +564,14 @@ fn ray_trace(ri: Ray) -> vec3f {
     var rad = ONE;
 
     for (var i: u32 = 0; i < pass_params.bounce_count; i++) {
-        // var h = trace_voxel_mask(r);
-        // return h.xyz / h.w;
-
         var h = trace(r);
         r.o = pd(r, h.d);
 
         if h.d >= TMAX {
+            if i == 0 {
+                break;
+            }
+
             t += sample_atmos(r) * a * rad * ct;
             break;
         }
@@ -1052,11 +1055,6 @@ fn g_term_schlick_ggx(n_dot_v: f32, n_dot_l: f32, k: f32) -> f32 {
 
 
 
-fn rand_f() -> f32 {
-    rng_state = rng_state * 747796405u + 2891336453u;
-    let word = ((rng_state >> ((rng_state >> 28u) + 4u)) ^ rng_state) * 277803737u;
-    return f32((word >> 22u) ^ word) * bitcast<f32>(0x2f800004u);
-}
 
 
 

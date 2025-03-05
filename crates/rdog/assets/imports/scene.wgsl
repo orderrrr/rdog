@@ -5,5 +5,5 @@
 }
 
 fn sample_atmos(sr: Ray) -> vec3f {
-    return vec3f(0.4, 0.35, 0.37) * 0.01;
+    return vec3f(0.4, 0.35, 0.37) * 0.3;
 }

@@ -4,4 +4,3 @@ struct Ray {
     o: vec3f,
     d: vec3f,
 }
-
