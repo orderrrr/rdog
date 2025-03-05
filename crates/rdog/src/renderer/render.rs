@@ -4,9 +4,7 @@ use super::{
     engine::Engine,
     passes::{Pass, Passes},
 };
-use crate::{
-    bufferable::Bufferable, renderer::buffers::BT, storage_buffer::StorageBuffer, Globals,
-};
+use crate::{bufferable::Bufferable, Globals};
 use bevy::utils::default;
 use glam::Vec4;
 use log::{debug, info};
@@ -46,7 +44,7 @@ impl CameraController {
     pub fn update(&mut self, engine: &Engine, device: &wgpu::Device, camera: Camera) {
         let is_invalidated = self.camera.is_invalidated_by(&camera);
 
-        self.camera = camera;
+        self.camera = camera.clone();
         self.buffers.update(
             "prev_camera",
             (self.buffers.get("curr_camera").data()).into(),
@@ -81,22 +79,22 @@ impl CameraController {
 
         if engine.config.material_tree.list_changed {
             log::info!("Material tree changed.");
-            *self.buffers.get_mut("materials") = BT::from(StorageBuffer::new(
+            // Use our new smart update method that handles buffer resizing
+            self.buffers.update_storage(
+                "materials",
                 device,
                 "materials",
                 engine.config.material_pass(),
-            ));
+            );
             self.rebuild_passes(engine, device);
             return;
         }
 
         if engine.config.light_tree.list_changed {
             log::info!("Light tree changed.");
-            *self.buffers.get_mut("lights") = BT::from(StorageBuffer::new(
-                device,
-                "lights",
-                engine.config.light_pass(),
-            ));
+            // Use our new smart update method that handles buffer resizing
+            self.buffers
+                .update_storage("lights", device, "lights", engine.config.light_pass());
             self.rebuild_passes(engine, device);
             return;
         }
@@ -104,9 +102,9 @@ impl CameraController {
         self.recompute_static = false;
 
         if is_invalidated {
+            self.recompute_static = true;
             self.rebuild_buffers(engine, device);
             self.rebuild_passes(engine, device);
-            self.recompute_static = true;
         }
     }
 
@@ -117,7 +115,6 @@ impl CameraController {
 
     fn rebuild_passes(&mut self, engine: &Engine, device: &wgpu::Device) {
         debug!("Rebuilding passes for camera `{}`", self.camera);
-
         self.passes = Passes::new(engine, device, &self.camera, &self.buffers);
     }
 
@@ -156,7 +153,6 @@ impl CameraController {
 
     pub fn invalidate(&mut self, engine: &Engine, device: &wgpu::Device) {
         self.recompute_static = true;
-        self.rebuild_buffers(engine, device); // TODO - maybe not correct being here. but I want to reset buffers when shaders recompiled.
         self.rebuild_passes(engine, device);
     }
 

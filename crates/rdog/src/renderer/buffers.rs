@@ -11,6 +11,7 @@ use crate::{
 
 use super::{config::Camera, engine::Engine};
 use bevy::utils::hashbrown::HashMap;
+use bytemuck::Pod;
 use glam::{uvec3, Vec4};
 use log::debug;
 use wgpu::Buffer;
@@ -142,6 +143,33 @@ impl Buffers {
 
     pub fn update(&mut self, st: &str, data: Vec<u8>) {
         self.get_mut(st).update(data);
+    }
+
+    // Update a storage buffer, recreating it if necessary
+    pub fn update_storage(
+        &mut self,
+        st: &str,
+        device: &wgpu::Device,
+        name: &str,
+        data: Vec<impl Bufferable + Pod>,
+    ) {
+        let current_buf = self.get(st);
+        let new_data = data.data();
+
+        if new_data.len() > current_buf.data().len() {
+            // Need larger buffer - create new one
+            log::debug!(
+                "Creating new '{}' buffer due to size change ({} -> {} bytes)",
+                st,
+                current_buf.data().len(),
+                new_data.len()
+            );
+            *self.get_mut(st) = BT::from(StorageBuffer::new(device, name, data));
+        } else {
+            // Update existing buffer
+            log::debug!("Reusing existing '{}' buffer", st);
+            self.update(st, new_data.to_vec());
+        }
     }
 }
 

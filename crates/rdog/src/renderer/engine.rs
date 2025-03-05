@@ -10,7 +10,7 @@ use super::{
 use bevy::{asset::AssetId, log::error, prelude::Image as BevyImage, utils::default};
 use glam::Vec2;
 use naga_oil::compose::{ComposableModuleDescriptor, Composer};
-use std::{mem, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 use wgpu::Buffer;
 
 use log::info;
@@ -61,17 +61,13 @@ impl Engine {
         let any_buffer_reallocated = utils::measure("tick.buffers", || false);
 
         if any_buffer_reallocated {
-            let mut cameras = mem::take(&mut self.cameras);
-
-            for camera in cameras.iter_mut() {
+            for camera in &mut self.cameras.iter_mut() {
                 camera.invalidate(self, device);
             }
-
-            self.cameras = cameras;
         }
 
         utils::measure("tick.cameras", || {
-            for camera in self.cameras.iter_mut() {
+            for camera in &mut self.cameras.iter_mut() {
                 camera.flush(self.frame, queue);
             }
         });
@@ -134,11 +130,9 @@ impl Engine {
                 .insert(comp.unwrap());
         }
 
-        let mut cameras = mem::take(&mut self.cameras);
-        for camera in cameras.iter_mut() {
-            camera.invalidate(self, device);
+        for camera in &mut self.cameras.iter_mut() {
+            camera.invalidate(&self, device);
         }
-        self.cameras = cameras;
     }
 }
 
@@ -171,11 +165,7 @@ impl Engine {
 
     /// Updates camera, changing its mode, position, size etc.
     pub fn update_camera(&mut self, device: &wgpu::Device, handle: CameraHandle, camera: Camera) {
-        let mut cameras = mem::take(&mut self.cameras);
-
-        cameras.get_mut(handle).update(self, device, camera);
-
-        self.cameras = cameras;
+        self.cameras.get_mut(handle).update(self, device, camera);
     }
 
     /// Creates a new camera that can be used to render the world.

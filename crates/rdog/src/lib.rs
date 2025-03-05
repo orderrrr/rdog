@@ -1,3 +1,4 @@
+#![feature(mapped_lock_guards)]
 pub mod buffers;
 pub mod interface;
 pub mod plugins;
