@@ -157,16 +157,14 @@ impl Buffers {
         let new_data = data.data();
 
         if new_data.len() > current_buf.data().len() {
-            // Need larger buffer - create new one
             log::debug!(
-                "Creating new '{}' buffer due to size change ({} -> {} bytes)",
+                "Re-Creating new '{}' buffer due to size change ({} -> {} bytes)",
                 st,
                 current_buf.data().len(),
                 new_data.len()
             );
             *self.get_mut(st) = BT::from(StorageBuffer::new(device, name, data));
         } else {
-            // Update existing buffer
             log::debug!("Reusing existing '{}' buffer", st);
             self.update(st, new_data.to_vec());
         }
