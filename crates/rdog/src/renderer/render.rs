@@ -125,7 +125,7 @@ impl CameraController {
         view: &wgpu::TextureView,
     ) {
         self.passes
-            .get("octree")
+            .get("voxel")
             .unwrap()
             .run(engine, self, encoder, view);
         self.passes

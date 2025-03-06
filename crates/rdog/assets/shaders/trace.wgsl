@@ -2,16 +2,14 @@
 //*     rng_state, rand_f
 //* }
 //* #import scene::{
-//*     sample_atmos,
+//*     sample_atmos, map, light_map, MIN_DIST, TMAX, mat_2, rbi
 //* }
 //* #import types::{
-//*     Ray,
+//*     Ray, Material, MaterialIn, Light, LightIn
 //* }
 
 const TSTART: f32 = 0.01;
 const RMAX: u32 = 600;
-const TMAX: f32 = 80.0;
-const MIN_DIST: f32 = 0.001;
 const PI: f32 = 3.14159265358979323846264338327950288;
 const EPSILON: f32 = 1.19209290e-07f;
 
@@ -54,38 +52,6 @@ struct Hit {
     m: Material,
 }
 
-struct MaterialIn {
-    irrs: vec4f,
-    albedo: vec4f,
-    scattering_color: vec4f,
-    dsei: vec4f,
-}
-
-struct Material {
-    refraction: f32,
-    roughness: f32,
-    scat: f32,
-    a: vec3f,
-    scatter_col: vec3f,
-    dif: f32,
-    spec: f32,
-    emissive: f32,
-    ior: f32,
-}
-
-struct LightIn {
-    posf: vec4f,
-    rmd: vec4f,
-}
-
-struct Light {
-    p: vec3f,
-    r: f32,
-    d: f32,
-    falloff: f32,
-    mi: f32,
-}
-
 struct ScatterRes {
     dir: vec3f,
     scatter: bool,
@@ -103,13 +69,14 @@ struct OCTree {
 
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> globals: Globals;
-@group(0) @binding(2) var<storage, read> material: array<MaterialIn>;
-@group(0) @binding(3) var<storage, read> light_in: array<LightIn>;
-@group(0) @binding(4) var<uniform> pass_params: PassParams;
-@group(0) @binding(5) var<storage, read> march: vec4f;
-@group(0) @binding(6) var out: texture_storage_2d<rgba32float, read_write>;
+@group(0) @binding(2) var<uniform> pass_params: PassParams;
+@group(0) @binding(3) var<storage, read> march: vec4f;
+@group(0) @binding(4) var out: texture_storage_2d<rgba32float, read_write>;
 
-@group(1) @binding(0) var voxels: texture_storage_3d<rgba16float, read_write>;
+@group(1) @binding(0) var<storage, read> material: array<MaterialIn>;
+@group(1) @binding(1) var<storage, read> light_in: array<LightIn>;
+
+@group(2) @binding(0) var voxels: texture_storage_3d<rgba16float, read_write>;
 
 @compute @workgroup_size(1)
 fn main(
@@ -291,117 +258,6 @@ fn de(p_in: vec3f) -> f32 {
 //     return sd_min(sd_min(sd_min(sd_min(s2_vec2, l), p1_vec2), s1_vec2), s3_vec2);
 // }
 
-fn shape(posi: vec3f) -> f32 {
-    let pos = aar(posi, normalize(vec3f(0.2, 1.0, 0.0)), 0.5); // Vec3::NEG_Y -> VEC3_NEG_Y
-    let po = aar(pos, normalize(vec3f(0.0, 0.0, 1.0)), radians(-90.0)); // 90.0_f32.to_radians() -> radians(-90.0)
-    let pp = aar(pos, normalize(vec3f(1.0, 0.0, 0.0)), radians(-45.0)); // 45.0_f32.to_radians() -> radians(-45.0)
-    let o = sd_rounded_cylinder(pp + vec3f(0.0, 0.0, -0.35), 0.3, 0.1, 0.1);
-    let r = sd_rounded_cylinder(po + vec3f(-0.35, 0.0, 0.35), 0.3, 0.1, 0.1);
-    let v = sd_rounded_cylinder(po + vec3f(-0.35, 0.0, 0.35), 0.15, 0.1, 0.4);
-    let r_shape = op_smooth_subtraction(v, r, 0.1);
-
-    return op_smooth_union(o, r_shape, 0.1);
-}
-
-fn op_smooth_subtraction(d1: f32, d2: f32, k: f32) -> f32 {
-    let h = saturate(0.5 - 0.5 * (d2 + d1) / k);
-    return mix(d2, -d1, h) + k * h * (1.0 - h);
-}
-
-fn op_smooth_union(d1: f32, d2: f32, k: f32) -> f32 {
-    let h = saturate(0.5 + 0.5 * (d2 - d1) / k);
-    return d2 + (d1 - d2) * h - k * h * (1.0 - h);
-}
-
-fn sd_round_box(p: vec3f, b: vec3f, r: f32) -> f32 {
-    let q = abs(p) - b + r;
-    return length(max(q, vec3f(0.0, 0.0, 0.0))) + min(0.0, max(q.x, max(q.y, q.z))) - r;
-}
-
-fn sd_rounded_cylinder(p: vec3f, ra: f32, rb: f32, h: f32) -> f32 {
-    let d = vec2f(length(p.xz) - 2.0 * ra + rb, abs(p.y) - h);
-    return (min(max_element(d), 0.0) + length(max(d, vec2f(0.0)))) - rb;
-}
-
-fn max_element(v: vec2f) -> f32 {
-    return max(v.x, v.y);
-}
-
-// https://www.shadertoy.com/view/MXfXzM
-fn smin(a: vec2f, b: vec2f, ki: f32) -> vec3f {
-    let k = ki * 6.0;
-    let h = max(k - abs(a.x - b.x), 0.0) / k;
-    let m = h * h * h * 0.5;
-    let s = m * k * (1.0 / 3.0);
-    if a.x < b.x {
-        return vec3f(a.x - s, pack_material_ids(a.y, b.y), m);
-    }
-
-    return vec3f(b.x - s, pack_material_ids(a.y, b.y), 1.0 - m);
-}
-
-fn pack_material_ids(id1: f32, id2: f32) -> f32 {
-    let intId1 = u32(id1);
-    let intId2 = u32(id2);
-    let shiftedId1 = intId1 << 5;
-    let packedInt = shiftedId1 | intId2;
-    return bitcast<f32>(packedInt);
-}
-
-fn unpack_material_ids(packedFloat: f32) -> vec2<f32> {
-    let packedInt = bitcast<u32>(packedFloat);
-    let id2Int = packedInt & 31u; // 31u is 0b11111 in binary
-    let id1Int = packedInt >> 5;
-    return vec2<f32>(f32(id1Int), f32(id2Int));
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 fn calc_normal(pos: vec3f) -> vec3f {
@@ -411,28 +267,6 @@ fn calc_normal(pos: vec3f) -> vec3f {
     return normalize(
         0. + e.xyy * map(pos + ep * e.xyy).x + e.yyx * map(pos + ep * e.yyx).x + e.yxy * map(pos + ep * e.yxy).x + e.xxx * map(pos + ep * e.xxx).x
     );
-}
-
-// -- returns a vec3f containing:
-// 1. distance
-// 2. material bitmap (containing 1 or 2 materials)
-// 3. k constant 0->1 of how much weight each material has
-
-fn map(p: vec3f) -> vec3f {
-    let l = lights(p);
-
-    // let m = vec3f(brute_octree_sample(p), pack_material_ids(2.0, 2.0), 1.0);
-    //
-    // return sd_min3(l, m);
-
-
-    // let p1 = vec2f(dot(p, vec3f(0.0, 1.0, 0.0)) + 0.0, 4.0);
-    // let s1 = vec2f(length(p + vec3f(0.0, -0.5, 0.0)) - 1.0, 2.0);
-    //
-    // let s = smin(p1, s1, 0.3);
-    let s = vec3f(length(p - vec3f(0.0, 1.0, 1.0)) - 1.0, pack_material_ids(2.0, 2.0), .0);
-
-    return sd_min3(s, l);
 }
 
 fn id_to_vec3u_bitwise(idx: u32) -> vec3u {
@@ -471,15 +305,6 @@ fn id_to_vec3u_bitwise(idx: u32) -> vec3u {
 //     return d;
 // }
 
-fn lights(p: vec3f) -> vec3f {
-    var d = vec3f(TMAX, 0.0, 0.0);
-    for (var i: u32 = 0; i < arrayLength(&light_in); i++) {
-        let l = light(i);
-        d = sd_min3(d, vec3f(length(p - l.p) - l.r, pack_material_ids(l.mi, l.mi), 0.0));
-    }
-
-    return d;
-}
 
 fn trace_voxel_mask(ri: Ray) -> vec4f {
     var r = ri;
@@ -606,12 +431,6 @@ fn ray_trace(ri: Ray) -> vec3f {
     }
 
     return t;
-}
-
-fn light_map(r: Ray) -> Light {
-    var l = light(u32(floor(rand_f() * f32(arrayLength(&light_in)))));
-    l.d = length(r.o - l.p) - l.r;
-    return l;
 }
 
 
@@ -1064,21 +883,6 @@ fn g_term_schlick_ggx(n_dot_v: f32, n_dot_l: f32, k: f32) -> f32 {
 
 
 
-fn sd_min(d1: vec2f, d2: vec2f) -> vec2f {
-    if d1.x < d2.x {
-        return d1;
-    }
-
-    return d2;
-}
-
-fn sd_min3(d1: vec3f, d2: vec3f) -> vec3f {
-    if d1.x < d2.x {
-        return d1;
-    }
-
-    return d2;
-}
 
 
 
@@ -1104,108 +908,6 @@ fn sd_min3(d1: vec3f, d2: vec3f) -> vec3f {
 
 
 
-
-fn rotor_y(angle: f32) -> vec4<f32> {
-    let half_angle = angle * 0.5;
-    return vec4<f32>(
-        0.0,
-        sin(half_angle),
-        0.0,
-        cos(half_angle)
-    );
-}
-
-fn rotate_vector(q: vec4<f32>, v: vec3<f32>) -> vec3<f32> {
-    let u = q.xyz;
-    let s = q.w;
-    return 2.0 * dot(u, v) * u + (s * s - dot(u, u)) * v + 2.0 * s * cross(u, v);
-}
-
-fn aar(v: vec3f, axis: vec3f, angle: f32) -> vec3f {
-    let half_angle = 0.5 * angle;
-    let sin_half = sin(half_angle);
-
-    // Rotor components
-    let s = cos(half_angle);
-    let b = axis * sin_half;
-
-    // Rotor multiplication: R * v * R^-1
-    let temp = cross(b, v) + s * v;
-    return v + 2.0 * cross(b, temp);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-fn light(i: u32) -> Light {
-
-    let l = light_in[i];
-
-    return Light(
-        l.posf.xyz, l.rmd.x, l.rmd.z, l.posf.w, l.rmd.y
-    );
-}
-
-
-fn mat(i: u32) -> Material {
-    let m = material[i];
-
-    return Material(
-        m.irrs.y, m.irrs.z, m.irrs.w, m.albedo.xyz, m.scattering_color.xyz, m.dsei.x, m.dsei.y, m.dsei.z, m.dsei.w
-    );
-}
-
-fn mat_2(h: vec3f) -> Material {
-
-    let unpack = unpack_material_ids(h.y);
-    let mat1 = mat(u32(unpack.x));
-    let mat2 = mat(u32(unpack.y));
-    return lerp_mat(mat1, mat2, h.z);
-}
-
-fn lerp_mat(a: Material, b: Material, k: f32) -> Material {
-
-    return Material(
-        mix(a.refraction, b.refraction, k),
-        mix(a.roughness, b.roughness, k),
-        mix(a.scat, b.scat, k),
-        mix(a.a, b.a, k),
-        mix(a.scatter_col, b.scatter_col, k),
-        mix(a.dif, b.dif, k),
-        mix(a.spec, b.spec, k),
-        mix(a.emissive, b.emissive, k),
-        mix(a.ior, b.ior, k)
-    );
-}
-
-fn rbi(r: Ray, vmin: vec3f, vmax: vec3f) -> f32 {
-    let t1 = (vmin.x - r.o.x) / r.d.x;
-    let t2 = (vmax.x - r.o.x) / r.d.x;
-    let t3 = (vmin.y - r.o.y) / r.d.y;
-    let t4 = (vmax.y - r.o.y) / r.d.y;
-    let t5 = (vmin.z - r.o.z) / r.d.z;
-    let t6 = (vmax.z - r.o.z) / r.d.z;
-    let t7 = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
-    let t8 = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
-    var t9: f32;
-    if t8 < 0 || t7 > t8 { t9 = -1.0; } else { t9 = t7; }
-    return t9;
-}
 
 
 

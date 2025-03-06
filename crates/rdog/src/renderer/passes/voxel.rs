@@ -6,27 +6,31 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct OCTreePass(Vec<ComputePass<()>>);
+pub struct VoxelAccelPass(Vec<ComputePass<()>>);
 
-impl OCTreePass {
+impl VoxelAccelPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
-        let octree_pass = ComputePass::builder("octree")
+        let octree_pass = ComputePass::builder("voxel")
             .bind([
                 &buffers.get("config").bind_readable(),
                 &buffers.get("globals").bind_readable(),
-                &buffers.get("voxels").bind_writable(),
             ])
+            .bind([
+                &buffers.get("materials").bind_readable(),
+                &buffers.get("lights").bind_readable(),
+            ])
+            .bind([&buffers.get("voxels").bind_writable()])
             .build(
                 device,
                 &"main",
-                &engine.shaders.get("octree").unwrap().module,
+                &engine.shaders.get("voxel_accel").unwrap().module,
             );
 
         Self(vec![octree_pass])
     }
 }
 
-impl Pass for OCTreePass {
+impl Pass for VoxelAccelPass {
     fn run(
         &self,
         e: &Engine,

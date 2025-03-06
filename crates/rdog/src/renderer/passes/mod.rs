@@ -71,7 +71,7 @@ macro_rules! passes {
 
 passes!([
     // atmosphere => AtmospherePass,
-    octree => OCTreePass,
+    voxel => VoxelAccelPass,
     readback => ReadbackPass,
     trace => TracePass,
     raster => RasterPass,
