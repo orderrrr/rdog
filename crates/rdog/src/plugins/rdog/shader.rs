@@ -75,17 +75,19 @@ impl AssetLoader for RdogShaderAssetLoader {
             .replace(".spv", "")
             .replace(".wgsl", "");
 
-        let data = match load_context.path().extension().unwrap().to_str().unwrap() {
+        let mut data = match load_context.path().extension().unwrap().to_str().unwrap() {
             "spv" => RdogShaderAsset::read_spv(reader).await?,
             "wgsl" => RdogShaderAsset::read_wgsl(reader).await?,
             _ => panic!("how did I get here?"),
         };
 
-        let stype = match &data {
+        let stype = match &mut data {
             FType::Wgsl(s) => {
                 if s.contains("#define_import_path") {
+                    *s = s.replace("//* ", "").into(); // TODO - remove when https://github.com/wgsl-analyzer/wgsl-analyzer/pull/74 or similar merged
                     ShaderType::Lib
                 } else {
+                    *s = s.replace("//* ", "").into(); // TODO - remove when https://github.com/wgsl-analyzer/wgsl-analyzer/pull/74 or similar merged
                     ShaderType::Shader
                 }
             }

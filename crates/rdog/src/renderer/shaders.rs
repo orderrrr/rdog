@@ -16,7 +16,7 @@ pub struct RdogShader {
 
 impl RdogShader {
     pub fn new(
-        u: u32,
+        _u: u32,
         device: &wgpu::Device,
         asset: &RdogShaderAsset,
         composer: &mut Composer,
@@ -39,23 +39,11 @@ impl RdogShader {
             label: None,
         });
 
-        if u > 1 {
-            let error = device.pop_error_scope();
-
-            // todo maybe show parser error somewhere
-            if let Some(Some(wgpu::Error::Validation { description, .. })) = now_or_never(error) {
-                log::error!("parser error: {description:?}");
-                log::info!("desc: {}", description);
-                return None;
-            };
-        }
-
         let entry_point = match &asset.data {
             FType::Spv(_) => asset
                 .name
                 .rsplit_once('_')
                 .map_or(asset.name.to_string(), |(f, l)| format!("{}::{}", f, l)),
-            // todo - make this dynamic for fragment and vertex.
             FType::Wgsl(_) => "main".to_string(),
         };
 

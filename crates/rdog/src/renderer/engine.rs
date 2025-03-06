@@ -21,6 +21,7 @@ pub struct Engine {
     pub config: Config,
 
     pub shaders: ShaderCache,
+    pub shader_compose: Composer,
     pub frame: lib::Frame,
 
     pub time: Vec2,
@@ -47,6 +48,7 @@ impl Engine {
             seed,
             config: Config::default(),
             mouse: Vec2::default(),
+            shader_compose: Composer::default(),
         }
     }
 
@@ -82,9 +84,8 @@ impl Engine {
     }
 
     pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
-        let mut composer = Composer::default();
-
-        let mut load_composable = |source: &str, file_path: &str| match composer
+        let mut load_composable = |source: &str, file_path: &str| match self
+            .shader_compose
             .add_composable_module(ComposableModuleDescriptor {
                 source,
                 file_path,
@@ -119,7 +120,7 @@ impl Engine {
             }
 
             log::info!("Computing shader: {}", shader.name);
-            let comp = RdogShader::new(self.frame.get(), device, shader, &mut composer);
+            let comp = RdogShader::new(self.frame.get(), device, shader, &mut self.shader_compose);
 
             if comp.is_none() {
                 continue;

@@ -1,12 +1,12 @@
-#import rng::{
-    rng_state, rand_f
-}
-#import scene::{
-    sample_atmos,
-}
-#import types::{
-    Ray,
-}
+//* #import rng::{
+//*     rng_state, rand_f
+//* }
+//* #import scene::{
+//*     sample_atmos,
+//* }
+//* #import types::{
+//*     Ray,
+//* }
 
 const TSTART: f32 = 0.01;
 const RMAX: u32 = 600;
@@ -169,7 +169,7 @@ fn depth_aware_jitter(coc: f32) -> vec2f {
         vec2f(0.896, 0.412), vec2f(-0.322, -0.933),
         vec2f(-0.792, -0.598), vec2f(0.291, 0.195)
     );
-    
+
     // Select jitter sample based on RNG state
     let idx = u32(rand_f() * 12.0);
     return poisson[idx] * coc * 0.05;
@@ -1124,11 +1124,11 @@ fn rotate_vector(q: vec4<f32>, v: vec3<f32>) -> vec3<f32> {
 fn aar(v: vec3f, axis: vec3f, angle: f32) -> vec3f {
     let half_angle = 0.5 * angle;
     let sin_half = sin(half_angle);
-    
+
     // Rotor components
     let s = cos(half_angle);
     let b = axis * sin_half;
-    
+
     // Rotor multiplication: R * v * R^-1
     let temp = cross(b, v) + s * v;
     return v + 2.0 * cross(b, temp);
