@@ -4,7 +4,7 @@ use std::{
 
 use bevy::{prelude::DerefMut, utils::hashbrown::HashMap};
 use futures::task::noop_waker;
-use naga_oil::compose::{Composer, NagaModuleDescriptor};
+use naga_oil::compose::{Composer, NagaModuleDescriptor, get_preprocessor_data};
 
 use crate::shader::{FType, RdogShaderAsset};
 
@@ -12,6 +12,8 @@ use crate::shader::{FType, RdogShaderAsset};
 pub struct RdogShader {
     pub module: wgpu::ShaderModule,
     pub entry_point: String,
+    pub data: String,
+    pub imports: Vec<String>,
 }
 
 impl RdogShader {
@@ -34,6 +36,9 @@ impl RdogShader {
             })
             .unwrap();
 
+        let (_, imports, _) = get_preprocessor_data(&data);
+        let imports = imports.iter().map(|i| i.import.clone()).collect();
+
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
             label: None,
@@ -50,6 +55,8 @@ impl RdogShader {
         Some(RdogShader {
             module,
             entry_point,
+            imports,
+            data: data.to_string()
         })
     }
 }
@@ -81,5 +88,32 @@ impl Deref for ShaderCache {
 impl ShaderCache {
     pub fn new_cache() -> Self {
         Self(HashMap::new())
+    }
+    
+    pub fn update_shader(&mut self, 
+        frame: u32,
+        device: &wgpu::Device, 
+        shader: &RdogShaderAsset, 
+        composer: &mut Composer
+    ) -> bool {
+        let comp = RdogShader::new(frame, device, shader, composer);
+        if let Some(shader_module) = comp {
+            self.0.insert(shader.name.to_string(), shader_module);
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn find_dependent_shaders(&self, lib_name: &str) -> Vec<String> {
+        self.0.iter()
+            .filter_map(|(name, shader)| {
+                if shader.imports.contains(&lib_name.to_string()) {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }

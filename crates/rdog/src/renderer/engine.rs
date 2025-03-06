@@ -83,55 +83,79 @@ impl Engine {
         return self.cameras.get_first().buffers.get(&buffer_name).buffer();
     }
 
-    pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
-        let mut load_composable = |source: &str, file_path: &str| match self
-            .shader_compose
-            .add_composable_module(ComposableModuleDescriptor {
-                source,
-                file_path,
-                ..Default::default()
-            }) {
-            Ok(_module) => {
-                info!("module loaded: {}", file_path)
-            }
-            Err(e) => {
-                error!("? -> {e:#?}")
-            }
-        };
+    pub fn compute_shaders(
+        &mut self,
+        device: &wgpu::Device,
+        shaders: &Vec<RdogShaderAsset>,
+    ) {
+        // First, load all library shaders and collect their names
+        let mut lib_names = Vec::new();
 
         for shader in shaders {
             match shader.stype {
-                ShaderType::Shader => continue,
+                ShaderType::Lib => {
+                    if let FType::Wgsl(source) = &shader.data {
+                        match self.shader_compose.add_composable_module(
+                            ComposableModuleDescriptor {
+                                source,
+                                file_path: &shader.name,
+                                ..Default::default()
+                            },
+                        ) {
+                            Ok(_) => {
+                                info!("Library module loaded: {}", shader.name);
+                                lib_names.push(shader.name.clone());
+                            }
+                            Err(e) => {
+                                error!("Failed to load library module {}: {e:#?}", shader.name);
+                            }
+                        }
+                    }
+                }
                 _ => (),
             }
+        }
 
-            let data = match &shader.data {
-                FType::Wgsl(s) => s,
-                FType::Spv(_) => continue,
-            };
+        if !lib_names.is_empty() {
+            for (shader_name, shader) in &mut self.shaders.iter_mut() {
+                if shader
+                    .imports
+                    .iter()
+                    .any(|import| lib_names.contains(import))
+                {
+                    let asset = RdogShaderAsset {
+                        name: shader_name.clone(),
+                        data: FType::Wgsl(shader.data.clone().into()),
+                        stype: ShaderType::Shader,
+                    };
 
-            load_composable(&data, &shader.name);
+                    let comp =
+                        RdogShader::new(self.frame.get(), device, &asset, &mut self.shader_compose);
+
+                    if let Some(s) = comp {
+                        *shader = s;
+                        info!("Updated dependent shader: {}", shader_name);
+                    }
+                }
+            }
         }
 
         for shader in shaders {
             match shader.stype {
-                ShaderType::Lib => continue,
+                ShaderType::Shader => {
+                    log::info!("Computing shader: {}", shader.name);
+                    if let Some(comp) =
+                        RdogShader::new(self.frame.get(), device, shader, &mut self.shader_compose)
+                    {
+                        self.shaders.insert(shader.name.to_string(), comp);
+                    }
+                }
                 _ => (),
             }
-
-            log::info!("Computing shader: {}", shader.name);
-            let comp = RdogShader::new(self.frame.get(), device, shader, &mut self.shader_compose);
-
-            if comp.is_none() {
-                continue;
-            }
-
-            self.shaders
-                .entry(shader.name.to_string())
-                .insert(comp.unwrap());
         }
 
         for camera in &mut self.cameras.iter_mut() {
+            camera.rebuild_buffers(self, device);
             camera.invalidate(&self, device);
         }
     }

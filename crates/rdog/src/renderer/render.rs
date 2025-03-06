@@ -108,7 +108,7 @@ impl CameraController {
         }
     }
 
-    fn rebuild_buffers(&mut self, engine: &Engine, device: &wgpu::Device) {
+    pub(crate) fn rebuild_buffers(&mut self, engine: &Engine, device: &wgpu::Device) {
         debug!("Rebuilding buffers for camera `{}`", self.camera);
         self.buffers = Buffers::new(engine, device, &self.camera);
     }
