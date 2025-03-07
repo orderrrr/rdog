@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 use bevy::{app::Plugin, render::view::RenderLayers};
-use ray::render_debug_ray;
 
 use crate::orbit::{PanOrbitSettings, PanOrbitState};
 use crate::{Config, GIZMO};
@@ -14,7 +13,6 @@ use super::shader::RdogShaderState;
 use serde::{Deserialize, Serialize};
 use ui::{ui_system, SelectedTab};
 
-pub mod ray;
 pub mod ui;
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
@@ -40,7 +38,6 @@ impl Plugin for RdogDebugPlugin {
                 Update,
                 (
                     update_bevy_cam.run_if(any_with_component::<PanOrbitState>),
-                    render_debug_ray,
                     ui_system,
                     readback_setup,
                     readback_poll_system.after(readback_setup),
