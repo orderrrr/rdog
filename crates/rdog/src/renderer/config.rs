@@ -53,6 +53,7 @@ pub struct Config {
     pub light_tree: LightList,
 
     pub ray_debug: bool,
+    pub voxel_debug: bool,
 
     pub camera_config: CameraConfig,
 }
@@ -118,6 +119,7 @@ impl Default for Config {
             voxel_dim: 8,
             light_tree: LightList::default(),
             camera_config: CameraConfig::default(),
+            voxel_debug: false,
         }
     }
 }

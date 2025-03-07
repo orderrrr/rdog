@@ -6,35 +6,17 @@
 #![allow(clippy::manual_range_contains)]
 #![allow(clippy::too_many_arguments)]
 
-pub mod pass;
 pub mod camera;
 pub mod frame;
-pub mod math;
-pub mod mix;
-pub mod rng;
-pub mod sample;
-pub mod sdf;
+pub mod pass;
 pub mod shader;
-pub mod smoothstep;
 pub mod util;
-pub mod ray;
-pub mod scene;
-pub mod octree;
 
-pub use self::pass::*;
 pub use self::camera::*;
 pub use self::frame::*;
-pub use self::math::*;
-pub use self::mix::*;
-pub use self::rng::*;
-pub use self::sample::*;
-pub use self::sdf::*;
+pub use self::pass::*;
 pub use self::shader::*;
-pub use self::smoothstep::*;
 pub use self::util::*;
-pub use self::ray::*;
-pub use self::scene::*;
-pub use self::octree::*;
 
 pub mod prelude {
     #![allow(unexpected_cfgs)]

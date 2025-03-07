@@ -4,7 +4,6 @@ members = [
     "crates/rdog",
     "crates/rdog_lib",
     "crates/rdog_builder",
-    "crates/rdog_shaders",
 ]
 
 [workspace.package]

@@ -18,8 +18,6 @@ pub fn render_tab(ui: &mut Ui, ui_state: &mut Config, d: &mut DebugConfig, c: &m
 fn camera_ui(ui_state: &mut Config, d: &mut DebugConfig, ui: &mut Ui) -> bool {
     let mut c = false;
 
-
-
     egui::Grid::new("")
         .num_columns(4)
         .striped(true)
@@ -31,7 +29,8 @@ fn camera_ui(ui_state: &mut Config, d: &mut DebugConfig, ui: &mut Ui) -> bool {
                     .add(egui::Slider::new(
                         &mut ui_state.camera_config.aperture,
                         -10.0..=10.0,
-                    )) .changed;
+                    ))
+                    .changed;
             ui.end_row();
 
             ui.label("Focal Length");
@@ -53,8 +52,7 @@ fn camera_ui(ui_state: &mut Config, d: &mut DebugConfig, ui: &mut Ui) -> bool {
                     ))
                     .changed;
             ui.end_row();
-    });
-
+        });
 
     egui::Grid::new("")
         .num_columns(4)
@@ -142,6 +140,12 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) -> bool {
         .striped(true)
         .spacing([40.0, 4.0])
         .show(ui, |ui| {
+            c = c
+                || ui
+                    .checkbox(&mut ui_state.voxel_debug, "Voxel Debug")
+                    .changed;
+            ui.end_row();
+
             ui.label("Pass Count");
             c = ui
                 .add(

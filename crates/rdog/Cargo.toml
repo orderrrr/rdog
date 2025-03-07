@@ -16,7 +16,6 @@ wgpu = { version = "23.0.1", features = ["spirv", "vulkan-portability"] }
 winit = { version = "0.30", features = ["rwh_06"] }
 # Workspace
 rdog_lib = { path = "../rdog_lib" }
-rdog_shaders = { path = "../rdog_shaders" }
 strum = { version = "0.26.3", default-features = false, features = [
     "std",
     "derive",
