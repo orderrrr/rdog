@@ -12,8 +12,9 @@ impl VoxelAccelPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
         let octree_pass = ComputePass::builder("voxel")
             .bind([
-                &buffers.get("config").bind_readable(),
+                &buffers.get("curr_camera").bind_readable(),
                 &buffers.get("globals").bind_readable(),
+                &buffers.get("config").bind_readable(),
             ])
             .bind([
                 &buffers.get("materials").bind_readable(),
@@ -23,7 +24,7 @@ impl VoxelAccelPass {
             .build(
                 device,
                 &"main",
-                &engine.shaders.get("voxel_accel").unwrap().module,
+                &engine.shaders.get("voxel").unwrap().module,
             );
 
         Self(vec![octree_pass])

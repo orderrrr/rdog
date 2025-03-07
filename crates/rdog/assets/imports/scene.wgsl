@@ -1,17 +1,23 @@
 #define_import_path scene
 
-const TMAX: f32 = 80.0;
-const MIN_DIST: f32 = 0.001;
-
 //* #import types::{
-//*     Ray, Light, LightIn, Material, MaterialIn
+//*     Ray, Light, LightIn, Material, MaterialIn, Camera, Globals, PassParams
 //* }
 //* #import rng::{
 //*     rng_state, rand_f
 //* }
 
+@group(0) @binding(0) var<uniform> camera: Camera;
+@group(0) @binding(1) var<uniform> globals: Globals;
+@group(0) @binding(2) var<uniform> pass_params: PassParams;
+
 @group(1) @binding(0) var<storage, read> material: array<MaterialIn>;
 @group(1) @binding(1) var<storage, read> light_in: array<LightIn>;
+
+const TMAX: f32 = 80.0;
+const MIN_DIST: f32 = 0.001;
+const DEFAULT_MAT: Material = Material(0.0, 0.0, 0.0, DANGER, DANGER, 0.0, 0.0, 0.0, 0.0);
+const DANGER = vec3f(1.0, 0.0, 1.0);
 
 fn sample_atmos(sr: Ray) -> vec3f {
     return vec3f(0.4, 0.35, 0.37) * 0.3;

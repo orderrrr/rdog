@@ -14,6 +14,7 @@ fn hash33(p3: vec3f) -> vec3f {
     p += dot(p, p.yxz + 19.19);
     return -1.0 + 2.0 * fract(vec3((p.x + p.y) * p.z, (p.x + p.z) * p.y, (p.y + p.z) * p.x));
 }
+
 fn worley(p: vec3f, s: f32) -> f32 {
     let id = floor(p * s);
     let fd = fract(p * s);
@@ -31,6 +32,18 @@ fn worley(p: vec3f, s: f32) -> f32 {
     }
     return 1. - md;
 }
+
 fn mod33(x: vec3f, y: vec3f) -> vec3f {
     return x - y * floor(x / y);
+}
+
+fn random_in_unit_disk() -> vec2f {
+    var p: vec2f;
+    for (var i = 0; i < 100; i++) {
+        p = 2.0 * vec2f(rand_f(), rand_f()) - vec2f(1.0, 1.0);
+        if dot(p, p) < 1.0 {
+            break;
+        }
+    }
+    return p;
 }

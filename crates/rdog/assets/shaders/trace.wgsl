@@ -2,70 +2,25 @@
 //*     rng_state, rand_f
 //* }
 //* #import scene::{
-//*     sample_atmos, map, light_map, MIN_DIST, TMAX, mat_2, rbi
+//*     sample_atmos, map, light_map, MIN_DIST, TMAX, mat_2, rbi, DEFAULT_MAT, DANGER
 //* }
 //* #import types::{
-//*     Ray, Material, MaterialIn, Light, LightIn
+//*     Ray, Material, MaterialIn, Light, LightIn, PassParams, Globals, Camera, Hit, ScatterRes, OCTree
+//* }
+//* #import ray::{
+//*     pd, dir
+//* }
+//* #import cam::{
+//*     project_point3
+//* }
+//* #import util::{
+//*     EPSILON, ONE, ZERO, PI
 //* }
 
 const TSTART: f32 = 0.01;
 const RMAX: u32 = 600;
-const PI: f32 = 3.14159265358979323846264338327950288;
-const EPSILON: f32 = 1.19209290e-07f;
-
-const ONE = vec3f(1.0);
-const DANGER = vec3f(1.0, 0.0, 1.0);
-const ZERO = vec3f(0.0);
-
-const DEFAULT_MAT: Material = Material(0.0, 0.0, 0.0, DANGER, DANGER, 0.0, 0.0, 0.0, 0.0);
 
 var<private> num_levels: u32;
-
-struct PassParams {
-    sun_x: f32,
-    sun_y: f32,
-    pass_count: u32,
-    bounce_count: u32,
-    flags: u32,
-    voxel_dim: u32,
-}
-
-struct Globals {
-    time: vec2f,
-    seed: vec2u,
-    mouse: vec2f,
-}
-
-struct Camera {
-    projection_view: mat4x4f,
-    ndc_to_world: mat4x4f,
-    origin: vec4f,
-    screen: vec4f,
-    fpd: vec4f,
-    af: vec4f,
-}
-
-struct Hit {
-    d: f32,
-    n: vec3f,
-    i: bool,
-    m: Material,
-}
-
-struct ScatterRes {
-    dir: vec3f,
-    scatter: bool,
-    a: vec3f,
-    fresnel: f32,
-    radiance: vec3f,
-    refract: bool,
-    reflect: bool,
-}
-
-struct OCTree {
-    upper_mask: u32,
-    lower_mask: u32,
-}
 
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> globals: Globals;
@@ -170,26 +125,6 @@ fn combine(pos: vec2u, col: vec3f) {
     let c = vec4f(mix(col, prv.xyz, 1.0 - (1.0 / a)), a);
 
     textureStore(out, pos, c);
-}
-
-fn project_point3(transform: mat4x4f, rhs: vec3f) -> vec3f {
-    var res: vec4f = transform[0] * rhs.x;
-    res = (transform[1] * rhs.y) + res;
-    res = (transform[2] * rhs.z) + res;
-    res = transform[3] + res;
-    res = res / res.w;
-    return res.xyz;
-}
-
-fn random_in_unit_disk() -> vec2f {
-    var p: vec2f;
-    for (var i = 0; i < 100; i++) {
-        p = 2.0 * vec2f(rand_f(), rand_f()) - vec2f(1.0, 1.0);
-        if dot(p, p) < 1.0 {
-            break;
-        }
-    }
-    return p;
 }
 
 
@@ -480,21 +415,6 @@ fn ray_trace(ri: Ray) -> vec3f {
 
 
 
-fn pd(r: Ray, t: f32) -> vec3f {
-    return (r.d * t) + r.o;
-}
-
-fn mv(ri: Ray, d: f32) -> Ray {
-    var r = ri;
-    r.o = pd(r, d);
-    return r;
-}
-
-fn dir(ri: Ray, d: vec3f) -> Ray {
-    var r = ri;
-    r.d = d;
-    return r;
-}
 
 
 

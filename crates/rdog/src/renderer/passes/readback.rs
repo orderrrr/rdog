@@ -14,10 +14,12 @@ impl ReadbackPass {
             .bind([
                 &buffers.get("curr_camera").bind_readable(),
                 &buffers.get("globals").bind_readable(),
-                &buffers.get("materials").bind_readable(),
-                &buffers.get("lights").bind_readable(),
                 &buffers.get("config").bind_readable(),
                 &buffers.get("march_readback").bind_writable(),
+            ])
+            .bind([
+                &buffers.get("materials").bind_readable(),
+                &buffers.get("lights").bind_readable(),
             ])
             .build(
                 device,

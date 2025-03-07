@@ -4,23 +4,13 @@
 //* #import scene::{
 //*     map
 //* }
+//* #import types::{
+//*     PassParams, Globals, Camera
+//* }
 
-struct PassParams {
-    sun_x: f32,
-    sun_y: f32,
-    pass_count: u32,
-    bounce_count: u32,
-    flags: u32,
-    voxel_dim: u32,
-}
-
-struct Globals {
-    time: vec2f,
-    seed: vec2u,
-}
-
-@group(0) @binding(0) var<uniform> pass_params: PassParams;
+@group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> globals: Globals;
+@group(0) @binding(2) var<uniform> pass_params: PassParams;
 
 @group(2) @binding(0) var out: texture_storage_3d<rgba16float, read_write>;
 

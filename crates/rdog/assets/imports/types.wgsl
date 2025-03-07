@@ -36,3 +36,49 @@ struct Light {
     falloff: f32,
     mi: f32,
 }
+
+struct PassParams {
+    sun_x: f32,
+    sun_y: f32,
+    pass_count: u32,
+    bounce_count: u32,
+    flags: u32,
+    voxel_dim: u32,
+}
+
+struct Globals {
+    time: vec2f,
+    seed: vec2u,
+    mouse: vec2f,
+}
+
+struct Camera {
+    projection_view: mat4x4f,
+    ndc_to_world: mat4x4f,
+    origin: vec4f,
+    screen: vec4f,
+    fpd: vec4f,
+    af: vec4f,
+}
+
+struct Hit {
+    d: f32,
+    n: vec3f,
+    i: bool,
+    m: Material,
+}
+
+struct ScatterRes {
+    dir: vec3f,
+    scatter: bool,
+    a: vec3f,
+    fresnel: f32,
+    radiance: vec3f,
+    refract: bool,
+    reflect: bool,
+}
+
+struct OCTree {
+    upper_mask: u32,
+    lower_mask: u32,
+}
