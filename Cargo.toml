@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "crates/rdog",
     "crates/rdog_lib",
-    "crates/rdog_builder",
 ]
 
 [workspace.package]
@@ -15,10 +14,6 @@ repository = ""
 
 [workspace.dependencies]
 bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
-spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu" }
-spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", features = [
-    "watch",
-] }
 log = "0.4.22"
 bevy = { version = "0.15.1", default-features = false, features = [
     "bevy_gizmos",
