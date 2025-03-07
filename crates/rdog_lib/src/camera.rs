@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec2, Vec3, Vec4};
+use glam::{vec2, Mat4, UVec2, Vec2, Vec3, Vec4, Vec4Swizzles};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
