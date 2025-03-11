@@ -4,7 +4,7 @@ use bevy::{
     utils::HashMap,
 };
 
-use crate::Config;
+use crate::{passes::PassRegistry, Config};
 
 use super::shader::RdogShaderAsset;
 
@@ -59,6 +59,9 @@ pub struct ExtractedImages {
 
 #[derive(Debug, Resource, Deref)]
 pub struct ExtractedConfig(pub Config);
+
+#[derive(Debug, Resource, Deref, DerefMut)]
+pub struct ExtractedPipelineRegistry(pub PassRegistry);
 
 #[derive(Debug)]
 pub struct ExtractedImage {

@@ -47,3 +47,42 @@ fn random_in_unit_disk() -> vec2f {
     }
     return p;
 }
+
+fn SPH(d: vec3f, r: f32) -> f32 {
+    return length(d) - r * r * 0.55;
+}
+
+fn hash(pos: vec3f) -> f32 {
+    let p = 17.0 * fract(pos * 0.3183099 + vec3(.11, .17, .13));
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+fn simplex_33(p: vec3f) -> f32 {
+    let K1 = 0.333333333;
+    let K2 = 0.166666667;
+    let i = floor(p + (p.x + p.y + p.z) * K1);
+    let d0 = p - (i - (i.x + i.y + i.z) * K2);
+    let e = step(d0.yzx, d0);
+    let i1 = e * (1.0 - e.zxy);
+    let i2 = 1.0 - e.zxy * (1.0 - e);
+
+    let d1 = d0 - (i1 - 1.0 * K2);
+    let d2 = d0 - (i2 - 2.0 * K2);
+    let d3 = d0 - (1.0 - 3.0 * K2);
+    let r0 = hash(i + 0.0);
+    let r1 = hash(i + i1);
+    let r2 = hash(i + i2);
+    let r3 = hash(i + 1.0);
+    return min(min(SPH(d0, r0),
+        SPH(d1, r1)),
+        min(SPH(d2, r2),
+        SPH(d3, r3)));
+}
+
+fn step(edge: vec3f, x: vec3f) -> vec3f {
+    return vec3f(
+        select(0.0, 1.0, x.x >= edge.x),
+        select(0.0, 1.0, x.y >= edge.y),
+        select(0.0, 1.0, x.z >= edge.z)
+    );
+}

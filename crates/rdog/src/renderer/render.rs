@@ -1,10 +1,5 @@
-use super::{
-    buffers::Buffers,
-    config::Camera,
-    engine::Engine,
-    passes::{Pass, Passes},
-};
-use crate::{bufferable::Bufferable, Globals};
+use super::{buffers::Buffers, config::Camera, engine::Engine, passes::Passes};
+use crate::{bufferable::Bufferable, camera, Globals};
 use bevy::utils::default;
 use glam::Vec4;
 use log::{debug, info};
@@ -24,7 +19,8 @@ impl CameraController {
         info!("Creating camera `{}`", camera);
 
         let buffers = Buffers::new(engine, device, &camera);
-        let passes = Passes::new(engine, device, &camera, &buffers);
+        let passes =
+            Passes::from_registry(&engine.pass_registry, engine, device, &camera, &buffers);
 
         Self {
             camera,
@@ -49,11 +45,16 @@ impl CameraController {
             "prev_camera",
             (self.buffers.get("curr_camera").data()).into(),
         );
-        self.buffers
-            .update("curr_camera", self.camera.serialize().data().into());
+        self.buffers.update(
+            "curr_camera",
+            self.camera.serialize(&engine.config).data().into(),
+        );
         self.buffers.update(
             "globals",
-            Globals::from_engine(engine).serialize().data().into(),
+            Globals::from_engine(engine, &camera)
+                .serialize()
+                .data()
+                .into(),
         );
         self.buffers
             .update("config", engine.config.to_pass_params().data().into());
@@ -101,7 +102,9 @@ impl CameraController {
 
         self.recompute_static = false;
 
-        if is_invalidated {
+        if is_invalidated
+            || &self.buffers.get("render_tx").size() != &camera.scale(&engine.config).extend(1)
+        {
             self.recompute_static = true;
             self.rebuild_buffers(engine, device);
             self.rebuild_passes(engine, device);
@@ -115,7 +118,13 @@ impl CameraController {
 
     fn rebuild_passes(&mut self, engine: &Engine, device: &wgpu::Device) {
         debug!("Rebuilding passes for camera `{}`", self.camera);
-        self.passes = Passes::new(engine, device, &self.camera, &self.buffers);
+        self.passes = Passes::from_registry(
+            &engine.pass_registry,
+            engine,
+            device,
+            &self.camera,
+            &self.buffers,
+        );
     }
 
     pub fn render(
@@ -124,18 +133,7 @@ impl CameraController {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) {
-        self.passes
-            .get("voxel")
-            .unwrap()
-            .run(engine, self, encoder, view);
-        self.passes
-            .get("trace")
-            .unwrap()
-            .run(engine, self, encoder, view);
-        self.passes
-            .get("raster")
-            .unwrap()
-            .run(engine, self, encoder, view);
+        self.passes.run_all(engine, self, encoder, view);
     }
 
     pub fn render_pass(
@@ -145,10 +143,9 @@ impl CameraController {
         view: &wgpu::TextureView,
         pass_type: &str,
     ) {
-        self.passes
-            .get(pass_type)
-            .unwrap()
-            .run(engine, self, encoder, view);
+        if !self.passes.run_pass(pass_type, engine, self, encoder, view) {
+            log::warn!("Attempted to run unknown pass: {}", pass_type);
+        }
     }
 
     pub fn invalidate(&mut self, engine: &Engine, device: &wgpu::Device) {

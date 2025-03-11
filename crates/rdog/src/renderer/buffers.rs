@@ -12,7 +12,7 @@ use crate::{
 use super::{config::Camera, engine::Engine};
 use bevy::utils::hashbrown::HashMap;
 use bytemuck::Pod;
-use glam::{uvec3, Vec4};
+use glam::{uvec3, UVec3, Vec4};
 use log::debug;
 use wgpu::Buffer;
 
@@ -86,6 +86,13 @@ impl BT {
             BT::MRB(mrb) => *mrb.deref_mut() = data,
             BT::T(_) => panic!("not supported"),
         };
+    }
+
+    pub fn size(&self) -> UVec3 {
+        match self {
+            BT::T(t) => t.get_size(),
+            _ => panic!("not supported"),
+        }
     }
 
     pub fn buffer(&self) -> Arc<Buffer> {
@@ -175,30 +182,35 @@ impl Buffers {
     pub fn new(engine: &Engine, device: &wgpu::Device, camera: &Camera) -> Self {
         debug!("Initializing camera buffers");
 
-        let curr_camera = MappedUniformBuffer::new(device, "camera", camera.serialize());
-        let prev_camera = MappedUniformBuffer::new(device, "prev_camera", camera.serialize());
-        let globals =
-            MappedUniformBuffer::new(device, "globals", Globals::from_engine(engine).serialize());
+        let curr_camera =
+            MappedUniformBuffer::new(device, "camera", camera.serialize(&engine.config));
+        let prev_camera =
+            MappedUniformBuffer::new(device, "prev_camera", camera.serialize(&engine.config));
+        let globals = MappedUniformBuffer::new(
+            device,
+            "globals",
+            Globals::from_engine(engine, camera).serialize(),
+        );
         let config = MappedUniformBuffer::new(device, "config", engine.config.to_pass_params());
         let materials = StorageBuffer::new(device, "materials", engine.config.material_pass());
         let lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
         let march_readback = MapWriteBuffer::new(device, "march_readback", Vec4::ZERO);
 
         let render_tx = Texture::builder("render")
-            .with_size(camera.viewport.size)
+            .with_size(camera.scale(&engine.config))
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
+            .with_nearest_filtering_sampler()
             .build(device);
 
-        let render_alt_tx = Texture::builder("renderalt")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
+        // let render_alt_tx = Texture::builder("renderalt")
+        //     .with_size(camera.viewport.size)
+        //     .with_format(wgpu::TextureFormat::Rgba32Float)
+        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+        //     .with_linear_filtering_sampler()
+        //     .build(device);
 
         let voxels = Texture::builder("voxels")
             .with_size_3d(uvec3(
@@ -212,37 +224,13 @@ impl Buffers {
             .with_linear_filtering_sampler()
             .build(device);
 
-        // let prev_tx = Texture::builder("prev_tx")
-        //     .with_size(camera.viewport.size)
-        //     .with_format(wgpu::TextureFormat::Rgba32Float)
-        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-        //     .with_linear_filtering_sampler()
-        //     .build(device);
-
-        // let atmosphere_tx = Texture::builder("atmosphere")
-        //     .with_size((camera.viewport.size.as_vec2() * ATMOS_MULT).as_uvec2()) // should be larger maybe? not sure
-        //     .with_format(wgpu::TextureFormat::Rgba16Float)
-        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-        //     .with_linear_filtering_sampler()
-        //     .build(device);
-
-        // let atmos_noise_tx = Texture::builder("atmos_noise")
-        //     .with_size(NOISE_DIM)
-        //     .with_format(wgpu::TextureFormat::Rgba16Float)
-        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-        //     .with_linear_filtering_sampler()
-        //     .build(device);
-
         let mut hm: HashMap<String, BT> = HashMap::new();
 
         hm.insert("prev_camera".to_string(), BT::from(prev_camera));
         hm.insert("curr_camera".to_string(), BT::from(curr_camera));
         hm.insert("globals".to_string(), BT::from(globals));
         hm.insert("render_tx".to_string(), BT::from(render_tx));
-        hm.insert("render_alt_tx".to_string(), BT::from(render_alt_tx));
+        // hm.insert("render_alt_tx".to_string(), BT::from(render_alt_tx));
         hm.insert("config".to_string(), BT::from(config));
         hm.insert("materials".to_string(), BT::from(materials));
         hm.insert("lights".to_string(), BT::from(lights));

@@ -1,36 +1,22 @@
-struct PassParams {
-    sun_x: f32,
-    sun_y: f32,
-    pass_count: u32,
-    bounce_count: u32,
-    flags: u32,
-}
-
-struct Globals {
-    time: vec2f,
-    seed: vec2u,
-}
-
-struct Camera {
-    projection_view: mat4x4f,
-    ndc_to_world: mat4x4f,
-    origin: vec4f,
-    screen: vec4f,
-}
+//* #import types::{
+//*     Ray, Material, MaterialIn, Light, LightIn, PassParams, Globals, Camera, Hit, ScatterRes, OCTree
+//* }
 
 @group(0) @binding(0) var<uniform> pass_params: PassParams;
 @group(0) @binding(1) var<uniform> camera: Camera;
 @group(0) @binding(2) var<uniform> globals: Globals;
-@group(1) @binding(0) var trace: texture_storage_2d<rgba32float, read_write>;
-
-
+@group(1) @binding(0) var trace: texture_2d<f32>;
+@group(1) @binding(1) var trace_sample: sampler;
 
 @fragment
 fn fs(@builtin(position) vertex: vec4f) -> @location(0) vec4f {
     // let col = srgb_vec(textureLoad(trace, vec2u(vertex.xy)).xyz);
-    let col = textureLoad(trace, vec2u(vertex.xy)).xyz;
+    // let col = textureLoad(trace, vec2u(vertex.xy)).xyz;
 
-    return vec4f(col, 1.0);
+    let uv = vec2f(vertex.xy) / vec2f(globals.true_res);
+    let col = textureSample(trace, trace_sample, uv);
+
+    return vec4f(col.xyz, 1.0);
 }
 
 @vertex

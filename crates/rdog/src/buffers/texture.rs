@@ -11,6 +11,7 @@ pub struct Texture {
     dimension: wgpu::TextureViewDimension,
     sampler: wgpu::Sampler,
     filterable: bool,
+    size: UVec3,
 }
 
 impl Texture {
@@ -67,6 +68,10 @@ impl Texture {
     pub fn bind_writable(&self) -> impl Bindable + '_ {
         StorageTextureBinder { parent: self }
     }
+
+    pub fn get_size(&self) -> UVec3 {
+        self.size
+    }
 }
 
 #[derive(Clone, Default)]
@@ -111,6 +116,12 @@ impl TextureBuilder {
     pub fn with_linear_filtering_sampler(mut self) -> Self {
         self.sampler.mag_filter = wgpu::FilterMode::Linear;
         self.sampler.min_filter = wgpu::FilterMode::Linear;
+        self
+    }
+
+    pub fn with_nearest_filtering_sampler(mut self) -> Self {
+        self.sampler.mag_filter = wgpu::FilterMode::Nearest;
+        self.sampler.min_filter = wgpu::FilterMode::Nearest;
         self
     }
 
@@ -171,6 +182,7 @@ impl TextureBuilder {
             sampler,
             filterable,
             dimension: view_dimension,
+            size,
         }
     }
 }

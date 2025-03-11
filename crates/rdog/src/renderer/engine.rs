@@ -3,6 +3,7 @@ use crate::shader::{FType, RdogShaderAsset, ShaderType};
 use super::{
     camera_controllers::RenderControllers,
     images::Images,
+    passes::{PassConstructor, PassRegistry},
     render::CameraController,
     shaders::{RdogShader, ShaderCache},
     utils, Camera, CameraHandle, Config, Image,
@@ -22,6 +23,7 @@ pub struct Engine {
 
     pub shaders: ShaderCache,
     pub shader_compose: Composer,
+    pub pass_registry: PassRegistry,
     pub frame: lib::Frame,
 
     pub time: Vec2,
@@ -38,6 +40,9 @@ impl Engine {
     pub fn new(device: &wgpu::Device, seed: u32) -> Self {
         info!("Initializing");
 
+        // Create an empty pass registry - passes will be registered from outside
+        let pass_registry = PassRegistry::new();
+
         Self {
             shaders: ShaderCache::new_cache(),
             frame: lib::Frame::new(1),
@@ -49,6 +54,7 @@ impl Engine {
             config: Config::default(),
             mouse: Vec2::default(),
             shader_compose: Composer::default(),
+            pass_registry,
         }
     }
 
@@ -83,11 +89,7 @@ impl Engine {
         return self.cameras.get_first().buffers.get(&buffer_name).buffer();
     }
 
-    pub fn compute_shaders(
-        &mut self,
-        device: &wgpu::Device,
-        shaders: &Vec<RdogShaderAsset>,
-    ) {
+    pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
         // First, load all library shaders and collect their names
         let mut lib_names = Vec::new();
 
@@ -209,6 +211,11 @@ impl Engine {
     /// panic.
     pub fn delete_camera(&mut self, handle: CameraHandle) {
         self.cameras.remove(handle);
+    }
+
+    /// Register a new pass type
+    pub fn register_pass(&mut self, constructor: Box<dyn PassConstructor>) {
+        self.pass_registry.register(constructor);
     }
 }
 

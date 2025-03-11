@@ -4,7 +4,7 @@
 //*     Ray, Light, LightIn, Material, MaterialIn, Camera, Globals, PassParams
 //* }
 //* #import rng::{
-//*     rng_state, rand_f
+//*     rng_state, rand_f, simplex_33
 //* }
 
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -23,27 +23,14 @@ fn sample_atmos(sr: Ray) -> vec3f {
     return vec3f(0.4, 0.35, 0.37) * 0.3;
 }
 
-// -- returns a vec3f containing:
-// 1. distance
-// 2. material bitmap (containing 1 or 2 materials)
-// 3. k constant 0->1 of how much weight each material has
-
 fn map(p: vec3f) -> vec3f {
     let l = lights(p);
 
-    // let m = vec3f(brute_octree_sample(p), pack_material_ids(2.0, 2.0), 1.0);
-    //
-    // return sd_min3(l, m);
+    let d = sd_box(p, vec3(1.0));
+    var dt = sd_fbm(p + 0.5, d);
+    dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
 
-
-    // let p1 = vec2f(dot(p, vec3f(0.0, 1.0, 0.0)) + 0.0, 4.0);
-    // let s1 = vec2f(length(p + vec3f(0.0, -0.5, 0.0)) - 1.0, 2.0);
-    //
-    // let s = smin(p1, s1, 0.3);
-
-    let s = vec3f(length(p - vec3f(0.0, 1.0, 1.0)) - 1.0, pack_material_ids(2.0, 2.0), .0);
-
-    return sd_min3(s, l);
+    return sd_min3(vec3f(dt.x, pack_material_ids(2.0, 3.0), dt.y), l);
 }
 
 fn lights(p: vec3f) -> vec3f {
@@ -224,4 +211,34 @@ fn light_map(r: Ray) -> Light {
     var l = light(u32(floor(rand_f() * f32(arrayLength(&light_in)))));
     l.d = length(r.o - l.p) - l.r;
     return l;
+}
+
+fn sd_box(p: vec3f, b: vec3f) -> f32 {
+    let d = abs(p) - b;
+    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, vec3f(0.0)));
+}
+
+// https://iquilezles.org/articles/smin
+fn smax(a: f32, b: f32, k: f32) -> f32 {
+    let h = max(k - abs(a - b), 0.);
+    return max(a, b) + h * h * 0.25 / k;
+}
+
+fn sd_fbm(pin: vec3f, din: f32) -> vec2f {
+    let m = mat3x3<f32>(0.00, 0.80, 0.60,
+        -0.80, 0.36, -0.48,
+        -0.60, -0.48, 0.64);
+    var p = pin;
+    var d = din;
+    var t = 0.0;
+    var s = 1.0;
+    for (var i = 0u; i < 7; i++) {
+        let n = s * simplex_33(p);
+        d = smax(d, -n, 0.15 * s);
+        t += d;
+        p = 2.0 * m * p;
+        s = 0.55 * s;
+    }
+
+    return vec2f(d, t);
 }

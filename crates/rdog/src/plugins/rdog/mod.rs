@@ -1,4 +1,4 @@
-use std::ops;
+use std::{mem, ops};
 
 use bevy::{
     prelude::*,
@@ -7,12 +7,13 @@ use bevy::{
 use event::RdogEvent;
 use plugin_config::read_config;
 use shader::{
-    check_textures, load_shader_libs, load_shaders, RdogShaderAsset, RdogShaderAssetLoader, RdogShaderState
+    check_textures, load_shader_libs, load_shaders, RdogShaderAsset, RdogShaderAssetLoader,
+    RdogShaderState,
 };
 use stages::cache::RdogShaderCache;
 use state::SyncedState;
 
-use crate::{orbit::PanOrbitState, Config};
+use crate::{orbit::PanOrbitState, passes::PassConstructor, Config};
 
 use super::readback::RdogReadbackPlugin;
 
@@ -39,7 +40,10 @@ impl Plugin for RdogPlugin {
             .init_asset::<RdogShaderAsset>()
             .init_asset_loader::<RdogShaderAssetLoader>()
             .insert_resource(read_config().unwrap_or(Config::default()))
-            .add_systems(OnEnter(RdogShaderState::Setup), (load_shaders, load_shader_libs))
+            .add_systems(
+                OnEnter(RdogShaderState::Setup),
+                (load_shaders, load_shader_libs),
+            )
             .add_systems(OnEnter(RdogShaderState::Finished), rdog_setup_scene)
             .add_systems(
                 Update,
@@ -57,16 +61,43 @@ impl Plugin for RdogPlugin {
     }
 
     fn finish(&self, app: &mut App) {
+        let pr = mem::take(
+            &mut app
+                .world_mut()
+                .resource_mut::<RdogPipelineRegistry>()
+                .passes,
+        );
+        let order = mem::take(&mut app.world_mut().resource_mut::<RdogPipelineRegistry>().order);
+
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
 
         let render_device = render_app.world().resource::<RenderDevice>();
 
-        let engine = crate::Engine::new(render_device.wgpu_device(), self.0);
+        let mut engine = crate::Engine::new(render_device.wgpu_device(), self.0);
+
+        for p in pr {
+            engine.register_pass(p);
+        }
+
+        engine.pass_registry.set_order(order);
+
         render_app
             .insert_resource(RdogShaderCache::default())
             .insert_resource(EngineResource(engine));
+    }
+}
+
+#[derive(Resource)]
+pub struct RdogPipelineRegistry {
+    pub(crate) passes: Vec<Box<dyn PassConstructor>>,
+    pub(crate) order: Vec<String>,
+}
+
+impl RdogPipelineRegistry {
+    pub fn new(passes: Vec<Box<dyn PassConstructor>>, order: Vec<String>) -> RdogPipelineRegistry {
+        RdogPipelineRegistry { passes, order }
     }
 }
 

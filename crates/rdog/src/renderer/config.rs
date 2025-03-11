@@ -31,6 +31,7 @@ impl Default for CameraConfig {
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize)]
 pub struct Config {
+    pub res: f32,
     pub direct_pass: bool,
     pub specular_pass: bool,
     pub scatter_pass: bool,
@@ -102,6 +103,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            res: 0.25,
             reload: true,
             direct_pass: true,
             specular_pass: true,
@@ -137,7 +139,11 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub(crate) fn serialize(&self) -> gpu::camera::Camera {
+    pub(crate) fn scale(&self, cfg: &Config) -> UVec2 {
+        (self.viewport.size.as_vec2() * cfg.res).as_uvec2()
+    }
+
+    pub(crate) fn serialize(&self, cfg: &Config) -> gpu::camera::Camera {
         gpu::camera::Camera {
             projection_view: self.projection * self.transform.inverse(),
             ndc_to_world: self.transform * self.projection.inverse(),
@@ -146,12 +152,7 @@ impl Camera {
                 .to_scale_rotation_translation()
                 .2
                 .extend(default()),
-            screen: self
-                .viewport
-                .size
-                .as_vec2()
-                .extend(default())
-                .extend(default()),
+            screen: self.scale(cfg).as_vec2().extend(0.0).extend(0.0),
             fpd: self.focus_point.extend(self.focus_dist),
             af: vec4(self.aperture, self.focal_length, 0.0, 0.0),
         }
@@ -248,14 +249,17 @@ pub struct Globals {
     time: Vec2,
     seed: UVec2,
     mouse: Vec2,
+    true_res: UVec2,
 }
 
 impl Globals {
-    pub fn from_engine(engine: &Engine) -> Self {
+    pub fn from_engine(engine: &Engine, cam: &Camera) -> Self {
         Self {
             time: engine.time,
             seed: uvec2(engine.seed, engine.seed + engine.frame.get()), // seed offset with current frame (for rays)
-            mouse: engine.mouse,
+            mouse: (engine.mouse / cam.viewport.size.as_vec2())
+                * cam.scale(&engine.config).as_vec2(),
+            true_res: cam.viewport.size,
         }
     }
 
@@ -264,6 +268,7 @@ impl Globals {
             time: self.time,
             seed: self.seed,
             mouse: self.mouse,
+            true_res: self.true_res,
         }
     }
 }

@@ -50,6 +50,7 @@ struct Globals {
     time: vec2f,
     seed: vec2u,
     mouse: vec2f,
+    true_res: vec2u,
 }
 
 struct Camera {

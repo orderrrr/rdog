@@ -1,4 +1,7 @@
 use log::debug;
+use std::any::Any;
+
+use bevy::utils::HashMap;
 
 use crate::renderer::buffers::Buffers;
 use crate::renderer::config::Camera;
@@ -6,73 +9,193 @@ use crate::renderer::engine::Engine;
 
 use super::render::CameraController;
 
-pub trait Pass {
-    fn run(
-        &self,
-        _engine: &Engine,
-        camera: &CameraController,
-        encoder: &mut wgpu::CommandEncoder,
-        view: &wgpu::TextureView,
-    );
-}
+#[macro_export]
+macro_rules! define_pass_constructor {
+    ($short_name:ident => $pass_type:ident) => {
+        paste::paste! {
+            #[derive(Debug, Clone)]
+            pub struct [<$pass_type Constructor>];
 
-macro_rules! passes {
-    ([ $( $name:ident => $class:ident, )* ]) => {
-        use bevy::utils::HashMap;
-        use bevy::prelude::{Deref, DerefMut};
-
-        $( mod $name; )*
-        $(  #[allow(unused_imports)]
-            pub use self::$name::*; )*
-
-        #[derive(Debug)]
-        pub enum PassTypes {
-            $( $class($class), )*
-        }
-
-        impl Pass for PassTypes {
-            fn run(
-                &self,
-                engine: &Engine,
-                camera: &CameraController,
-                encoder: &mut wgpu::CommandEncoder,
-                view: &wgpu::TextureView,
-            ) {
-                match self {
-                    $( PassTypes::$class(pass) => pass.run(engine, camera, encoder, view), )*
+            impl [<$pass_type Constructor>] {
+                pub fn new() -> Self {
+                    Self {}
                 }
             }
-        }
 
-        #[derive(Debug, Deref, DerefMut)]
-        pub struct Passes(pub HashMap<String, PassTypes>);
+            impl Default for [<$pass_type Constructor>] {
+                fn default() -> Self {
+                    Self::new()
+                }
+            }
 
-        impl Passes {
-            pub fn new(
-                engine: &Engine,
-                device: &wgpu::Device,
-                config: &Camera,
-                buffers: &Buffers,
-            ) -> Self {
-                debug!("Initializing camera passes");
-                let mut passes: HashMap<String, PassTypes> = HashMap::new();
+            impl PassConstructor for [<$pass_type Constructor>] {
+                fn name(&self) -> &str {
+                    stringify!($short_name)
+                }
 
-                $(
-                    passes.insert(
-                        stringify!($name).to_string(),
-                        PassTypes::$class($class::new(engine, device, config, buffers))
-                    );
-                )*
-                Passes(passes)
+                fn create(
+                    &self,
+                    engine: &Engine,
+                    device: &wgpu::Device,
+                    config: &Camera,
+                    buffers: &Buffers,
+                ) -> Box<dyn Pass> {
+                    Box::new($pass_type::new(engine, device, config, buffers))
+                }
             }
         }
     };
 }
 
-passes!([
-    // atmosphere => AtmospherePass,
-    voxel => VoxelAccelPass,
-    readback => ReadbackPass,
-    trace => TracePass,
-    raster => RasterPass,
-]);
+/// Base trait for all rendering passes
+pub trait Pass: std::fmt::Debug + Any + Send + Sync {
+    fn run(
+        &self,
+        engine: &Engine,
+        camera: &CameraController,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+    );
+
+    /// Returns the name of this pass
+    fn name(&self) -> &str;
+
+    /// Allows downcasting to concrete pass types
+    fn as_any(&self) -> &dyn Any;
+}
+
+/// Registry for all available pass types
+#[derive(Debug, Default)]
+pub struct PassRegistry {
+    constructors: HashMap<String, Box<dyn PassConstructor>>,
+    pass_order: Vec<String>,
+}
+
+/// A trait for constructing passes
+pub trait PassConstructor: std::fmt::Debug + Send + Sync {
+    /// Get the name of the pass type this constructor creates
+    fn name(&self) -> &str;
+
+    /// Create a new pass instance
+    fn create(
+        &self,
+        engine: &Engine,
+        device: &wgpu::Device,
+        config: &Camera,
+        buffers: &Buffers,
+    ) -> Box<dyn Pass>;
+}
+
+impl PassRegistry {
+    /// Create a new empty pass registry
+    pub fn new() -> Self {
+        Self {
+            constructors: HashMap::new(),
+            pass_order: Default::default(),
+        }
+    }
+
+    pub fn set_order(&mut self, order: Vec<String>) -> &mut Self {
+        self.pass_order = order;
+        self
+    }
+
+    /// Register a new pass constructor
+    pub fn register(&mut self, constructor: Box<dyn PassConstructor>) -> &mut Self {
+        let name = constructor.name().to_string();
+        self.constructors.insert(name, constructor);
+        self
+    }
+
+    /// Create a pass by name
+    pub fn create(
+        &self,
+        name: &str,
+        engine: &Engine,
+        device: &wgpu::Device,
+        config: &Camera,
+        buffers: &Buffers,
+    ) -> Option<Box<dyn Pass>> {
+        self.constructors
+            .get(name)
+            .map(|constructor| constructor.create(engine, device, config, buffers))
+    }
+}
+
+/// Collection of constructed passes for a camera
+#[derive(Debug)]
+pub struct Passes {
+    pub passes: HashMap<String, Box<dyn Pass>>,
+    /// The order in which passes should be executed by default
+    pub pass_order: Vec<String>,
+}
+
+impl Passes {
+    /// Create a new empty passes collection
+    pub fn new() -> Self {
+        Self {
+            passes: HashMap::new(),
+            pass_order: Vec::new(),
+        }
+    }
+
+    /// Create passes from a registry with default configuration
+    pub fn from_registry(
+        registry: &PassRegistry,
+        engine: &Engine,
+        device: &wgpu::Device,
+        config: &Camera,
+        buffers: &Buffers,
+    ) -> Self {
+        debug!("Initializing camera passes from registry");
+        let mut passes = HashMap::new();
+
+        for c in &registry.constructors {
+            if let Some(pass) = registry.create(&c.0, engine, device, config, buffers) {
+                passes.insert(c.0.clone(), pass);
+            }
+        }
+
+        Self {
+            passes,
+            pass_order: registry.pass_order.clone(),
+        }
+    }
+
+    /// Get a pass by name
+    pub fn get_pass(&self, name: &str) -> Option<&dyn Pass> {
+        self.passes.get(name).map(|p| p.as_ref())
+    }
+
+    /// Run all passes in the default order
+    pub fn run_all(
+        &self,
+        engine: &Engine,
+        camera: &CameraController,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+    ) {
+        for pass_name in &self.pass_order {
+            if let Some(pass) = self.passes.get(pass_name) {
+                pass.run(engine, camera, encoder, view);
+            }
+        }
+    }
+
+    /// Run a specific pass by name
+    pub fn run_pass(
+        &self,
+        name: &str,
+        engine: &Engine,
+        camera: &CameraController,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+    ) -> bool {
+        if let Some(pass) = self.passes.get(name) {
+            pass.run(engine, camera, encoder, view);
+            true
+        } else {
+            false
+        }
+    }
+}

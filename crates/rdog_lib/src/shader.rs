@@ -8,14 +8,16 @@ pub struct Globals {
     pub time: Vec2,
     pub seed: UVec2,
     pub mouse: Vec2,
+    pub true_res: UVec2,
 }
 
 impl Globals {
-    pub fn with_seed(&self, seed: UVec2) -> Self {
+    pub fn with_seed(&self, seed: UVec2, true_res: UVec2) -> Self {
         Globals {
             time: self.time,
             seed,
             mouse: self.mouse,
+            true_res
         }
     }
 }
@@ -176,18 +178,6 @@ impl Light {
 
     pub fn falloff(&self) -> f32 {
         self.posf.w
-    }
-
-    fn radius(&self) -> f32 {
-        self.rmd.x
-    }
-
-    fn material_id(&self) -> f32 {
-        self.rmd.y
-    }
-
-    fn dist(&self) -> f32 {
-        self.rmd.z
     }
 }
 

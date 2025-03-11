@@ -163,7 +163,7 @@ pub(crate) fn cameras(
 pub(crate) fn extras(
     mut engine: ResMut<EngineResource>,
     extras: Res<RdogExtractedExtras>,
-    config: ResMut<ExtractedConfig>,
+    config: Res<ExtractedConfig>,
     time: Res<Time>,
 ) {
     let engine = &mut *engine;

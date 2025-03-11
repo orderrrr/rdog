@@ -158,7 +158,6 @@ pub(crate) fn cameras(
     }
 }
 
-#[allow(clippy::type_complexity)]
 pub(crate) fn config(mut commands: Commands, config: Extract<Res<Config>>) {
     commands.insert_resource(ExtractedConfig(config.clone()));
 }

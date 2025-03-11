@@ -4,11 +4,16 @@ use bevy::{
 };
 
 use bevy_egui::EguiPlugin;
+use pipelines::{
+    RasterPassConstructor, ReadbackPassConstructor, TracePassConstructor, VoxelAccelPassConstructor,
+};
 use rand::Rng;
 use rdog::{
     interface::orbit::{pan_orbit_camera, PanOrbitState},
-    DebugConfig, RdogDebugPlugin, RdogPlugin,
+    DebugConfig, RdogDebugPlugin, RdogPipelineRegistry, RdogPlugin,
 };
+
+pub mod pipelines;
 
 pub const W: u32 = 640;
 pub const H: u32 = 480;
@@ -16,6 +21,23 @@ pub const H: u32 = 480;
 fn main() {
     App::new()
         .insert_resource(DebugConfig::default())
+        /*
+         * Pipeline Registry Plugin for registering plugins from app world.
+         * TODO: need a way to specify an order, or better yet a graph for this.
+         */
+        .insert_resource(RdogPipelineRegistry::new(
+            vec![
+                Box::new(VoxelAccelPassConstructor),
+                Box::new(ReadbackPassConstructor),
+                Box::new(TracePassConstructor),
+                Box::new(RasterPassConstructor),
+            ],
+            vec![
+                String::from("voxelAccel"),
+                String::from("trace"),
+                String::from("raster"),
+            ],
+        ))
         .add_plugins((
             DefaultPlugins
                 .set(WindowPlugin {

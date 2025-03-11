@@ -23,6 +23,13 @@ fn camera_ui(ui_state: &mut Config, d: &mut DebugConfig, ui: &mut Ui) -> bool {
         .striped(true)
         .spacing([4.0, 4.0])
         .show(ui, |ui| {
+            ui.label("Internal Res");
+            c = c
+                || ui
+                    .add(egui::Slider::new(&mut ui_state.res, 0.01..=1.0))
+                    .changed;
+            ui.end_row();
+
             ui.label("Aperture");
             c = c
                 || ui

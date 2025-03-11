@@ -20,6 +20,7 @@ pub struct DebugConfig {
     pub selected_tab: SelectedTab,
     pub pointer_in_egui: bool,
     pub point_picker: bool,
+    pub change: bool,
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
@@ -91,6 +92,7 @@ pub fn readback_setup(
         && !debug_config.pointer_in_egui
     {
         debug_config.point_picker = false;
+        debug_config.change = true;
 
         info!("system requested");
 
@@ -111,14 +113,52 @@ pub fn readback_setup(
         *readback_data
             .entry("march_readback".to_string())
             .or_insert((entity, data.clone())) = (entity, data.clone());
+
+        return;
     }
+
+    if debug_config.point_picker && !debug_config.pointer_in_egui {
+        debug_config.change = true;
+
+        if let Some(r) = readback_data.get("march_readback") {
+            if commands.get_entity(r.0).is_some() {
+                debug_config.change = false;
+                return;
+            }
+        }
+
+        let data: Arc<Mutex<Option<Vec<u32>>>> = Arc::new(Mutex::new(None));
+        let data_clone = data.clone();
+
+        let entity = commands
+            .spawn(Readback::buffer(
+                "readback".to_string(),
+                "march_readback".to_string(),
+            ))
+            .observe(move |e: Trigger<ReadbackComplete>| {
+                let d: Vec<u32> = e.to_shader_type();
+                *data_clone.lock().unwrap() = Some(d);
+            })
+            .id();
+
+        *readback_data
+            .entry("march_readback".to_string())
+            .or_insert((entity, data.clone())) = (entity, data.clone());
+
+        return;
+    }
+
+    debug_config.change = true;
 }
 
 pub fn readback_poll_system(
     mut commands: Commands,
     mut config: ResMut<Config>,
+    debug_config: Res<DebugConfig>,
     readback_data: Res<ReadbackData>,
 ) {
+    config.reload = config.reload || debug_config.change;
+
     for (k, v) in readback_data.iter() {
         if let Some(b) = v.1.lock().unwrap().take() {
             match k.as_str() {
