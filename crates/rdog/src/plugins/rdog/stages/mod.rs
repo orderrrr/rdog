@@ -12,6 +12,10 @@ pub(crate) fn setup(render_app: &mut SubApp) {
     );
     render_app.add_systems(
         ExtractSchedule,
+        extract::events.in_set(RenderSet::ExtractCommands),
+    );
+    render_app.add_systems(
+        ExtractSchedule,
         extract::cameras.in_set(RenderSet::ExtractCommands),
     );
     render_app.add_systems(

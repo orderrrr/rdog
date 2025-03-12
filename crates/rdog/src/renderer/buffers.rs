@@ -10,6 +10,7 @@ use crate::{
 };
 
 use super::{config::Camera, engine::Engine};
+use bevy::prelude::{Deref, DerefMut};
 use bevy::utils::hashbrown::HashMap;
 use bytemuck::Pod;
 use glam::{uvec3, UVec3, Vec4};
@@ -62,7 +63,7 @@ impl BT {
             BT::MWB(mwb) => mwb.flush(q),
             BT::MUB(mub) => mub.flush(q),
             BT::MRB(mrb) => mrb.flush(q),
-            BT::T(_) => panic!("not supported"),
+            BT::T(_) => (),
         }
     }
 
@@ -136,12 +137,15 @@ impl From<MapReadBuffer> for BT {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Deref, DerefMut)]
 pub struct Buffers(HashMap<String, BT>);
 
 impl Buffers {
-    pub fn get(&self, st: &str) -> &BT {
-        self.0.get(st).unwrap()
+    pub fn get_old(&self, st: &str) -> &BT {
+        match self.0.get(st) {
+            Some(s) => s,
+            None => panic!("buffer: {} not available", st),
+        }
     }
 
     pub fn get_mut(&mut self, st: &str) -> &mut BT {
@@ -160,7 +164,7 @@ impl Buffers {
         name: &str,
         data: Vec<impl Bufferable + Pod>,
     ) {
-        let current_buf = self.get(st);
+        let current_buf = self.get_old(st);
         let new_data = data.data();
 
         if new_data.len() > current_buf.data().len() {
@@ -204,14 +208,6 @@ impl Buffers {
             .with_nearest_filtering_sampler()
             .build(device);
 
-        // let render_alt_tx = Texture::builder("renderalt")
-        //     .with_size(camera.viewport.size)
-        //     .with_format(wgpu::TextureFormat::Rgba32Float)
-        //     .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-        //     .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-        //     .with_linear_filtering_sampler()
-        //     .build(device);
-
         let voxels = Texture::builder("voxels")
             .with_size_3d(uvec3(
                 engine.config.voxel_dim,
@@ -230,7 +226,6 @@ impl Buffers {
         hm.insert("curr_camera".to_string(), BT::from(curr_camera));
         hm.insert("globals".to_string(), BT::from(globals));
         hm.insert("render_tx".to_string(), BT::from(render_tx));
-        // hm.insert("render_alt_tx".to_string(), BT::from(render_alt_tx));
         hm.insert("config".to_string(), BT::from(config));
         hm.insert("materials".to_string(), BT::from(materials));
         hm.insert("lights".to_string(), BT::from(lights));

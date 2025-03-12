@@ -1,8 +1,9 @@
-use std::{mem, ops};
+use std::ops;
 
 use bevy::{
     prelude::*,
     render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, RenderApp},
+    window::WindowResized,
 };
 use event::RdogEvent;
 use plugin_config::read_config;
@@ -13,7 +14,7 @@ use shader::{
 use stages::cache::RdogShaderCache;
 use state::SyncedState;
 
-use crate::{orbit::PanOrbitState, passes::PassConstructor, Config};
+use crate::{orbit::PanOrbitState, rdog_buffers::BufferPlugin, rdog_passes::PassesPlugin, Config};
 
 use super::readback::RdogReadbackPlugin;
 
@@ -48,10 +49,15 @@ impl Plugin for RdogPlugin {
             .add_systems(
                 Update,
                 (check_textures).run_if(in_state(RdogShaderState::Setup)),
-            );
+            )
+            .add_systems(Update, send_events)
+            .add_plugins((BufferPlugin, PassesPlugin));
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
-            render_app.insert_resource(SyncedState::default());
+            render_app
+                .insert_resource(SyncedState::default())
+                .add_event::<RdogEvent>()
+                .add_event::<RdogStateEvent>();
 
             stages::setup(render_app);
             graph::setup(render_app);
@@ -61,27 +67,12 @@ impl Plugin for RdogPlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        let pr = mem::take(
-            &mut app
-                .world_mut()
-                .resource_mut::<RdogPipelineRegistry>()
-                .passes,
-        );
-        let order = mem::take(&mut app.world_mut().resource_mut::<RdogPipelineRegistry>().order);
-
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
 
         let render_device = render_app.world().resource::<RenderDevice>();
-
-        let mut engine = crate::Engine::new(render_device.wgpu_device(), self.0);
-
-        for p in pr {
-            engine.register_pass(p);
-        }
-
-        engine.pass_registry.set_order(order);
+        let engine = crate::Engine::new(render_device.wgpu_device(), self.0);
 
         render_app
             .insert_resource(RdogShaderCache::default())
@@ -89,16 +80,9 @@ impl Plugin for RdogPlugin {
     }
 }
 
-#[derive(Resource)]
-pub struct RdogPipelineRegistry {
-    pub(crate) passes: Vec<Box<dyn PassConstructor>>,
-    pub(crate) order: Vec<String>,
-}
-
-impl RdogPipelineRegistry {
-    pub fn new(passes: Vec<Box<dyn PassConstructor>>, order: Vec<String>) -> RdogPipelineRegistry {
-        RdogPipelineRegistry { passes, order }
-    }
+#[derive(Event)]
+pub enum RdogStateEvent {
+    CameraAdded,
 }
 
 #[derive(Resource)]
@@ -121,7 +105,7 @@ impl ops::DerefMut for EngineResource {
 #[derive(Component)]
 pub struct RdogRender;
 
-fn rdog_setup_scene(mut commands: Commands) {
+fn rdog_setup_scene(mut commands: Commands, mut rdog_e: EventWriter<RdogEvent>) {
     log::info!("Camera being setup");
 
     let state = PanOrbitState::default();
@@ -139,4 +123,13 @@ fn rdog_setup_scene(mut commands: Commands) {
         CameraRenderGraph::new(self::graph::Rdog),
         RdogRender,
     ));
+
+    rdog_e.send(RdogEvent::Recompute);
+}
+
+fn send_events(mut buf: EventWriter<RdogEvent>, mut resize_reader: EventReader<WindowResized>) {
+    for _ in resize_reader.read() {
+        info!("window Changed");
+        buf.send(RdogEvent::Recompute);
+    }
 }

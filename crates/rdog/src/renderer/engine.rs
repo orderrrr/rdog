@@ -1,14 +1,20 @@
 use crate::shader::{FType, RdogShaderAsset, ShaderType};
 
 use super::{
+    buffers::Buffers,
     camera_controllers::RenderControllers,
     images::Images,
-    passes::{PassConstructor, PassRegistry},
+    passes::{PassRegistry, Passes},
     render::CameraController,
     shaders::{RdogShader, ShaderCache},
     utils, Camera, CameraHandle, Config, Image,
 };
-use bevy::{asset::AssetId, log::error, prelude::Image as BevyImage, utils::default};
+use bevy::{
+    asset::AssetId,
+    log::error,
+    prelude::Image as BevyImage,
+    utils::{default, HashMap},
+};
 use glam::Vec2;
 use naga_oil::compose::{ComposableModuleDescriptor, Composer};
 use std::{sync::Arc, time::Instant};
@@ -23,7 +29,6 @@ pub struct Engine {
 
     pub shaders: ShaderCache,
     pub shader_compose: Composer,
-    pub pass_registry: PassRegistry,
     pub frame: lib::Frame,
 
     pub time: Vec2,
@@ -40,9 +45,6 @@ impl Engine {
     pub fn new(device: &wgpu::Device, seed: u32) -> Self {
         info!("Initializing");
 
-        // Create an empty pass registry - passes will be registered from outside
-        let pass_registry = PassRegistry::new();
-
         Self {
             shaders: ShaderCache::new_cache(),
             frame: lib::Frame::new(1),
@@ -54,7 +56,6 @@ impl Engine {
             config: Config::default(),
             mouse: Vec2::default(),
             shader_compose: Composer::default(),
-            pass_registry,
         }
     }
 
@@ -63,20 +64,37 @@ impl Engine {
     /// This function must be called before invoking [`Self::render_camera()`]
     /// (if you have multiple cameras, calling this function just once is
     /// enough.)
-    pub fn tick(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    pub fn tick(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        buffers: &mut HashMap<CameraHandle, Buffers>,
+        passes: &mut HashMap<CameraHandle, Passes>,
+        registry: &PassRegistry,
+    ) {
         let tt = Instant::now();
 
         let any_buffer_reallocated = utils::measure("tick.buffers", || false);
 
         if any_buffer_reallocated {
             for camera in &mut self.cameras.iter_mut() {
-                camera.invalidate(self, device);
+                camera.1.invalidate(
+                    self,
+                    device,
+                    buffers.get(&camera.0).unwrap(),
+                    passes.get_mut(&camera.0).unwrap(),
+                    registry,
+                );
             }
         }
 
         utils::measure("tick.cameras", || {
             for camera in &mut self.cameras.iter_mut() {
-                camera.flush(self.frame, queue);
+                if buffers.contains_key(&camera.0) {
+                    camera
+                        .1
+                        .flush(self.frame, queue, buffers.get_mut(&camera.0).unwrap());
+                }
             }
         });
 
@@ -85,11 +103,18 @@ impl Engine {
         utils::metric("tick", tt);
     }
 
-    pub fn get_buffer(&self, buffer_name: &str) -> Arc<Buffer> {
-        return self.cameras.get_first().buffers.get(&buffer_name).buffer();
+    pub fn get_buffer(&self, buffers: &Buffers, buffer_name: &str) -> Arc<Buffer> {
+        return buffers.get_old(&buffer_name).buffer();
     }
 
-    pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
+    pub fn compute_shaders(
+        &mut self,
+        device: &wgpu::Device,
+        shaders: &Vec<RdogShaderAsset>,
+        buffers: &mut HashMap<CameraHandle, Buffers>,
+        passes: &mut HashMap<CameraHandle, Passes>,
+        registry: &PassRegistry,
+    ) {
         // First, load all library shaders and collect their names
         let mut lib_names = Vec::new();
 
@@ -157,8 +182,16 @@ impl Engine {
         }
 
         for camera in &mut self.cameras.iter_mut() {
-            camera.rebuild_buffers(self, device);
-            camera.invalidate(&self, device);
+            camera
+                .1
+                .rebuild_buffers(self, device, buffers.get_mut(&camera.0).unwrap());
+            camera.1.invalidate(
+                &self,
+                device,
+                buffers.get(&camera.0).unwrap(),
+                passes.get_mut(&camera.0).unwrap(),
+                registry,
+            );
         }
     }
 }
@@ -174,8 +207,13 @@ impl Engine {
         handle: CameraHandle,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        passes: &HashMap<CameraHandle, Passes>,
     ) {
-        self.cameras.get(handle).render(self, encoder, view);
+        if passes.contains_key(&handle) {
+            self.cameras
+                .get(handle)
+                .render(self, encoder, view, passes.get(&handle).unwrap());
+        }
     }
 
     pub fn render_camera_pass(
@@ -184,15 +222,31 @@ impl Engine {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         pass: &str,
+        passes: &HashMap<CameraHandle, Passes>,
     ) {
-        self.cameras
-            .get(handle)
-            .render_pass(self, encoder, view, pass);
+        info!("render_camrea_pass");
+        self.cameras.get(handle).render_pass(
+            self,
+            encoder,
+            view,
+            pass,
+            passes.get(&handle).unwrap(),
+        );
     }
 
     /// Updates camera, changing its mode, position, size etc.
-    pub fn update_camera(&mut self, device: &wgpu::Device, handle: CameraHandle, camera: Camera) {
-        self.cameras.get_mut(handle).update(self, device, camera);
+    pub fn update_camera(
+        &mut self,
+        device: &wgpu::Device,
+        handle: CameraHandle,
+        camera: Camera,
+        buffers: &mut Buffers,
+        passes: &mut Passes,
+        registry: &PassRegistry,
+    ) {
+        self.cameras
+            .get_mut(handle)
+            .update(self, device, camera, buffers, passes, registry);
     }
 
     /// Creates a new camera that can be used to render the world.
@@ -200,9 +254,8 @@ impl Engine {
     /// Note that this is a pretty heavy operation that allocates per-camera
     /// buffers etc., and so it's expected that you only call this function when
     /// necessary (not, say, each frame).
-    pub fn create_camera(&mut self, device: &wgpu::Device, camera: Camera) -> CameraHandle {
-        self.cameras
-            .add(CameraController::new(self, device, camera))
+    pub fn create_camera(&mut self, camera: Camera) -> CameraHandle {
+        self.cameras.add(CameraController::new(camera))
     }
 
     /// Deletes a camera.
@@ -211,11 +264,6 @@ impl Engine {
     /// panic.
     pub fn delete_camera(&mut self, handle: CameraHandle) {
         self.cameras.remove(handle);
-    }
-
-    /// Register a new pass type
-    pub fn register_pass(&mut self, constructor: Box<dyn PassConstructor>) {
-        self.pass_registry.register(constructor);
     }
 }
 

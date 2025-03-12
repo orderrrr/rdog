@@ -148,7 +148,7 @@ pub fn readback_setup(
         return;
     }
 
-    debug_config.change = true;
+    debug_config.change = false;
 }
 
 pub fn readback_poll_system(

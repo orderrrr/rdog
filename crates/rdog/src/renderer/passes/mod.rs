@@ -1,7 +1,6 @@
+use bevy::utils::hashbrown::HashMap;
 use log::debug;
 use std::any::Any;
-
-use bevy::utils::HashMap;
 
 use crate::renderer::buffers::Buffers;
 use crate::renderer::config::Camera;
@@ -88,11 +87,16 @@ pub trait PassConstructor: std::fmt::Debug + Send + Sync {
 
 impl PassRegistry {
     /// Create a new empty pass registry
-    pub fn new() -> Self {
-        Self {
-            constructors: HashMap::new(),
-            pass_order: Default::default(),
+    pub fn new(constructor: Vec<Box<dyn PassConstructor>>, pass_order: Vec<String>) -> Self {
+        let mut pr = PassRegistry::default();
+
+        for p in constructor {
+            pr.register(p);
         }
+
+        pr.set_order(pass_order);
+
+        pr
     }
 
     pub fn set_order(&mut self, order: Vec<String>) -> &mut Self {

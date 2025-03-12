@@ -17,8 +17,11 @@ use glam::vec2;
 use crate::images::ImageData;
 use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
 use crate::plugins::rdog::EngineResource;
+use crate::plugins::rdog_passes::RdogPassResource;
+use crate::rdog_buffers::RdogBufferResource;
+use crate::rdog_passes::RdogPassRegistry;
 use crate::state::{ExtractedConfig, RdogExtractedExtras};
-use crate::{CameraMode, MAIN};
+use crate::{CameraMode, RdogStateEvent, MAIN};
 
 use super::cache::RdogShaderCache;
 
@@ -26,15 +29,32 @@ pub fn flush(
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
     mut engine: ResMut<EngineResource>,
+    mut buffers: ResMut<RdogBufferResource>,
+    mut passes: ResMut<RdogPassResource>,
+    registry: Res<RdogPassRegistry>,
     cache: ResMut<RdogShaderCache>,
-    mut state: ResMut<SyncedState>,
+    state: Res<SyncedState>,
 ) {
     if !cache.is_empty() {
         log::info!("computing shaders");
-        state.compute_shaders(&mut engine, &device, &cache);
+        state.compute_shaders(
+            &mut engine,
+            &device,
+            &cache,
+            &mut buffers,
+            &mut passes,
+            &registry,
+        );
     }
 
-    state.tick(&mut engine, &device, &queue);
+    state.tick(
+        &mut engine,
+        &device,
+        &queue,
+        &mut buffers,
+        &mut passes,
+        &registry,
+    );
 }
 
 pub fn images(
@@ -82,6 +102,10 @@ pub(crate) fn cameras(
     device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
     mut engine: ResMut<EngineResource>,
+    mut buffers: ResMut<RdogBufferResource>,
+    mut passes: ResMut<RdogPassResource>,
+    mut state_event: EventWriter<RdogStateEvent>,
+    registry: Res<RdogPassRegistry>,
     mut cameras: Query<(
         Entity,
         &ViewTarget,
@@ -91,7 +115,6 @@ pub(crate) fn cameras(
     )>,
 ) {
     let device = device.wgpu_device();
-    let state = &mut *state;
     let engine = &mut *engine;
     let mut alive_cameras = HashSet::new();
 
@@ -132,13 +155,25 @@ pub(crate) fn cameras(
 
         match state.cameras.entry(entity) {
             Entry::Occupied(entry) => {
-                engine.update_camera(device, entry.into_mut().handle, camera);
+                let h = entry.get().handle;
+                if buffers.contains_key(&h) && passes.contains_key(&h) {
+                    engine.update_camera(
+                        device,
+                        entry.get().handle,
+                        camera,
+                        &mut buffers.get_mut(&entry.get().handle).unwrap(),
+                        &mut passes.get_mut(&entry.get().handle).unwrap(),
+                        &registry,
+                    );
+                }
             }
 
             Entry::Vacant(entry) => {
+                info!("camera created");
                 entry.insert(SyncedCamera {
-                    handle: engine.create_camera(device, camera),
+                    handle: engine.create_camera(camera),
                 });
+                state_event.send(RdogStateEvent::CameraAdded);
             }
         }
 

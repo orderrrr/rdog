@@ -1,5 +1,10 @@
-use super::{buffers::Buffers, config::Camera, engine::Engine, passes::Passes};
-use crate::{bufferable::Bufferable, camera, Globals};
+use super::{
+    buffers::Buffers,
+    config::Camera,
+    engine::Engine,
+    passes::{PassRegistry, Passes},
+};
+use crate::{bufferable::Bufferable, Globals};
 use bevy::utils::default;
 use glam::Vec4;
 use log::{debug, info};
@@ -8,24 +13,16 @@ use rdog_lib::{self as lib};
 #[derive(Debug)]
 pub struct CameraController {
     pub camera: Camera, // TODO camera impl
-    pub buffers: Buffers,
-    pub passes: Passes,
+    // pub passes: Passes,
     pub frame: lib::Frame,
     pub recompute_static: bool,
 }
 
 impl CameraController {
-    pub(crate) fn new(engine: &Engine, device: &wgpu::Device, camera: Camera) -> Self {
-        info!("Creating camera `{}`", camera);
-
-        let buffers = Buffers::new(engine, device, &camera);
-        let passes =
-            Passes::from_registry(&engine.pass_registry, engine, device, &camera, &buffers);
-
+    pub(crate) fn new(camera: Camera) -> Self {
+        info!("creating camera `{}`", camera);
         Self {
             camera,
-            buffers,
-            passes,
             frame: default(),
             recompute_static: true,
         }
@@ -37,94 +34,103 @@ impl CameraController {
         self.frame.get() % 2 == 1
     }
 
-    pub fn update(&mut self, engine: &Engine, device: &wgpu::Device, camera: Camera) {
+    pub fn update(
+        &mut self,
+        engine: &Engine,
+        device: &wgpu::Device,
+        camera: Camera,
+        buffers: &mut Buffers,
+        passes: &mut Passes,
+        registry: &PassRegistry,
+    ) {
         let is_invalidated = self.camera.is_invalidated_by(&camera);
 
         self.camera = camera.clone();
-        self.buffers.update(
+        buffers.update(
             "prev_camera",
-            (self.buffers.get("curr_camera").data()).into(),
+            (buffers.get_old("curr_camera").data()).into(),
         );
-        self.buffers.update(
+        buffers.update(
             "curr_camera",
             self.camera.serialize(&engine.config).data().into(),
         );
-        self.buffers.update(
+        buffers.update(
             "globals",
             Globals::from_engine(engine, &camera)
                 .serialize()
                 .data()
                 .into(),
         );
-        self.buffers
-            .update("config", engine.config.to_pass_params().data().into());
-        self.buffers
-            .update("march_readback", Vec4::ZERO.data().into());
+        buffers.update("config", engine.config.to_pass_params().data().into());
+        buffers.update("march_readback", Vec4::ZERO.data().into());
 
         if engine.config.material_tree.modified {
-            self.buffers
-                .update("materials", engine.config.material_pass().data().into());
+            buffers.update("materials", engine.config.material_pass().data().into());
         }
 
         if engine.config.light_tree.modified {
-            self.buffers
-                .update("lights", engine.config.light_pass().data().into());
+            buffers.update("lights", engine.config.light_pass().data().into());
         }
 
         if engine.config.reload {
             log::info!("Reloaded");
-            self.rebuild_buffers(engine, device);
-            self.rebuild_passes(engine, device);
+            self.rebuild_buffers(engine, device, buffers);
+            self.rebuild_passes(engine, device, buffers, passes, registry);
             return;
         }
 
         if engine.config.material_tree.list_changed {
             log::info!("Material tree changed.");
             // Use our new smart update method that handles buffer resizing
-            self.buffers.update_storage(
+            buffers.update_storage(
                 "materials",
                 device,
                 "materials",
                 engine.config.material_pass(),
             );
-            self.rebuild_passes(engine, device);
+            self.rebuild_passes(engine, device, buffers, passes, registry);
             return;
         }
 
         if engine.config.light_tree.list_changed {
             log::info!("Light tree changed.");
             // Use our new smart update method that handles buffer resizing
-            self.buffers
-                .update_storage("lights", device, "lights", engine.config.light_pass());
-            self.rebuild_passes(engine, device);
+            buffers.update_storage("lights", device, "lights", engine.config.light_pass());
+            self.rebuild_passes(engine, device, buffers, passes, registry);
             return;
         }
 
         self.recompute_static = false;
 
         if is_invalidated
-            || &self.buffers.get("render_tx").size() != &camera.scale(&engine.config).extend(1)
+            || &buffers.get_old("render_tx").size() != &camera.scale(&engine.config).extend(1)
         {
             self.recompute_static = true;
-            self.rebuild_buffers(engine, device);
-            self.rebuild_passes(engine, device);
+            // self.rebuild_buffers(engine, device, buffers);
+            self.rebuild_passes(engine, device, buffers, passes, registry);
         }
     }
 
-    pub(crate) fn rebuild_buffers(&mut self, engine: &Engine, device: &wgpu::Device) {
+    pub(crate) fn rebuild_buffers(
+        &mut self,
+        engine: &Engine,
+        device: &wgpu::Device,
+        buffers: &mut Buffers,
+    ) {
         debug!("Rebuilding buffers for camera `{}`", self.camera);
-        self.buffers = Buffers::new(engine, device, &self.camera);
+        *buffers = Buffers::new(engine, device, &self.camera);
     }
 
-    fn rebuild_passes(&mut self, engine: &Engine, device: &wgpu::Device) {
+    fn rebuild_passes(
+        &mut self,
+        engine: &Engine,
+        device: &wgpu::Device,
+        buffers: &Buffers,
+        passes: &mut Passes,
+        registry: &PassRegistry,
+    ) {
         debug!("Rebuilding passes for camera `{}`", self.camera);
-        self.passes = Passes::from_registry(
-            &engine.pass_registry,
-            engine,
-            device,
-            &self.camera,
-            &self.buffers,
-        );
+        *passes = Passes::from_registry(&registry, engine, device, &self.camera, &buffers);
     }
 
     pub fn render(
@@ -132,8 +138,9 @@ impl CameraController {
         engine: &Engine,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        passes: &Passes,
     ) {
-        self.passes.run_all(engine, self, encoder, view);
+        passes.run_all(engine, self, encoder, view);
     }
 
     pub fn render_pass(
@@ -142,26 +149,30 @@ impl CameraController {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         pass_type: &str,
+        passes: &Passes,
     ) {
-        if !self.passes.run_pass(pass_type, engine, self, encoder, view) {
+        if !passes.run_pass(pass_type, engine, self, encoder, view) {
             log::warn!("Attempted to run unknown pass: {}", pass_type);
         }
     }
 
-    pub fn invalidate(&mut self, engine: &Engine, device: &wgpu::Device) {
+    pub fn invalidate(
+        &mut self,
+        engine: &Engine,
+        device: &wgpu::Device,
+        buffers: &Buffers,
+        passes: &mut Passes,
+        registry: &PassRegistry,
+    ) {
         self.recompute_static = true;
-        self.rebuild_passes(engine, device);
+        self.rebuild_passes(engine, device, buffers, passes, registry);
     }
 
-    pub fn flush(&mut self, frame: lib::Frame, queue: &wgpu::Queue) {
+    pub fn flush(&mut self, frame: lib::Frame, queue: &wgpu::Queue, buffers: &mut Buffers) {
         self.frame = frame;
-        self.buffers.get_mut("curr_camera").flush(queue);
-        self.buffers.get_mut("prev_camera").flush(queue);
-        self.buffers.get_mut("globals").flush(queue);
-        self.buffers.get_mut("config").flush(queue);
-        self.buffers.get_mut("march_readback").flush(queue);
-        self.buffers.get_mut("materials").flush(queue);
-        self.buffers.get_mut("lights").flush(queue);
+        for buffer in buffers.values_mut() {
+            buffer.flush(queue);
+        }
     }
 }
 

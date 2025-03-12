@@ -21,11 +21,10 @@ use bevy::{
 };
 use wgpu::BufferUsages;
 
-use crate::state::SyncedState;
+use crate::{state::SyncedState, CameraHandle};
 
 use super::{
-    graph::{Rdog, RdogE},
-    EngineResource,
+    graph::{Rdog, RdogE}, rdog_buffers::RdogBufferResource, rdog_passes::RdogPassResource, EngineResource
 };
 
 pub struct RdogReadbackPlugin {
@@ -213,11 +212,13 @@ fn prepare_buffers(
     mut buffer_pool: ResMut<GpuReadbackBufferPool>,
     engine: Res<EngineResource>,
     handles: Query<(&MainEntity, &Readback)>,
+    buffers: Res<RdogBufferResource>,
 ) {
     for (entity, readback) in handles.iter() {
         match readback {
             Readback::Buffer(buffer) => {
-                let read_buffer = engine.get_buffer(&buffer.buffer);
+                let read_buffer =
+                    engine.get_buffer(&buffers.get(&CameraHandle::new(0)).unwrap(), &buffer.buffer);
 
                 let write_buffer = buffer_pool.get(&render_device, read_buffer.size());
                 let (tx, rx) = async_channel::bounded(1);
@@ -285,6 +286,7 @@ impl ViewNode for RBRenderingNode {
                 } => {
                     let entity = graph.view_entity();
                     let engine = world.resource::<EngineResource>();
+                    let passes = world.resource::<RdogPassResource>();
                     let state = world.resource::<SyncedState>();
 
                     let Some(camera) = state.cameras.get(&entity) else {
@@ -296,6 +298,7 @@ impl ViewNode for RBRenderingNode {
                         render_context.command_encoder(),
                         target.main_texture_view(),
                         &readback.pass,
+                        passes,
                     );
 
                     render_context.command_encoder().copy_buffer_to_buffer(

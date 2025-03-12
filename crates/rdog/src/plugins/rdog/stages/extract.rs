@@ -32,6 +32,16 @@ pub(crate) fn extras(
     commands.insert_resource(RdogExtractedExtras { mouse: pos });
 }
 
+pub(crate) fn events(
+    mut events: Extract<EventReader<RdogEvent>>,
+    mut render_events: EventWriter<RdogEvent>,
+) {
+    for e in events.read() {
+        info!("event: {:?} being passed to render thread.", e);
+        render_events.send(e.clone());
+    }
+}
+
 pub(crate) fn images(
     mut commands: Commands,
     mut events: Extract<EventReader<RdogEvent>>,
@@ -44,6 +54,7 @@ pub(crate) fn images(
             RdogEvent::MarkImageAsDynamic { id } => {
                 dynamic_images.insert(*id);
             }
+            _ => (),
         }
     }
 

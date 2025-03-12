@@ -2,7 +2,6 @@ use bevy::log::debug;
 use glam::UVec3;
 use rdog::{
     bind_group::BindGroup,
-    camera,
     compute_pass::ComputePass,
     define_pass_constructor,
     passes::{Pass, PassConstructor},
@@ -31,13 +30,13 @@ impl RasterPass {
         debug!("Initializing pass: raster");
 
         let bg0 = BindGroup::builder("raster_bg0")
-            .add(&buffers.get("config").bind_readable())
-            .add(&buffers.get("curr_camera").bind_readable())
-            .add(&buffers.get("globals").bind_readable())
+            .add(&buffers.get_old("config").bind_readable())
+            .add(&buffers.get_old("curr_camera").bind_readable())
+            .add(&buffers.get_old("globals").bind_readable())
             .build(device);
 
         let bg1 = BindGroup::builder("raster_bg1")
-            .add(&buffers.get("render_tx").bind_sampled())
+            .add(&buffers.get_old("render_tx_new").bind_sampled())
             .build(device);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -137,14 +136,14 @@ impl ReadbackPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
         let readback_mouse = ComputePass::builder("readback")
             .bind([
-                &buffers.get("curr_camera").bind_readable(),
-                &buffers.get("globals").bind_readable(),
-                &buffers.get("config").bind_readable(),
-                &buffers.get("march_readback").bind_writable(),
+                &buffers.get_old("curr_camera").bind_readable(),
+                &buffers.get_old("globals").bind_readable(),
+                &buffers.get_old("config").bind_readable(),
+                &buffers.get_old("march_readback").bind_writable(),
             ])
             .bind([
-                &buffers.get("materials").bind_readable(),
-                &buffers.get("lights").bind_readable(),
+                &buffers.get_old("materials").bind_readable(),
+                &buffers.get_old("lights").bind_readable(),
             ])
             .build(
                 device,
@@ -189,17 +188,17 @@ impl TracePass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
         let direct_pass = ComputePass::builder("trace")
             .bind([
-                &buffers.get("curr_camera").bind_readable(),
-                &buffers.get("globals").bind_readable(),
-                &buffers.get("config").bind_readable(),
-                &buffers.get("march_readback").bind_readable(),
-                &buffers.get("render_tx").bind_writable(),
+                &buffers.get_old("curr_camera").bind_readable(),
+                &buffers.get_old("globals").bind_readable(),
+                &buffers.get_old("config").bind_readable(),
+                &buffers.get_old("march_readback").bind_readable(),
+                &buffers.get_old("render_tx_new").bind_writable(),
             ])
             .bind([
-                &buffers.get("materials").bind_readable(),
-                &buffers.get("lights").bind_readable(),
+                &buffers.get_old("materials").bind_readable(),
+                &buffers.get_old("lights").bind_readable(),
             ])
-            .bind([&buffers.get("voxels").bind_readable()])
+            .bind([&buffers.get_old("voxels").bind_readable()])
             .build(device, "main", &engine.shaders.get("trace").unwrap().module);
 
         Self {
@@ -246,15 +245,15 @@ impl VoxelAccelPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
         let octree_pass = ComputePass::builder("voxel")
             .bind([
-                &buffers.get("curr_camera").bind_readable(),
-                &buffers.get("globals").bind_readable(),
-                &buffers.get("config").bind_readable(),
+                &buffers.get_old("curr_camera").bind_readable(),
+                &buffers.get_old("globals").bind_readable(),
+                &buffers.get_old("config").bind_readable(),
             ])
             .bind([
-                &buffers.get("materials").bind_readable(),
-                &buffers.get("lights").bind_readable(),
+                &buffers.get_old("materials").bind_readable(),
+                &buffers.get_old("lights").bind_readable(),
             ])
-            .bind([&buffers.get("voxels").bind_writable()])
+            .bind([&buffers.get_old("voxels").bind_writable()])
             .build(
                 device,
                 &"main",

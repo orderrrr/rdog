@@ -139,7 +139,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub(crate) fn scale(&self, cfg: &Config) -> UVec2 {
+    pub fn scale(&self, cfg: &Config) -> UVec2 {
         (self.viewport.size.as_vec2() * cfg.res).as_uvec2()
     }
 
@@ -239,7 +239,7 @@ impl Default for CameraMode {
 pub struct CameraHandle(usize);
 
 impl CameraHandle {
-    pub(crate) fn new(id: usize) -> Self {
+    pub fn new(id: usize) -> Self {
         Self(id)
     }
 }
