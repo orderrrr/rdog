@@ -1,14 +1,6 @@
-use bevy::{
-    prelude::*,
-    render::renderer::{RenderDevice, RenderQueue},
-    utils::HashMap,
-};
+use bevy::{prelude::*, render::renderer::RenderDevice, utils::HashMap};
 
-use crate::{
-    passes::{PassRegistry, Passes},
-    renderer::buffers::Buffers,
-    CameraHandle, Config,
-};
+use crate::{passes::PassRegistry, Config};
 
 use super::shader::RdogShaderAsset;
 
@@ -22,30 +14,13 @@ impl SyncedState {
         !self.cameras.is_empty()
     }
 
-    pub fn tick(
-        &self,
-        engine: &mut crate::Engine,
-        device: &RenderDevice,
-        queue: &RenderQueue,
-        buffers: &mut HashMap<CameraHandle, Buffers>,
-        passes: &mut HashMap<CameraHandle, Passes>,
-        registry: &PassRegistry,
-    ) {
-        if self.is_active() {
-            engine.tick(device.wgpu_device(), queue, buffers, passes, registry);
-        }
-    }
-
     pub fn compute_shaders(
         &self,
         engine: &mut crate::Engine,
         device: &RenderDevice,
         shaders: &Vec<RdogShaderAsset>,
-        buffers: &mut HashMap<CameraHandle, Buffers>,
-        passes: &mut HashMap<CameraHandle, Passes>,
-        registry: &PassRegistry,
     ) {
-        engine.compute_shaders(device.wgpu_device(), shaders, buffers, passes, registry);
+        engine.compute_shaders(device.wgpu_device(), shaders);
     }
 }
 
@@ -64,6 +39,7 @@ pub struct RdogExtractedCamera {
 #[derive(Resource, Debug, Component)]
 pub struct RdogExtractedExtras {
     pub mouse: Option<Vec2>,
+    pub frame: u32,
 }
 
 #[derive(Debug, Resource)]

@@ -3,7 +3,6 @@ use std::fmt::{Display, Formatter};
 
 use bevy::{prelude::Resource, utils::default};
 use glam::{uvec2, vec4, Mat4, UVec2, Vec2, Vec3};
-use log::info;
 use rdog_lib::{self as gpu, Light, Material, PassParams};
 
 use crate::ui::{LightList, MaterialList};
@@ -60,7 +59,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub(crate) fn to_pass_params(&self) -> PassParams {
+    pub fn to_pass_params(&self) -> PassParams {
         let mut flags: u32 = 0;
 
         flags |= self.direct_pass as u32;
@@ -81,7 +80,7 @@ impl Config {
         }
     }
 
-    pub(crate) fn material_pass(&self) -> Vec<Material> {
+    pub fn material_pass(&self) -> Vec<Material> {
         let mut m: Vec<rdog_lib::Material> = vec![];
         for mat in self.material_tree.mats.iter() {
             m.push(mat.to_shader());
@@ -90,7 +89,7 @@ impl Config {
         m
     }
 
-    pub(crate) fn light_pass(&self) -> Vec<Light> {
+    pub fn light_pass(&self) -> Vec<Light> {
         let mut l: Vec<rdog_lib::Light> = vec![];
         for light in self.light_tree.lights.iter() {
             l.push(light.to_shader());
@@ -143,7 +142,7 @@ impl Camera {
         (self.viewport.size.as_vec2() * cfg.res).as_uvec2()
     }
 
-    pub(crate) fn serialize(&self, cfg: &Config) -> gpu::camera::Camera {
+    pub fn serialize(&self, cfg: &Config) -> gpu::camera::Camera {
         gpu::camera::Camera {
             projection_view: self.projection * self.transform.inverse(),
             ndc_to_world: self.transform * self.projection.inverse(),
@@ -156,39 +155,6 @@ impl Camera {
             fpd: self.focus_point.extend(self.focus_dist),
             af: vec4(self.aperture, self.focal_length, 0.0, 0.0),
         }
-    }
-
-    pub(crate) fn is_invalidated_by(&self, older: &Self) -> bool {
-        if self.mode != older.mode {
-            info!(
-                "Camera `{}` invalidated: mode has been changed ({:?} -> {:?})",
-                older, older.mode, self.mode,
-            );
-
-            return true;
-        }
-
-        if self.viewport.format != older.viewport.format {
-            info!(
-                "Camera `{}` invalidated: viewport.format has been changed \
-                 ({:?} -> {:?})",
-                older, older.viewport.format, self.viewport.format,
-            );
-
-            return true;
-        }
-
-        if self.viewport.size != older.viewport.size {
-            info!(
-                "Camera `{}` invalidated: viewport.size has been changed \
-                 ({} -> {})",
-                older, older.viewport.size, self.viewport.size,
-            );
-
-            return true;
-        }
-
-        false
     }
 }
 
@@ -263,7 +229,7 @@ impl Globals {
         }
     }
 
-    pub(crate) fn serialize(&self) -> gpu::shader::Globals {
+    pub fn serialize(&self) -> gpu::shader::Globals {
         gpu::shader::Globals {
             time: self.time,
             seed: self.seed,

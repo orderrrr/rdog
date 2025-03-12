@@ -4,7 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use bytemuck::Pod;
 use log::debug;
 
 use super::{bindable::Bindable, bufferable::Bufferable};
@@ -21,13 +20,9 @@ pub struct MapWriteBuffer {
 }
 
 impl MapWriteBuffer {
-    pub fn new<T: Bufferable + Pod>(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        data: T,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: Vec<u8>) -> Self {
         let label = label.as_ref();
-        let size = size_of::<T>();
+        let size = size_of::<u8>() * data.len();
 
         debug!("Allocating storage buffer `{label}`; size={size}");
 

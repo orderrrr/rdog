@@ -1,10 +1,10 @@
 use bevy::{
     prelude::*,
-    render::{renderer::RenderDevice, Render, RenderApp},
+    render::{Render, RenderApp},
     utils::HashMap,
 };
 
-use crate::{renderer::buffers::Buffers, stages::prepare::cameras, CameraHandle, EngineResource};
+use crate::{renderer::buffers::Buffers, stages::prepare::cameras, CameraHandle};
 
 use super::{event::RdogEvent, state::SyncedState};
 
@@ -28,9 +28,7 @@ pub struct RdogBufferResource(HashMap<CameraHandle, Buffers>);
 pub fn create_buffer(
     mut buffers: ResMut<RdogBufferResource>,
     mut events: EventReader<RdogEvent>,
-    engine: Res<EngineResource>,
     state: Res<SyncedState>,
-    device: Res<RenderDevice>,
 ) {
     for e in events.read() {
         match e {
@@ -38,14 +36,7 @@ pub fn create_buffer(
                 info!("need to create buffer");
                 for handle in state.cameras.values() {
                     info!("created buffer");
-                    buffers.insert(
-                        handle.handle,
-                        Buffers::new(
-                            &engine,
-                            device.wgpu_device(),
-                            &engine.cameras.get(handle.handle).camera,
-                        ),
-                    );
+                    buffers.insert(handle.handle, Buffers::new());
                 }
             }
             _ => (),

@@ -1,9 +1,9 @@
 use std::{
     mem,
-    ops::{Deref, DerefMut}, sync::Arc,
+    ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
-use bytemuck::Pod;
 use log::debug;
 
 use super::bufferable::Bufferable;
@@ -21,13 +21,9 @@ pub struct MapReadBuffer {
 }
 
 impl MapReadBuffer {
-    pub fn new<T: Bufferable + Pod>(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        data: T,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: Vec<u8>) -> Self {
         let label = label.as_ref();
-        let size = utils::pad_size(size_of::<T>());
+        let size = utils::pad_size(size_of::<u8>() * data.len());
 
         debug!("Allocating storage buffer `{label}`; size={size}");
 

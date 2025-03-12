@@ -13,6 +13,7 @@ use bevy::{
     },
 };
 use glam::vec2;
+use rdog_lib::Frame;
 
 use crate::images::ImageData;
 use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
@@ -25,36 +26,24 @@ use crate::{CameraMode, RdogStateEvent, MAIN};
 
 use super::cache::RdogShaderCache;
 
-pub fn flush(
+pub fn flush(queue: Res<RenderQueue>, mut buffers: ResMut<RdogBufferResource>) {
+    for bufferl in buffers.values_mut() {
+        for buffer in bufferl.values_mut() {
+            buffer.flush(&queue);
+        }
+    }
+}
+
+pub fn parse_shaders(
     device: Res<RenderDevice>,
-    queue: Res<RenderQueue>,
     mut engine: ResMut<EngineResource>,
-    mut buffers: ResMut<RdogBufferResource>,
-    mut passes: ResMut<RdogPassResource>,
-    registry: Res<RdogPassRegistry>,
     cache: ResMut<RdogShaderCache>,
     state: Res<SyncedState>,
 ) {
     if !cache.is_empty() {
         log::info!("computing shaders");
-        state.compute_shaders(
-            &mut engine,
-            &device,
-            &cache,
-            &mut buffers,
-            &mut passes,
-            &registry,
-        );
+        state.compute_shaders(&mut engine, &device, &cache);
     }
-
-    state.tick(
-        &mut engine,
-        &device,
-        &queue,
-        &mut buffers,
-        &mut passes,
-        &registry,
-    );
 }
 
 pub fn images(
@@ -204,6 +193,7 @@ pub(crate) fn extras(
     let engine = &mut *engine;
     engine.time = vec2(time.elapsed_secs(), time.delta_secs());
     engine.config = config.clone();
+    engine.frame = Frame::new(extras.frame);
     engine.mouse = match extras.mouse {
         Some(x) => x,
         _ => Vec2::ZERO,

@@ -6,15 +6,13 @@ use crate::bindable::Bindable;
 use crate::bufferable::Bufferable;
 use crate::{
     buffers::mapped_uniform_buffer::MappedUniformBuffer, map_read_buffer::MapReadBuffer,
-    map_write_buffer::MapWriteBuffer, storage_buffer::StorageBuffer, texture::Texture, Globals,
+    map_write_buffer::MapWriteBuffer, storage_buffer::StorageBuffer, texture::Texture,
 };
 
-use super::{config::Camera, engine::Engine};
 use bevy::prelude::{Deref, DerefMut};
 use bevy::utils::hashbrown::HashMap;
 use bytemuck::Pod;
-use glam::{uvec3, UVec3, Vec4};
-use log::debug;
+use glam::UVec3;
 use wgpu::Buffer;
 
 #[derive(Debug)]
@@ -174,7 +172,7 @@ impl Buffers {
                 current_buf.data().len(),
                 new_data.len()
             );
-            *self.get_mut(st) = BT::from(StorageBuffer::new(device, name, data));
+            *self.get_mut(st) = BT::from(StorageBuffer::new(device, name, data.data().to_vec()));
         } else {
             log::debug!("Reusing existing '{}' buffer", st);
             self.update(st, new_data.to_vec());
@@ -183,55 +181,7 @@ impl Buffers {
 }
 
 impl Buffers {
-    pub fn new(engine: &Engine, device: &wgpu::Device, camera: &Camera) -> Self {
-        debug!("Initializing camera buffers");
-
-        let curr_camera =
-            MappedUniformBuffer::new(device, "camera", camera.serialize(&engine.config));
-        let prev_camera =
-            MappedUniformBuffer::new(device, "prev_camera", camera.serialize(&engine.config));
-        let globals = MappedUniformBuffer::new(
-            device,
-            "globals",
-            Globals::from_engine(engine, camera).serialize(),
-        );
-        let config = MappedUniformBuffer::new(device, "config", engine.config.to_pass_params());
-        let materials = StorageBuffer::new(device, "materials", engine.config.material_pass());
-        let lights = StorageBuffer::new(device, "lights", engine.config.light_pass());
-        let march_readback = MapWriteBuffer::new(device, "march_readback", Vec4::ZERO);
-
-        let render_tx = Texture::builder("render")
-            .with_size(camera.scale(&engine.config))
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_nearest_filtering_sampler()
-            .build(device);
-
-        let voxels = Texture::builder("voxels")
-            .with_size_3d(uvec3(
-                engine.config.voxel_dim,
-                engine.config.voxel_dim,
-                engine.config.voxel_dim,
-            ))
-            .with_format(wgpu::TextureFormat::Rgba16Float) // TODO - pack 8 here instead of a single voxel
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_linear_filtering_sampler()
-            .build(device);
-
-        let mut hm: HashMap<String, BT> = HashMap::new();
-
-        hm.insert("prev_camera".to_string(), BT::from(prev_camera));
-        hm.insert("curr_camera".to_string(), BT::from(curr_camera));
-        hm.insert("globals".to_string(), BT::from(globals));
-        hm.insert("render_tx".to_string(), BT::from(render_tx));
-        hm.insert("config".to_string(), BT::from(config));
-        hm.insert("materials".to_string(), BT::from(materials));
-        hm.insert("lights".to_string(), BT::from(lights));
-        hm.insert("voxels".to_string(), BT::from(voxels));
-        hm.insert("march_readback".to_string(), BT::from(march_readback));
-
-        Buffers(hm)
+    pub fn new() -> Self {
+        Buffers(HashMap::new())
     }
 }

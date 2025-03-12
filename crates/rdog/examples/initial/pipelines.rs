@@ -36,7 +36,7 @@ impl RasterPass {
             .build(device);
 
         let bg1 = BindGroup::builder("raster_bg1")
-            .add(&buffers.get_old("render_tx_new").bind_sampled())
+            .add(&buffers.get_old("render_tx").bind_sampled())
             .build(device);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -192,7 +192,7 @@ impl TracePass {
                 &buffers.get_old("globals").bind_readable(),
                 &buffers.get_old("config").bind_readable(),
                 &buffers.get_old("march_readback").bind_readable(),
-                &buffers.get_old("render_tx_new").bind_writable(),
+                &buffers.get_old("render_tx").bind_writable(),
             ])
             .bind([
                 &buffers.get_old("materials").bind_readable(),

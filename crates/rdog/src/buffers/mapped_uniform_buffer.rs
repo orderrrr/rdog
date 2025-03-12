@@ -2,7 +2,8 @@ use log::debug;
 
 use std::{
     mem,
-    ops::{Deref, DerefMut}, sync::Arc,
+    ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
 use crate::renderer::utils;
@@ -17,9 +18,9 @@ pub struct MappedUniformBuffer {
 }
 
 impl MappedUniformBuffer {
-    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: impl Bufferable ) -> Self {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: Vec<u8>) -> Self {
         let label = format!("rdog_{}", label.as_ref());
-        let size = utils::pad_size(data.size());
+        let size = utils::pad_size(data.len() * size_of::<u8>());
 
         debug!("Allocating uniform buffer `{label}`; size={size}");
 

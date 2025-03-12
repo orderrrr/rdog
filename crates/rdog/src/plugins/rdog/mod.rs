@@ -127,9 +127,17 @@ fn rdog_setup_scene(mut commands: Commands, mut rdog_e: EventWriter<RdogEvent>) 
     rdog_e.send(RdogEvent::Recompute);
 }
 
-fn send_events(mut buf: EventWriter<RdogEvent>, mut resize_reader: EventReader<WindowResized>) {
+fn send_events(
+    mut buf: EventWriter<RdogEvent>,
+    mut resize_reader: EventReader<WindowResized>,
+    config: Res<Config>,
+) {
     for _ in resize_reader.read() {
         info!("window Changed");
+        buf.send(RdogEvent::Recompute);
+    }
+
+    if config.reload {
         buf.send(RdogEvent::Recompute);
     }
 }

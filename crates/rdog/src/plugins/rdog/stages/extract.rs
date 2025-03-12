@@ -1,4 +1,5 @@
 use bevy::{
+    core::FrameCount,
     image::{ImageSampler, ImageSamplerDescriptor},
     prelude::*,
     render::{
@@ -22,6 +23,7 @@ use crate::{
 pub(crate) fn extras(
     mut commands: Commands,
     q_windows: Extract<Query<&Window, With<PrimaryWindow>>>,
+    q_frame: Extract<Res<FrameCount>>,
 ) {
     let mut pos = None;
     if let Ok(window) = q_windows.get_single() {
@@ -29,7 +31,10 @@ pub(crate) fn extras(
             pos = Some(position);
         }
     }
-    commands.insert_resource(RdogExtractedExtras { mouse: pos });
+    commands.insert_resource(RdogExtractedExtras {
+        mouse: pos,
+        frame: q_frame.0,
+    });
 }
 
 pub(crate) fn events(

@@ -1,9 +1,9 @@
 use std::{
     mem,
-    ops::{Deref, DerefMut}, sync::Arc,
+    ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
-use bytemuck::Pod;
 use log::debug;
 
 use super::{bindable::Bindable, bufferable::Bufferable};
@@ -22,19 +22,17 @@ pub struct StorageBuffer {
 
 impl StorageBuffer {
     // TODO provide `::builder()` pattern
-    pub fn new<T: Bufferable + Pod>(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        data: Vec<T>,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: Vec<u8>) -> Self {
         let label = label.as_ref();
-        let size = utils::pad_size(data.len() * size_of::<T>());
+        let size = utils::pad_size(data.len() * size_of::<u8>());
 
         debug!("Allocating storage buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
-            usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::STORAGE,
             size: size as _,
             mapped_at_creation: false,
         });

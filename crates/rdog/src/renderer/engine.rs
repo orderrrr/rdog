@@ -7,7 +7,7 @@ use super::{
     passes::{PassRegistry, Passes},
     render::CameraController,
     shaders::{RdogShader, ShaderCache},
-    utils, Camera, CameraHandle, Config, Image,
+    Camera, CameraHandle, Config, Image,
 };
 use bevy::{
     asset::AssetId,
@@ -17,7 +17,7 @@ use bevy::{
 };
 use glam::Vec2;
 use naga_oil::compose::{ComposableModuleDescriptor, Composer};
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 use wgpu::Buffer;
 
 use log::info;
@@ -59,63 +59,12 @@ impl Engine {
         }
     }
 
-    /// Sends all changes to the GPU and prepares it for the upcoming frame.
-    ///
-    /// This function must be called before invoking [`Self::render_camera()`]
-    /// (if you have multiple cameras, calling this function just once is
-    /// enough.)
-    pub fn tick(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        buffers: &mut HashMap<CameraHandle, Buffers>,
-        passes: &mut HashMap<CameraHandle, Passes>,
-        registry: &PassRegistry,
-    ) {
-        let tt = Instant::now();
-
-        let any_buffer_reallocated = utils::measure("tick.buffers", || false);
-
-        if any_buffer_reallocated {
-            for camera in &mut self.cameras.iter_mut() {
-                camera.1.invalidate(
-                    self,
-                    device,
-                    buffers.get(&camera.0).unwrap(),
-                    passes.get_mut(&camera.0).unwrap(),
-                    registry,
-                );
-            }
-        }
-
-        utils::measure("tick.cameras", || {
-            for camera in &mut self.cameras.iter_mut() {
-                if buffers.contains_key(&camera.0) {
-                    camera
-                        .1
-                        .flush(self.frame, queue, buffers.get_mut(&camera.0).unwrap());
-                }
-            }
-        });
-
-        self.frame = lib::Frame::new(self.frame.get() + 1);
-
-        utils::metric("tick", tt);
-    }
-
     pub fn get_buffer(&self, buffers: &Buffers, buffer_name: &str) -> Arc<Buffer> {
         return buffers.get_old(&buffer_name).buffer();
     }
 
-    pub fn compute_shaders(
-        &mut self,
-        device: &wgpu::Device,
-        shaders: &Vec<RdogShaderAsset>,
-        buffers: &mut HashMap<CameraHandle, Buffers>,
-        passes: &mut HashMap<CameraHandle, Passes>,
-        registry: &PassRegistry,
-    ) {
-        // First, load all library shaders and collect their names
+    // TODO: redo this.
+    pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
         let mut lib_names = Vec::new();
 
         for shader in shaders {
@@ -181,18 +130,7 @@ impl Engine {
             }
         }
 
-        for camera in &mut self.cameras.iter_mut() {
-            camera
-                .1
-                .rebuild_buffers(self, device, buffers.get_mut(&camera.0).unwrap());
-            camera.1.invalidate(
-                &self,
-                device,
-                buffers.get(&camera.0).unwrap(),
-                passes.get_mut(&camera.0).unwrap(),
-                registry,
-            );
-        }
+        self.config.reload = true; // TODO: check if this works as expected
     }
 }
 

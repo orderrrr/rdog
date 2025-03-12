@@ -43,13 +43,7 @@ impl CameraController {
         passes: &mut Passes,
         registry: &PassRegistry,
     ) {
-        let is_invalidated = self.camera.is_invalidated_by(&camera);
-
         self.camera = camera.clone();
-        buffers.update(
-            "prev_camera",
-            (buffers.get_old("curr_camera").data()).into(),
-        );
         buffers.update(
             "curr_camera",
             self.camera.serialize(&engine.config).data().into(),
@@ -72,13 +66,6 @@ impl CameraController {
             buffers.update("lights", engine.config.light_pass().data().into());
         }
 
-        if engine.config.reload {
-            log::info!("Reloaded");
-            self.rebuild_buffers(engine, device, buffers);
-            self.rebuild_passes(engine, device, buffers, passes, registry);
-            return;
-        }
-
         if engine.config.material_tree.list_changed {
             log::info!("Material tree changed.");
             // Use our new smart update method that handles buffer resizing
@@ -99,26 +86,6 @@ impl CameraController {
             self.rebuild_passes(engine, device, buffers, passes, registry);
             return;
         }
-
-        self.recompute_static = false;
-
-        if is_invalidated
-            || &buffers.get_old("render_tx").size() != &camera.scale(&engine.config).extend(1)
-        {
-            self.recompute_static = true;
-            // self.rebuild_buffers(engine, device, buffers);
-            self.rebuild_passes(engine, device, buffers, passes, registry);
-        }
-    }
-
-    pub(crate) fn rebuild_buffers(
-        &mut self,
-        engine: &Engine,
-        device: &wgpu::Device,
-        buffers: &mut Buffers,
-    ) {
-        debug!("Rebuilding buffers for camera `{}`", self.camera);
-        *buffers = Buffers::new(engine, device, &self.camera);
     }
 
     fn rebuild_passes(

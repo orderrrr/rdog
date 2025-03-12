@@ -36,6 +36,10 @@ pub(crate) fn setup(render_app: &mut SubApp) {
     render_app.add_systems(Render, prepare::extras.in_set(RenderSet::Prepare));
     render_app.add_systems(
         Render,
+        prepare::parse_shaders.in_set(RenderSet::PrepareResourcesFlush),
+    );
+    render_app.add_systems(
+        Render,
         prepare::flush.in_set(RenderSet::PrepareResourcesFlush),
     );
 }
