@@ -30,7 +30,7 @@ fn map(p: vec3f) -> vec3f {
     var dt = sd_fbm(p + 0.5, d);
     dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
 
-    return sd_min3(vec3f(dt.x, pack_material_ids(2.0, 3.0), dt.y), l);
+    return sd_min3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y), l);
 }
 
 fn lights(p: vec3f) -> vec3f {
