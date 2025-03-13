@@ -32,11 +32,10 @@ var<private> num_levels: u32;
 fn read_mouse(
     @builtin(global_invocation_id) id: vec3u,
 ) {
-
     rng_state = u32(id.x + (id.y * u32(camera.screen.y))) * globals.seed.y;
     num_levels = u32(log2(f32(pass_params.voxel_dim))) + 1;
 
-    let pos = floor(globals.mouse);
+    let pos = floor(globals.mouse * camera.screen.xy);
 
     let ss = vec2f(camera.screen.xy);
 

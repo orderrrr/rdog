@@ -24,7 +24,7 @@ use wgpu::BufferUsages;
 use crate::{state::SyncedState, CameraHandle};
 
 use super::{
-    graph::{Rdog, RdogE}, rdog_buffers::RdogBufferResource, rdog_passes::RdogPassResource, EngineResource
+    graph::{Rdog, RdogE}, rdog_buffers::RdogBufferResource, rdog_passes::RdogPassResource, state::ExtractedConfig, EngineResource
 };
 
 pub struct RdogReadbackPlugin {
@@ -288,6 +288,7 @@ impl ViewNode for RBRenderingNode {
                     let engine = world.resource::<EngineResource>();
                     let passes = world.resource::<RdogPassResource>();
                     let state = world.resource::<SyncedState>();
+                    let config = world.resource::<ExtractedConfig>();
 
                     let Some(camera) = state.cameras.get(&entity) else {
                         return Ok(());
@@ -295,6 +296,7 @@ impl ViewNode for RBRenderingNode {
 
                     engine.render_camera_pass(
                         camera.handle,
+                        config,
                         render_context.command_encoder(),
                         target.main_texture_view(),
                         &readback.pass,

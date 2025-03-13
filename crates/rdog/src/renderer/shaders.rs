@@ -1,10 +1,14 @@
 use std::{
-    borrow::Cow, future::Future, ops::Deref, pin::Pin, task::{Context, Poll}
+    borrow::Cow,
+    future::Future,
+    ops::Deref,
+    pin::Pin,
+    task::{Context, Poll},
 };
 
-use bevy::{prelude::DerefMut, utils::hashbrown::HashMap};
+use bevy::{log::error, prelude::DerefMut, utils::hashbrown::HashMap};
 use futures::task::noop_waker;
-use naga_oil::compose::{Composer, NagaModuleDescriptor, get_preprocessor_data};
+use naga_oil::compose::{get_preprocessor_data, Composer, NagaModuleDescriptor};
 
 use crate::shader::{FType, RdogShaderAsset};
 
@@ -28,13 +32,16 @@ impl RdogShader {
             FType::Spv(_) => return None,
         };
 
-        let module = composer
-            .make_naga_module(NagaModuleDescriptor {
-                source: &data,
-                file_path: &asset.name,
-                ..Default::default()
-            })
-            .unwrap();
+        let module = composer.make_naga_module(NagaModuleDescriptor {
+            source: &data,
+            file_path: &asset.name,
+            ..Default::default()
+        });
+
+        let Ok(module) = module else {
+            error!("module compile error: {:?}", module);
+            return None;
+        };
 
         let (_, imports, _) = get_preprocessor_data(&data);
         let imports = imports.iter().map(|i| i.import.clone()).collect();
@@ -56,7 +63,7 @@ impl RdogShader {
             module,
             entry_point,
             imports,
-            data: data.to_string()
+            data: data.to_string(),
         })
     }
 }
@@ -89,12 +96,13 @@ impl ShaderCache {
     pub fn new_cache() -> Self {
         Self(HashMap::new())
     }
-    
-    pub fn update_shader(&mut self, 
+
+    pub fn update_shader(
+        &mut self,
         frame: u32,
-        device: &wgpu::Device, 
-        shader: &RdogShaderAsset, 
-        composer: &mut Composer
+        device: &wgpu::Device,
+        shader: &RdogShaderAsset,
+        composer: &mut Composer,
     ) -> bool {
         let comp = RdogShader::new(frame, device, shader, composer);
         if let Some(shader_module) = comp {
@@ -104,9 +112,10 @@ impl ShaderCache {
             false
         }
     }
-    
+
     pub fn find_dependent_shaders(&self, lib_name: &str) -> Vec<String> {
-        self.0.iter()
+        self.0
+            .iter()
             .filter_map(|(name, shader)| {
                 if shader.imports.contains(&lib_name.to_string()) {
                     Some(name.clone())

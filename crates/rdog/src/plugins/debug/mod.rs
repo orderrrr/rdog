@@ -94,6 +94,13 @@ pub fn readback_setup(
         debug_config.point_picker = false;
         debug_config.change = true;
 
+        if let Some(r) = readback_data.get("march_readback") {
+            if commands.get_entity(r.0).is_some() {
+                debug_config.change = false;
+                return;
+            }
+        }
+
         info!("system requested");
 
         let data: Arc<Mutex<Option<Vec<u32>>>> = Arc::new(Mutex::new(None));

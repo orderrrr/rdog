@@ -7,7 +7,7 @@ use rdog::{
     passes::{Pass, PassConstructor},
     render::CameraController,
     renderer::buffers::Buffers,
-    Camera, Engine,
+    Camera, Config, Engine,
 };
 use std::any::Any;
 use wgpu::StoreOp;
@@ -92,6 +92,7 @@ impl Pass for RasterPass {
     fn run(
         &self,
         _engine: &Engine,
+        _config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
@@ -170,6 +171,7 @@ impl Pass for ReadbackPass {
     fn run(
         &self,
         _e: &Engine,
+        _config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
@@ -211,7 +213,8 @@ impl TracePass {
 impl Pass for TracePass {
     fn run(
         &self,
-        engine: &Engine,
+        _engine: &Engine,
+        config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
@@ -219,7 +222,7 @@ impl Pass for TracePass {
         self.compute_passes[0].run(
             camera,
             encoder,
-            (camera.camera.viewport.size.as_vec2() * engine.config.res)
+            (camera.camera.viewport.size.as_vec2() * config.res)
                 .as_uvec2()
                 .extend(1),
             (),
@@ -270,12 +273,13 @@ impl VoxelAccelPass {
 impl Pass for VoxelAccelPass {
     fn run(
         &self,
-        e: &Engine,
+        _e: &Engine,
+        config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
     ) {
-        self.compute_passes[0].run(camera, encoder, UVec3::splat(e.config.voxel_dim), ());
+        self.compute_passes[0].run(camera, encoder, UVec3::splat(config.voxel_dim), ());
     }
 
     fn name(&self) -> &str {

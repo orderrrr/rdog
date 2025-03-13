@@ -54,7 +54,6 @@ pub struct Config {
     pub light_tree: LightList,
 
     pub ray_debug: bool,
-    pub voxel_debug: bool,
 
     pub camera_config: CameraConfig,
 }
@@ -121,7 +120,6 @@ impl Default for Config {
             voxel_dim: 8,
             light_tree: LightList::default(),
             camera_config: CameraConfig::default(),
-            voxel_debug: false,
         }
     }
 }
@@ -224,8 +222,7 @@ impl Globals {
         Self {
             time: engine.time,
             seed: uvec2(engine.seed, engine.seed + engine.frame.get()), // seed offset with current frame (for rays)
-            mouse: (engine.mouse / cam.viewport.size.as_vec2())
-                * cam.scale(&engine.config).as_vec2(),
+            mouse: engine.mouse / cam.viewport.size.as_vec2(),
             true_res: cam.viewport.size,
         }
     }

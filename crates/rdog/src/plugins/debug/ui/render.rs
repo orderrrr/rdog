@@ -104,7 +104,8 @@ fn passes(ui_state: &mut Config, ui: &mut Ui) {
         .striped(true)
         .spacing([40.0, 4.0])
         .show(ui, |ui| {
-            ui.checkbox(&mut ui_state.voxel_debug, "Voxel Debug");
+            // ui.checkbox(&mut ui_state.voxel_debug, "Voxel Debug");
+            ui.label("should be voxel debug");
             ui.end_row();
 
             ui.label("Pass Count");

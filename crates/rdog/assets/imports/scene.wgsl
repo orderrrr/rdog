@@ -6,6 +6,9 @@
 //* #import rng::{
 //*     rng_state, rand_f, simplex_33
 //* }
+//* #import noisy::{
+//*     simplex_noise_3d, fbm_simplex_3d
+//* }
 
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> globals: Globals;
@@ -19,18 +22,28 @@ const MIN_DIST: f32 = 0.001;
 const DEFAULT_MAT: Material = Material(0.0, 0.0, 0.0, DANGER, DANGER, 0.0, 0.0, 0.0, 0.0);
 const DANGER = vec3f(1.0, 0.0, 1.0);
 
-fn sample_atmos(sr: Ray) -> vec3f {
-    return vec3f(0.4, 0.35, 0.37) * 0.3;
-}
-
 fn map(p: vec3f) -> vec3f {
     let l = lights(p);
 
-    let d = sd_box(p, vec3(1.0));
-    var dt = sd_fbm(p + 0.5, d);
-    dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
 
-    return sd_min3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y), l);
+
+    {
+        let d = sd_box(p, vec3(1.0));
+        var dt = sd_fbm(p + 0.5, d);
+        dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
+    }
+
+    var out = vec3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y));
+    // if pass_params.voxel_debug > 0 {
+    out = sd_min3(out, vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0));
+    // }
+    out = sd_min3(out, vec3f(length(p - vec3f(-1.0, -1.0, -1.0)) - .1, pack_material_ids(1.0, 1.0), 1.0));
+
+    return sd_min3(out, l);
+}
+
+fn sample_atmos(sr: Ray) -> vec3f {
+    return vec3f(0.4, 0.35, 0.37) * 0.3;
 }
 
 fn lights(p: vec3f) -> vec3f {
@@ -233,7 +246,7 @@ fn sd_fbm(pin: vec3f, din: f32) -> vec2f {
     var t = 0.0;
     var s = 1.0;
     for (var i = 0u; i < 7; i++) {
-        let n = s * simplex_33(p);
+        let n = s * simplex_33(p * -0.3);
         d = smax(d, -n, 0.15 * s);
         t += d;
         p = 2.0 * m * p;
@@ -241,4 +254,14 @@ fn sd_fbm(pin: vec3f, din: f32) -> vec2f {
     }
 
     return vec2f(d, t);
+}
+
+fn sd_box_frame(pi: vec3f, b: vec3f, e: f32) -> f32 {
+    let p = abs(pi) - b;
+    let q = abs(p + e) - e;
+    return min(min(
+        length(max(vec3(p.x, q.y, q.z), vec3f(0.0))) + min(max(p.x, max(q.y, q.z)), 0.0),
+        length(max(vec3(q.x, p.y, q.z), vec3f(0.0))) + min(max(q.x, max(p.y, q.z)), 0.0)
+    ),
+        length(max(vec3(q.x, q.y, p.z), vec3f(0.0))) + min(max(q.x, max(q.y, p.z)), 0.0));
 }

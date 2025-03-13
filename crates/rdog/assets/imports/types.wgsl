@@ -44,6 +44,7 @@ struct PassParams {
     bounce_count: u32,
     flags: u32,
     voxel_dim: u32,
+    voexl_debug: u32,
 }
 
 struct Globals {

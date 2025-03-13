@@ -7,6 +7,7 @@ use crate::renderer::config::Camera;
 use crate::renderer::engine::Engine;
 
 use super::render::CameraController;
+use super::Config;
 
 #[macro_export]
 macro_rules! define_pass_constructor {
@@ -51,6 +52,7 @@ pub trait Pass: std::fmt::Debug + Any + Send + Sync {
     fn run(
         &self,
         engine: &Engine,
+        config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
@@ -175,13 +177,14 @@ impl Passes {
     pub fn run_all(
         &self,
         engine: &Engine,
+        config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) {
         for pass_name in &self.pass_order {
             if let Some(pass) = self.passes.get(pass_name) {
-                pass.run(engine, camera, encoder, view);
+                pass.run(engine, config, camera, encoder, view);
             }
         }
     }
@@ -191,12 +194,13 @@ impl Passes {
         &self,
         name: &str,
         engine: &Engine,
+        config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) -> bool {
         if let Some(pass) = self.passes.get(name) {
-            pass.run(engine, camera, encoder, view);
+            pass.run(engine, config, camera, encoder, view);
             true
         } else {
             false

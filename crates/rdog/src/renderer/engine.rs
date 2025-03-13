@@ -25,10 +25,9 @@ use rdog_lib::{self as lib};
 
 #[derive(Debug)]
 pub struct Engine {
-    pub config: Config,
-
     pub shaders: ShaderCache,
     pub shader_compose: Composer,
+
     pub frame: lib::Frame,
 
     pub time: Vec2,
@@ -53,7 +52,6 @@ impl Engine {
             cameras: default(),
             has_dirty_images: false,
             seed,
-            config: Config::default(),
             mouse: Vec2::default(),
             shader_compose: Composer::default(),
         }
@@ -129,8 +127,6 @@ impl Engine {
                 _ => (),
             }
         }
-
-        self.config.reload = true; // TODO: check if this works as expected
     }
 }
 
@@ -143,28 +139,35 @@ impl Engine {
     pub fn render_camera(
         &self,
         handle: CameraHandle,
+        config: &Config,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         passes: &HashMap<CameraHandle, Passes>,
     ) {
         if passes.contains_key(&handle) {
-            self.cameras
-                .get(handle)
-                .render(self, encoder, view, passes.get(&handle).unwrap());
+            self.cameras.get(handle).render(
+                self,
+                config,
+                encoder,
+                view,
+                passes.get(&handle).unwrap(),
+            );
         }
     }
 
     pub fn render_camera_pass(
         &self,
         handle: CameraHandle,
+        config: &Config,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         pass: &str,
         passes: &HashMap<CameraHandle, Passes>,
     ) {
-        info!("render_camrea_pass");
+        info!("render_camera_pass: {}", pass);
         self.cameras.get(handle).render_pass(
             self,
+            config,
             encoder,
             view,
             pass,

@@ -15,6 +15,7 @@ use bevy::{
 use glam::vec2;
 use rdog_lib::Frame;
 
+use crate::event::RdogEvent;
 use crate::images::ImageData;
 use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
 use crate::plugins::rdog::EngineResource;
@@ -35,6 +36,7 @@ pub fn flush(queue: Res<RenderQueue>, mut buffers: ResMut<RdogBufferResource>) {
 
 pub fn parse_shaders(
     device: Res<RenderDevice>,
+    mut events: EventWriter<RdogEvent>,
     mut engine: ResMut<EngineResource>,
     cache: ResMut<RdogShaderCache>,
     state: Res<SyncedState>,
@@ -42,6 +44,7 @@ pub fn parse_shaders(
     if !cache.is_empty() {
         log::info!("computing shaders");
         state.compute_shaders(&mut engine, &device, &cache);
+        events.send(RdogEvent::Recompute);
     }
 }
 
@@ -91,6 +94,7 @@ pub(crate) fn cameras(
     mut engine: ResMut<EngineResource>,
     buffers: Res<RdogBufferResource>,
     passes: Res<RdogPassResource>,
+    config: Res<ExtractedConfig>,
     mut state_event: EventWriter<RdogStateEvent>,
     mut cameras: Query<(
         Entity,
@@ -132,10 +136,10 @@ pub(crate) fn cameras(
             transform: bevy_ext_view.world_from_view.compute_matrix(),
             projection: bevy_ext_view.clip_from_view,
 
-            focus_point: engine.config.camera_config.focus_point,
-            focus_dist: engine.config.camera_config.focus_dist,
-            aperture: engine.config.camera_config.aperture,
-            focal_length: engine.config.camera_config.focal_length.clone(),
+            focus_point: config.camera_config.focus_point,
+            focus_dist: config.camera_config.focus_dist,
+            aperture: config.camera_config.aperture,
+            focal_length: config.camera_config.focal_length.clone(),
         };
 
         match state.cameras.entry(entity) {
@@ -176,12 +180,10 @@ pub(crate) fn cameras(
 pub(crate) fn extras(
     mut engine: ResMut<EngineResource>,
     extras: Res<RdogExtractedExtras>,
-    config: Res<ExtractedConfig>,
     time: Res<Time>,
 ) {
     let engine = &mut *engine;
     engine.time = vec2(time.elapsed_secs(), time.delta_secs());
-    engine.config = config.clone();
     engine.frame = Frame::new(extras.frame);
     engine.mouse = match extras.mouse {
         Some(x) => x,
