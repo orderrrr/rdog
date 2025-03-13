@@ -8,7 +8,7 @@ use crate::{Config, DebugConfig};
 use super::{lights_tab, mats_tab, render_tab, system_tab};
 
 pub trait TUi {
-    fn ui(&mut self, ui: &mut Ui) -> bool;
+    fn ui(&mut self, ui: &mut Ui);
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -60,12 +60,12 @@ impl SelectedTab {
         .to_string()
     }
 
-    pub fn render(&self, ui: &mut Ui, ui_state: &mut Config, d: &mut DebugConfig, c: &mut bool) {
+    pub fn render(&self, ui: &mut Ui, ui_state: &mut Config, d: &mut DebugConfig) {
         match self {
-            Self::Render => render_tab(ui, ui_state, d, c),
-            Self::Mats => mats_tab(ui, ui_state, c),
-            Self::Lights => lights_tab(ui, ui_state, c),
-            Self::System => system_tab(ui, ui_state, c),
+            Self::Render => render_tab(ui, ui_state, d),
+            Self::Mats => mats_tab(ui, ui_state),
+            Self::Lights => lights_tab(ui, ui_state),
+            Self::System => system_tab(ui, ui_state),
         }
     }
 }

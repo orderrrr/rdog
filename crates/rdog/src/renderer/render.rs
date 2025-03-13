@@ -44,48 +44,48 @@ impl CameraController {
         registry: &PassRegistry,
     ) {
         self.camera = camera.clone();
-        buffers.update(
-            "curr_camera",
-            self.camera.serialize(&engine.config).data().into(),
-        );
-        buffers.update(
-            "globals",
-            Globals::from_engine(engine, &camera)
-                .serialize()
-                .data()
-                .into(),
-        );
-        buffers.update("config", engine.config.to_pass_params().data().into());
-        buffers.update("march_readback", Vec4::ZERO.data().into());
-
-        if engine.config.material_tree.modified {
-            buffers.update("materials", engine.config.material_pass().data().into());
-        }
-
-        if engine.config.light_tree.modified {
-            buffers.update("lights", engine.config.light_pass().data().into());
-        }
-
-        if engine.config.material_tree.list_changed {
-            log::info!("Material tree changed.");
-            // Use our new smart update method that handles buffer resizing
-            buffers.update_storage(
-                "materials",
-                device,
-                "materials",
-                engine.config.material_pass(),
-            );
-            self.rebuild_passes(engine, device, buffers, passes, registry);
-            return;
-        }
-
-        if engine.config.light_tree.list_changed {
-            log::info!("Light tree changed.");
-            // Use our new smart update method that handles buffer resizing
-            buffers.update_storage("lights", device, "lights", engine.config.light_pass());
-            self.rebuild_passes(engine, device, buffers, passes, registry);
-            return;
-        }
+        // buffers.update(
+        //     "curr_camera",
+        //     self.camera.serialize(&engine.config).data().into(),
+        // );
+        // buffers.update(
+        //     "globals",
+        //     Globals::from_engine(engine, &camera)
+        //         .serialize()
+        //         .data()
+        //         .into(),
+        // );
+        // buffers.update("config", engine.config.to_pass_params().data().into());
+        // buffers.update("march_readback", Vec4::ZERO.data().into());
+        //
+        // if engine.config.material_tree.modified {
+        //     buffers.update("materials", engine.config.material_pass().data().into());
+        // }
+        //
+        // if engine.config.light_tree.modified {
+        //     buffers.update("lights", engine.config.light_pass().data().into());
+        // }
+        //
+        // if engine.config.material_tree.list_changed {
+        //     log::info!("Material tree changed.");
+        //     // Use our new smart update method that handles buffer resizing
+        //     buffers.update_storage(
+        //         "materials",
+        //         device,
+        //         "materials",
+        //         engine.config.material_pass(),
+        //     );
+        //     self.rebuild_passes(engine, device, buffers, passes, registry);
+        //     return;
+        // }
+        //
+        // if engine.config.light_tree.list_changed {
+        //     log::info!("Light tree changed.");
+        //     // Use our new smart update method that handles buffer resizing
+        //     buffers.update_storage("lights", device, "lights", engine.config.light_pass());
+        //     self.rebuild_passes(engine, device, buffers, passes, registry);
+        //     return;
+        // }
     }
 
     fn rebuild_passes(

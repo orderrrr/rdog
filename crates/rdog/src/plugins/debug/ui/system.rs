@@ -4,10 +4,9 @@ use bevy_egui::egui::{self, Ui};
 
 use crate::{plugin_config::read_config, Config};
 
-pub fn system_tab(ui: &mut Ui, ui_state: &mut Config, c: &mut bool) {
+pub fn system_tab(ui: &mut Ui, ui_state: &mut Config) {
     if ui.button("Reset Camera").clicked() {
         ui_state.orbit_reset = true;
-        *c = true;
     }
 
     ui.separator();
@@ -20,7 +19,6 @@ pub fn system_tab(ui: &mut Ui, ui_state: &mut Config, c: &mut bool) {
             if ui.button("Reload").clicked() {
                 *ui_state = read_config().unwrap_or(Config::default());
                 ui_state.reload = true;
-                *c = true;
             }
 
             if ui.button("Save").clicked() {

@@ -1,3 +1,4 @@
+use rdog_macro::TrackChanges;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -9,7 +10,7 @@ use crate::ui::{LightList, MaterialList};
 
 use super::Engine;
 
-#[derive(Clone, Debug, Resource, Serialize, Deserialize)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, PartialEq, TrackChanges)]
 pub struct CameraConfig {
     pub focus_dist: f32,
     pub focus_point: Vec3,
@@ -28,7 +29,7 @@ impl Default for CameraConfig {
     }
 }
 
-#[derive(Clone, Debug, Resource, Serialize, Deserialize)]
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, PartialEq, TrackChanges)]
 pub struct Config {
     pub res: f32,
     pub direct_pass: bool,

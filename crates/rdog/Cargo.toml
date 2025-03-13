@@ -19,6 +19,7 @@ wgpu = { version = "23.0.1" }
 winit = { version = "0.30", features = ["rwh_06"] }
 # Workspace
 rdog_lib = { path = "../rdog_lib" }
+rdog_macro = { path = "../rdog_macro" }
 strum = { version = "0.26.3", default-features = false, features = [
     "std",
     "derive",

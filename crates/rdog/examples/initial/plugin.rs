@@ -53,13 +53,13 @@ impl Plugin for InitialPlugin {
                 ))
                 .add_systems(
                     Render,
-                    init_buffers.after(create_buffer).before(setup_passes), // TODO: better way to do this ordering
+                    buffer_events.after(create_buffer).before(setup_passes), // TODO: better way to do this ordering
                 );
         }
     }
 }
 
-fn init_buffers(
+fn buffer_events(
     engine: Res<EngineResource>,
     mut events: EventReader<RdogEvent>,
     state: Res<SyncedState>,
@@ -84,9 +84,36 @@ fn init_buffers(
             _ => (),
         }
     }
+
+    for handle in state.cameras.values() {
+        let buffers = buffers.get_mut(&handle.handle).unwrap();
+        update(
+            &engine,
+            device.wgpu_device(),
+            buffers,
+            &engine.cameras.get(handle.handle).camera,
+        );
+    }
 }
 
-fn update(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera) {}
+fn update(engine: &Engine, _device: &Device, buffers: &mut Buffers, camera: &Camera) {
+    buffers.update(
+        "curr_camera",
+        camera.serialize(&engine.config).data().into(),
+    );
+    buffers.update(
+        "globals",
+        Globals::from_engine(engine, &camera)
+            .serialize()
+            .data()
+            .into(),
+    );
+    buffers.update("config", engine.config.to_pass_params().data().into());
+    buffers.update("march_readback", Vec4::ZERO.data().into());
+
+    buffers.update("materials", engine.config.material_pass().data().into());
+    buffers.update("lights", engine.config.light_pass().data().into());
+}
 
 fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera) {
     debug!("Initializing camera buffers");

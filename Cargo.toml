@@ -1,9 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "crates/rdog",
-    "crates/rdog_lib",
-]
+members = ["crates/rdog", "crates/rdog_lib", "crates/rdog_macro"]
 
 [workspace.package]
 edition = "2021"
