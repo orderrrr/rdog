@@ -20,7 +20,6 @@ use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCam
 use crate::plugins::rdog::EngineResource;
 use crate::plugins::rdog_passes::RdogPassResource;
 use crate::rdog_buffers::RdogBufferResource;
-use crate::rdog_passes::RdogPassRegistry;
 use crate::state::{ExtractedConfig, RdogExtractedExtras};
 use crate::{CameraMode, RdogStateEvent, MAIN};
 
@@ -88,13 +87,11 @@ pub fn images(
 }
 
 pub(crate) fn cameras(
-    device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
     mut engine: ResMut<EngineResource>,
-    mut buffers: ResMut<RdogBufferResource>,
-    mut passes: ResMut<RdogPassResource>,
+    buffers: Res<RdogBufferResource>,
+    passes: Res<RdogPassResource>,
     mut state_event: EventWriter<RdogStateEvent>,
-    registry: Res<RdogPassRegistry>,
     mut cameras: Query<(
         Entity,
         &ViewTarget,
@@ -103,7 +100,6 @@ pub(crate) fn cameras(
         &RenderLayers,
     )>,
 ) {
-    let device = device.wgpu_device();
     let engine = &mut *engine;
     let mut alive_cameras = HashSet::new();
 
@@ -146,14 +142,7 @@ pub(crate) fn cameras(
             Entry::Occupied(entry) => {
                 let h = entry.get().handle;
                 if buffers.contains_key(&h) && passes.contains_key(&h) {
-                    engine.update_camera(
-                        device,
-                        entry.get().handle,
-                        camera,
-                        &mut buffers.get_mut(&entry.get().handle).unwrap(),
-                        &mut passes.get_mut(&entry.get().handle).unwrap(),
-                        &registry,
-                    );
+                    engine.update_camera(entry.get().handle, camera);
                 }
             }
 

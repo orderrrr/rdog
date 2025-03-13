@@ -4,7 +4,7 @@ use super::{
     buffers::Buffers,
     camera_controllers::RenderControllers,
     images::Images,
-    passes::{PassRegistry, Passes},
+    passes::Passes,
     render::CameraController,
     shaders::{RdogShader, ShaderCache},
     Camera, CameraHandle, Config, Image,
@@ -173,18 +173,8 @@ impl Engine {
     }
 
     /// Updates camera, changing its mode, position, size etc.
-    pub fn update_camera(
-        &mut self,
-        device: &wgpu::Device,
-        handle: CameraHandle,
-        camera: Camera,
-        buffers: &mut Buffers,
-        passes: &mut Passes,
-        registry: &PassRegistry,
-    ) {
-        self.cameras
-            .get_mut(handle)
-            .update(self, device, camera, buffers, passes, registry);
+    pub fn update_camera(&mut self, handle: CameraHandle, camera: Camera) {
+        self.cameras.get_mut(handle).camera = camera;
     }
 
     /// Creates a new camera that can be used to render the world.
