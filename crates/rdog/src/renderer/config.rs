@@ -11,25 +11,6 @@ use crate::ui::{LightList, MaterialList};
 use super::Engine;
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, PartialEq, TrackChanges)]
-pub struct CameraConfig {
-    pub focus_dist: f32,
-    pub focus_point: Vec3,
-    pub focal_length: f32,
-    pub aperture: f32,
-}
-
-impl Default for CameraConfig {
-    fn default() -> Self {
-        Self {
-            focus_dist: 3.0,
-            focus_point: Vec3::ZERO,
-            focal_length: 1.4,
-            aperture: 0.52,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Resource, Serialize, Deserialize, PartialEq, TrackChanges)]
 pub struct Config {
     pub res: f32,
     pub direct_pass: bool,
@@ -123,6 +104,26 @@ impl Default for Config {
         }
     }
 }
+
+#[derive(Clone, Debug, Resource, Serialize, Deserialize, PartialEq, TrackChanges)]
+pub struct CameraConfig {
+    pub focus_dist: f32,
+    pub focus_point: Vec3,
+    pub focal_length: f32,
+    pub aperture: f32,
+}
+
+impl Default for CameraConfig {
+    fn default() -> Self {
+        Self {
+            focus_dist: 3.0,
+            focus_point: Vec3::ZERO,
+            focal_length: 1.4,
+            aperture: 0.52,
+        }
+    }
+}
+
 
 #[derive(Clone, Debug)]
 pub struct Camera {
