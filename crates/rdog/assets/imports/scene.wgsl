@@ -4,7 +4,7 @@
 //*     Ray, Light, LightIn, Material, MaterialIn, Camera, Globals, PassParams
 //* }
 //* #import rng::{
-//*     rng_state, rand_f, simplex_33
+//*     rng_state, rand_f, simplex_33, worley
 //* }
 //* #import noisy::{
 //*     simplex_noise_3d, fbm_simplex_3d
@@ -25,25 +25,33 @@ const DANGER = vec3f(1.0, 0.0, 1.0);
 fn map(p: vec3f) -> vec3f {
     let l = lights(p);
 
+    // let d = sd_box(p, vec3(1.0));
+    // var dt = sd_fbm(p, length(p) - 2.0);
+    // dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
 
+    // dt.x = op_intersection(length(p) - 2.0, dt.x);
 
-    {
-        let d = sd_box(p, vec3(1.0));
-        var dt = sd_fbm(p + 0.5, d);
-        dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
-    }
-
-    var out = vec3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y));
-    // if pass_params.voxel_debug > 0 {
-    out = sd_min3(out, vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0));
-    // }
-    out = sd_min3(out, vec3f(length(p - vec3f(-1.0, -1.0, -1.0)) - .1, pack_material_ids(1.0, 1.0), 1.0));
+    var out = vec3(vec3f(length(p) - 2.0, pack_material_ids(1.0, 2.0), 0.5));
+    out = sd_min3(vec3f(length(p - vec3f(0.0, 1.5, 0.)) - 0.5, pack_material_ids(3.0, 3.0), 0.0), out);
+    // // if pass_params.voxel_debug > 0 {
+    // out = sd_min3(out, vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0));
+    // // }
+    // var out = vec3f(length(p - vec3f(1.0)) - 0.5, pack_material_ids(1.0, 1.0), 0.0);
+    // out = sd_min3(vec3f(length(p) - 2.0, pack_material_ids(2.0, 2.0), 0.0), out);
 
     return sd_min3(out, l);
 }
 
+fn op_intersection(i: f32, j: f32) -> f32 {
+    return max(i, j);
+}
+
 fn sample_atmos(sr: Ray) -> vec3f {
-    return vec3f(0.4, 0.35, 0.37) * 0.3;
+    return vec3f(
+        sin(sr.o.x * 0.01) / 2.0 + 1.0,
+        cos(sr.o.y * 0.005) / 2.0 + 1.0,
+        sin(sr.o.y * 0.01) / 2.0 + 1.0
+    ) * 0.02;
 }
 
 fn lights(p: vec3f) -> vec3f {
@@ -246,7 +254,7 @@ fn sd_fbm(pin: vec3f, din: f32) -> vec2f {
     var t = 0.0;
     var s = 1.0;
     for (var i = 0u; i < 7; i++) {
-        let n = s * simplex_33(p * -0.3);
+        let n = s * simplex_33(p);
         d = smax(d, -n, 0.15 * s);
         t += d;
         p = 2.0 * m * p;

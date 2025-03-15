@@ -194,19 +194,47 @@ fn fbm_simplex_2d_seeded(pos: vec2<f32>, octaves: i32, lacunarity: f32, gain: f3
 }
 
 /// Fractional brownian motion (fbm) based on 3d simplex noise
-fn fbm_simplex_3d(pos: vec3<f32>, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
-    var sum = 0.;
-    var amplitude = 1.;
-    var frequency = 1.;
+fn fbm_simplex_3d(pos: vec3<f32>, octaves: i32, lacunarity: f32, gain: f32) -> vec2f {
+    var sum = 0.0;
+    var cumulative = 0.0;
+    var amplitude = 1.0;
+    var frequency = 1.0;
 
     for (var i = 0; i < octaves; i += 1) {
-        sum += simplex_noise_3d(pos * frequency) * amplitude;
+        var noise = simplex_noise_3d(pos * frequency);
+        sum += noise * amplitude;
         amplitude *= gain;
         frequency *= lacunarity;
+        
+        // Accumulate the raw noise contributions for the second output
+        cumulative += noise;
     }
 
-    return sum;
+    var sigmoid = 1.0 / (1.0 + exp(-cumulative * 1.0));
+
+
+    // Return the final fBm value and the cumulative value
+    return vec2f(sum, sigmoid);
 }
+
+// fn sd_fbm(pin: vec3f, din: f32) -> vec2f {
+//     let m = mat3x3<f32>(0.00, 0.80, 0.60,
+//         -0.80, 0.36, -0.48,
+//         -0.60, -0.48, 0.64);
+//     var p = pin;
+//     var d = din;
+//     var t = 0.0;
+//     var s = 1.0;
+//     for (var i = 0u; i < 7; i++) {
+//         let n = s * simplex_33(p * -0.2);
+//         d = smax(d, -n, 0.15 * s);
+//         t += d;
+//         p = 2.0 * m * p;
+//         s = 0.55 * s;
+//     }
+//
+//     return vec2f(d, t);
+// }
 
 // MIT license, ported from https://github.com/bevy-interstellar/wgsl_noise
 /// Cellular noise, lower jitter makes the patern more regular

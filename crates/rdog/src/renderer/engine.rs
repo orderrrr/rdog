@@ -11,7 +11,7 @@ use super::{
 };
 use bevy::{
     asset::AssetId,
-    log::error,
+    log::{error, warn},
     prelude::Image as BevyImage,
     utils::{default, HashMap},
 };
@@ -65,29 +65,57 @@ impl Engine {
     pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
         let mut lib_names = Vec::new();
 
-        for shader in shaders {
-            match shader.stype {
-                ShaderType::Lib => {
-                    if let FType::Wgsl(source) = &shader.data {
-                        match self.shader_compose.add_composable_module(
-                            ComposableModuleDescriptor {
-                                source,
-                                file_path: &shader.name,
-                                ..Default::default()
-                            },
-                        ) {
-                            Ok(_) => {
-                                info!("Library module loaded: {}", shader.name);
-                                lib_names.push(shader.name.clone());
-                            }
-                            Err(e) => {
-                                error!("Failed to load library module {}: {e:#?}", shader.name);
+        let mut shaders_remaining = shaders.clone();
+        let mut retry_count = 0;
+        const MAX_RETRIES: usize = 5; // Adjust based on your needs
+
+        while !shaders_remaining.is_empty() && retry_count < MAX_RETRIES {
+            let mut failed_shaders = Vec::new();
+
+            for i in 0..shaders_remaining.len() {
+                let shader = &mut shaders_remaining[i];
+                match shader.stype {
+                    ShaderType::Lib => {
+                        if let FType::Wgsl(source) = &shader.data {
+                            match self.shader_compose.add_composable_module(
+                                ComposableModuleDescriptor {
+                                    source,
+                                    file_path: &shader.name,
+                                    ..Default::default()
+                                },
+                            ) {
+                                Ok(_) => {
+                                    info!("Library module loaded: {}", shader.name);
+                                    lib_names.push(shader.name.clone());
+                                }
+                                Err(e) => {
+                                    error!(
+                                        "Failed to load library module {}: {e:#?}. Retrying...",
+                                        shader.name
+                                    );
+                                    failed_shaders.push(shader.clone());
+                                }
                             }
                         }
                     }
+                    _ => (),
                 }
-                _ => (),
             }
+
+            // Remove successfully processed shaders
+            shaders_remaining.retain(|s| !lib_names.contains(&s.name));
+
+            retry_count += 1;
+        }
+
+        if shaders_remaining.is_empty() {
+            info!("All shaders have been successfully loaded.");
+        } else {
+            warn!(
+                "Some shaders failed to load even after {} retries.",
+                MAX_RETRIES
+            );
+            // Handle the remaining failed shaders here if needed
         }
 
         if !lib_names.is_empty() {

@@ -329,10 +329,11 @@ fn ray_trace(ri: Ray) -> vec3f {
 
         if h.d >= TMAX {
             if i == 0 {
+                t += sample_atmos(r) * a * rad * ct * 0.05;
                 break;
             }
 
-            t += sample_atmos(r) * a * rad * ct;
+            t += sample_atmos(r) * a * rad;
             break;
         }
 
