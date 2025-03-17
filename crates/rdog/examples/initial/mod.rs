@@ -1,3 +1,4 @@
+use pipelines::{OutputTracePass, OutputTracePassConstructor};
 use rdog::{
     bufferable::Bufferable,
     event::RdogEvent,
@@ -86,9 +87,10 @@ impl Plugin for InitialPlugin {
                         Box::new(ReadbackPassConstructor),
                         Box::new(TracePassConstructor),
                         Box::new(RasterPassConstructor),
+                        Box::new(OutputTracePassConstructor),
                     ],
                     vec![
-                        String::from("voxelAccel"),
+                        String::from("voxel_accel"),
                         String::from("trace"),
                         String::from("raster"),
                     ],
@@ -149,6 +151,7 @@ fn update(
     config: &Config,
 ) {
     buffers.update("curr_camera", camera.serialize(&config).data().into());
+    buffers.update("out_camera", camera.serialize_out(&config).data().into());
     buffers.update(
         "globals",
         Globals::from_engine(engine, &camera)
@@ -157,6 +160,7 @@ fn update(
             .into(),
     );
     buffers.update("config", config.to_pass_params().data().into());
+    buffers.update("out_config", config.to_pass_params_out().data().into());
     buffers.update("march_readback", Vec4::ZERO.data().into());
 
     buffers.update("materials", config.material_pass().data().into());
@@ -172,6 +176,14 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
             device,
             "camera",
             camera.serialize(config).data().to_vec(),
+        )),
+    );
+    buffers.insert(
+        "out_camera".to_string(),
+        BT::from(MappedUniformBuffer::new(
+            device,
+            "camera",
+            camera.serialize_out(config).data().to_vec(),
         )),
     );
     buffers.insert(
@@ -198,11 +210,32 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
         ),
     );
     buffers.insert(
+        "render_readback".to_string(),
+        BT::from(
+            Texture::builder("render_readback")
+                .with_size(config.output_res)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
+                .with_usage(wgpu::TextureUsages::COPY_SRC)
+                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .with_nearest_filtering_sampler()
+                .build(device),
+        ),
+    );
+    buffers.insert(
         "config".to_string(),
         BT::from(MappedUniformBuffer::new(
             device,
             "config",
             config.to_pass_params().data().to_vec(),
+        )),
+    );
+    buffers.insert(
+        "out_config".to_string(),
+        BT::from(MappedUniformBuffer::new(
+            device,
+            "config",
+            config.to_pass_params_out().data().to_vec(),
         )),
     );
     buffers.insert(

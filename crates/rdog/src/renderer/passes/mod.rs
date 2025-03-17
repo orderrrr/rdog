@@ -56,6 +56,7 @@ pub trait Pass: std::fmt::Debug + Any + Send + Sync {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        pass_params: Option<&[u8]>,
     );
 
     /// Returns the name of this pass
@@ -181,10 +182,11 @@ impl Passes {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        pass_params: Option<&[u8]>,
     ) {
         for pass_name in &self.pass_order {
             if let Some(pass) = self.passes.get(pass_name) {
-                pass.run(engine, config, camera, encoder, view);
+                pass.run(engine, config, camera, encoder, view, pass_params);
             }
         }
     }
@@ -198,9 +200,10 @@ impl Passes {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        pass_params: Option<&[u8]>,
     ) -> bool {
         if let Some(pass) = self.passes.get(name) {
-            pass.run(engine, config, camera, encoder, view);
+            pass.run(engine, config, camera, encoder, view, pass_params);
             true
         } else {
             false

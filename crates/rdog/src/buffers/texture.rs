@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::bindable::Bindable;
 use bevy::utils::default;
 use glam::{uvec3, UVec2, UVec3};
@@ -5,8 +7,8 @@ use log::debug;
 
 #[derive(Debug)]
 pub struct Texture {
-    tex: wgpu::Texture,
-    format: wgpu::TextureFormat,
+    pub tex: Arc<wgpu::Texture>,
+    pub format: wgpu::TextureFormat,
     view: wgpu::TextureView,
     dimension: wgpu::TextureViewDimension,
     sampler: wgpu::Sampler,
@@ -149,7 +151,7 @@ impl TextureBuilder {
             _ => (wgpu::TextureDimension::D3, wgpu::TextureViewDimension::D3),
         };
 
-        let tex = device.create_texture(&wgpu::TextureDescriptor {
+        let tex = Arc::new(device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&format!("{label}_texture")),
             size: wgpu::Extent3d {
                 width: size.x,
@@ -162,7 +164,7 @@ impl TextureBuilder {
             format,
             usage,
             view_formats: &[],
-        });
+        }));
 
         let filterable = sampler.mag_filter != wgpu::FilterMode::Nearest
             || sampler.min_filter != wgpu::FilterMode::Nearest;

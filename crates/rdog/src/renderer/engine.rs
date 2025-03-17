@@ -1,4 +1,7 @@
-use crate::shader::{FType, RdogShaderAsset, ShaderType};
+use crate::{
+    shader::{FType, RdogShaderAsset, ShaderType},
+    texture::Texture,
+};
 
 use super::{
     buffers::Buffers,
@@ -59,6 +62,10 @@ impl Engine {
 
     pub fn get_buffer(&self, buffers: &Buffers, buffer_name: &str) -> Arc<Buffer> {
         return buffers.get_old(&buffer_name).buffer();
+    }
+
+    pub fn get_texture<'a>(&self, buffers: &'a Buffers, buffer_name: &str) -> &'a Texture {
+        return buffers.get_old(&buffer_name).texture();
     }
 
     // TODO: redo this.
@@ -171,6 +178,7 @@ impl Engine {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         passes: &HashMap<CameraHandle, Passes>,
+        pass_params: Option<&[u8]>,
     ) {
         if passes.contains_key(&handle) {
             self.cameras.get(handle).render(
@@ -179,6 +187,7 @@ impl Engine {
                 encoder,
                 view,
                 passes.get(&handle).unwrap(),
+                pass_params,
             );
         }
     }
@@ -191,6 +200,7 @@ impl Engine {
         view: &wgpu::TextureView,
         pass: &str,
         passes: &HashMap<CameraHandle, Passes>,
+        pass_params: Option<&[u8]>,
     ) {
         info!("render_camera_pass: {}", pass);
         self.cameras.get(handle).render_pass(
@@ -200,6 +210,7 @@ impl Engine {
             view,
             pass,
             passes.get(&handle).unwrap(),
+            pass_params,
         );
     }
 

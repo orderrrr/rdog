@@ -43,6 +43,7 @@ impl ViewNode for RdogRenderingNode {
             render_context.command_encoder(),
             target.main_texture_view(),
             &passes,
+            None,
         );
 
         Ok(())

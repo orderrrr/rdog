@@ -12,7 +12,7 @@ repository = ""
 [workspace.dependencies]
 bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
 log = "0.4.22"
-bevy = { version = "0.15.1", default-features = false, features = [
+bevy = { version = "0.15.3", default-features = false, features = [
     "bevy_gizmos",
     "bevy_winit",
     "bevy_window",

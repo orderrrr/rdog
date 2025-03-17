@@ -70,6 +70,8 @@ fn main(
 
     col /= f32(pass_params.pass_count);
 
+    // textureStore(out, id.xy, saturate(march));
+    // combine(id.xy, col);
     combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 

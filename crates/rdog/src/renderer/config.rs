@@ -37,6 +37,10 @@ pub struct Config {
     pub ray_debug: bool,
 
     pub camera_config: CameraConfig,
+
+    pub output_pass_count: u32,
+    pub output_bounce_count: u32,
+    pub output_res: UVec2,
 }
 
 impl Config {
@@ -48,15 +52,30 @@ impl Config {
         flags |= (self.specular_pass as u32) << 2;
         flags |= (self.multi_frame as u32) << 3;
 
-        self.camera_config.focus_point;
-        self.camera_config.focus_dist;
-
         PassParams {
             flags,
             sun_x: self.sun_pos.x,
             sun_y: self.sun_pos.y,
             pass_count: self.pass_count,
             bounce_count: self.bounce_count,
+            voxel_dim: self.voxel_dim,
+        }
+    }
+
+    pub fn to_pass_params_out(&self) -> PassParams {
+        let mut flags: u32 = 0;
+
+        flags |= self.direct_pass as u32;
+        flags |= (self.scatter_pass as u32) << 1;
+        flags |= (self.specular_pass as u32) << 2;
+        flags |= (0) << 3; // set to true for cool images
+
+        PassParams {
+            flags,
+            sun_x: self.sun_pos.x,
+            sun_y: self.sun_pos.y,
+            pass_count: self.output_pass_count,
+            bounce_count: self.output_bounce_count,
             voxel_dim: self.voxel_dim,
         }
     }
@@ -101,6 +120,9 @@ impl Default for Config {
             voxel_dim: 8,
             light_tree: LightList::default(),
             camera_config: CameraConfig::default(),
+            output_res: uvec2(640, 480),
+            output_pass_count: 4096,
+            output_bounce_count: 64,
         }
     }
 }
@@ -123,7 +145,6 @@ impl Default for CameraConfig {
         }
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub struct Camera {
@@ -152,6 +173,21 @@ impl Camera {
                 .2
                 .extend(default()),
             screen: self.scale(cfg).as_vec2().extend(0.0).extend(0.0),
+            fpd: self.focus_point.extend(self.focus_dist),
+            af: vec4(self.aperture, self.focal_length, 0.0, 0.0),
+        }
+    }
+
+    pub fn serialize_out(&self, config: &Config) -> gpu::camera::Camera {
+        gpu::camera::Camera {
+            projection_view: self.projection * self.transform.inverse(),
+            ndc_to_world: self.transform * self.projection.inverse(),
+            origin: self
+                .transform
+                .to_scale_rotation_translation()
+                .2
+                .extend(default()),
+            screen: config.output_res.as_vec2().extend(0.0).extend(0.0),
             fpd: self.focus_point.extend(self.focus_dist),
             af: vec4(self.aperture, self.focal_length, 0.0, 0.0),
         }

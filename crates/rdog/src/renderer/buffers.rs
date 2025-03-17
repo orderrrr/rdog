@@ -103,6 +103,13 @@ impl BT {
             _ => panic!("not supported"),
         }
     }
+
+    pub fn texture(&self) -> &Texture {
+        match self {
+            BT::T(t) => t,
+            _ => panic!("not supported"),
+        }
+    }
 }
 
 impl From<MappedUniformBuffer> for BT {

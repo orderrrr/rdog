@@ -1,4 +1,5 @@
-use bevy::{prelude::*, render::renderer::RenderDevice, utils::HashMap};
+use bevy::{prelude::*, render::{render_resource::TextureView, renderer::RenderDevice}, utils::HashMap};
+use wgpu::TextureViewDimension;
 
 use crate::{passes::PassRegistry, Config};
 
@@ -27,6 +28,7 @@ impl SyncedState {
 #[derive(Debug)]
 pub struct SyncedCamera {
     pub handle: crate::CameraHandle,
+    pub view: TextureView,
 }
 
 #[derive(Debug, Component)]

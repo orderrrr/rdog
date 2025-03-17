@@ -26,13 +26,13 @@ fn map(p: vec3f) -> vec3f {
     let l = lights(p);
 
     // let d = sd_box(p, vec3(1.0));
-    // var dt = sd_fbm(p, length(p) - 2.0);
-    // dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
+    var dt = sd_fbm(p, length(p) - 2.0);
+    dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
 
     // dt.x = op_intersection(length(p) - 2.0, dt.x);
 
-    var out = vec3(vec3f(length(p) - 2.0, pack_material_ids(1.0, 2.0), 0.5));
-    out = sd_min3(vec3f(length(p - vec3f(0.0, 1.5, 0.)) - 0.5, pack_material_ids(3.0, 3.0), 0.0), out);
+    var out = vec3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y));
+    out = sd_min3(vec3f(length(p - vec3f(0.0, 1.5, 0.)) - 1.0, pack_material_ids(1.0, 2.0), 0.0), out);
     // // if pass_params.voxel_debug > 0 {
     // out = sd_min3(out, vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0));
     // // }

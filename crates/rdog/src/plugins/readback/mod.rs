@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_channel::{Receiver, Sender};
 use bevy::{
+    image::TextureFormatPixelInfo,
     prelude::*,
     render::{
         extract_component::{ExtractComponent, ExtractComponentPlugin},
@@ -19,12 +20,16 @@ use bevy::{
     },
     utils::HashMap,
 };
-use wgpu::BufferUsages;
+use wgpu::{BufferUsages, Extent3d, ImageDataLayout, TextureFormat};
 
 use crate::{state::SyncedState, CameraHandle};
 
 use super::{
-    graph::{Rdog, RdogE}, rdog_buffers::RdogBufferResource, rdog_passes::RdogPassResource, state::ExtractedConfig, EngineResource
+    graph::{Rdog, RdogE},
+    rdog_buffers::RdogBufferResource,
+    rdog_passes::RdogPassResource,
+    state::ExtractedConfig,
+    EngineResource,
 };
 
 pub struct RdogReadbackPlugin {
@@ -55,7 +60,7 @@ impl Plugin for RdogReadbackPlugin {
                     Render,
                     (
                         prepare_buffers.in_set(RenderSet::PrepareResources),
-                        (map_buffers).after(render_system).in_set(RenderSet::Render),
+                        map_buffers.after(render_system).in_set(RenderSet::Render),
                     ),
                 );
 
@@ -74,7 +79,7 @@ fn sync_readbacks(
     mut readbacks: ResMut<GpuReadbacks>,
     max_unused_frames: Res<GpuReadbackMaxUnusedFrames>,
 ) {
-    readbacks.mapped.retain(|readback| {
+    readbacks.mapped.retain(|_, readback| {
         if let Ok((entity, buffer, result)) = readback.rx.try_recv() {
             main_world.trigger_targets(ReadbackComplete(result), entity);
             buffer_pool.return_buffer(&buffer);
@@ -93,6 +98,7 @@ struct GpuReadbackMaxUnusedFrames(usize);
 #[derive(Component, ExtractComponent, Clone, Debug)]
 pub enum Readback {
     Buffer(BufferReadback),
+    Texture(TextureReadback),
 }
 
 #[derive(Clone, Debug)]
@@ -101,9 +107,19 @@ pub struct BufferReadback {
     buffer: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct TextureReadback {
+    pass: String,
+    buffer: String,
+}
+
 impl Readback {
     pub fn buffer(pass: String, buffer: String) -> Self {
         Self::Buffer(BufferReadback { pass, buffer })
+    }
+
+    pub fn texture(pass: String, buffer: String) -> Self {
+        Self::Texture(TextureReadback { pass, buffer })
     }
 }
 
@@ -185,13 +201,12 @@ struct GpuReadbackBuffer {
 
 #[derive(Resource, Default)]
 struct GpuReadbacks {
-    requested: Vec<GpuReadback>,
-    mapped: Vec<GpuReadback>,
+    requested: HashMap<MainEntity, GpuReadback>,
+    mapped: HashMap<MainEntity, GpuReadback>,
 }
 
 struct GpuReadback {
     pub entity: Entity,
-    pub pass: String,
     pub src: ReadbackSource,
     pub buffer: Buffer,
     pub rx: Receiver<(Entity, Buffer, Vec<u8>)>,
@@ -203,6 +218,13 @@ enum ReadbackSource {
         src_start: u64,
         dst_start: u64,
         buffer: Arc<wgpu::Buffer>,
+        pass: String,
+    },
+    Texture {
+        texture: Arc<wgpu::Texture>,
+        layout: ImageDataLayout,
+        size: Extent3d,
+        pass: String,
     },
 }
 
@@ -217,32 +239,116 @@ fn prepare_buffers(
     for (entity, readback) in handles.iter() {
         match readback {
             Readback::Buffer(buffer) => {
+                info!("read readback request");
+
+                if readbacks.requested.contains_key(&entity.clone())
+                    || readbacks.mapped.contains_key(&entity.clone())
+                {
+                    return;
+                }
+
                 let read_buffer =
                     engine.get_buffer(&buffers.get(&CameraHandle::new(0)).unwrap(), &buffer.buffer);
 
                 let write_buffer = buffer_pool.get(&render_device, read_buffer.size());
                 let (tx, rx) = async_channel::bounded(1);
 
-                readbacks.requested.push(GpuReadback {
-                    entity: entity.id(),
-                    pass: buffer.pass.clone(),
-                    src: ReadbackSource::Buffer {
-                        src_start: 0,
-                        dst_start: 0,
-                        buffer: read_buffer.clone(),
+                readbacks.requested.insert(
+                    entity.clone(),
+                    GpuReadback {
+                        entity: entity.id(),
+                        src: ReadbackSource::Buffer {
+                            src_start: 0,
+                            dst_start: 0,
+                            buffer: read_buffer.clone(),
+                            pass: buffer.pass.clone(),
+                        },
+                        buffer: write_buffer,
+                        rx,
+                        tx,
                     },
-                    buffer: write_buffer,
-                    rx,
-                    tx,
-                });
+                );
+            }
+            Readback::Texture(buffer) => {
+                info!("read readback request");
+
+                if readbacks.requested.contains_key(&entity.clone())
+                    || readbacks.mapped.contains_key(&entity.clone())
+                {
+                    return;
+                }
+
+                let tex = engine
+                    .get_texture(&buffers.get(&CameraHandle::new(0)).unwrap(), &buffer.buffer);
+
+                let size = Extent3d {
+                    width: tex.get_size().x,
+                    height: tex.get_size().y,
+                    depth_or_array_layers: tex.get_size().z,
+                };
+
+                let write_buffer = buffer_pool.get(
+                    &render_device,
+                    get_aligned_size(
+                        size.width,
+                        size.height,
+                        tex.tex().format().pixel_size() as u32,
+                    ) as u64,
+                );
+
+                let layout = layout_data(size.width, size.height, tex.format);
+
+                let (tx, rx) = async_channel::bounded(1);
+                readbacks.requested.insert(
+                    *entity,
+                    GpuReadback {
+                        entity: entity.id(),
+                        src: ReadbackSource::Texture {
+                            pass: buffer.pass.clone(),
+                            texture: Arc::clone(&tex.tex),
+                            layout,
+                            size,
+                        },
+                        buffer: write_buffer,
+                        rx,
+                        tx,
+                    },
+                );
             }
         }
     }
 }
 
+/// Round up a given value to be a multiple of [`wgpu::COPY_BYTES_PER_ROW_ALIGNMENT`].
+pub(crate) const fn align_byte_size(value: u32) -> u32 {
+    RenderDevice::align_copy_bytes_per_row(value as usize) as u32
+}
+
+/// Get the size of a image when the size of each row has been rounded up to [`wgpu::COPY_BYTES_PER_ROW_ALIGNMENT`].
+pub(crate) const fn get_aligned_size(width: u32, height: u32, pixel_size: u32) -> u32 {
+    height * align_byte_size(width * pixel_size)
+}
+/// Get a [`ImageDataLayout`] aligned such that the image can be copied into a buffer.
+pub(crate) fn layout_data(width: u32, height: u32, format: TextureFormat) -> ImageDataLayout {
+    ImageDataLayout {
+        bytes_per_row: if height > 1 {
+            // 1 = 1 row
+            Some(get_aligned_size(width, 1, format.pixel_size() as u32))
+        } else {
+            None
+        },
+        rows_per_image: None,
+        ..Default::default()
+    }
+}
+
 fn map_buffers(mut readbacks: ResMut<GpuReadbacks>) {
-    let requested = readbacks.requested.drain(..).collect::<Vec<GpuReadback>>();
-    for readback in requested {
+    let requested = readbacks
+        .requested
+        .drain()
+        .collect::<Vec<(MainEntity, GpuReadback)>>();
+    for (e, readback) in requested {
+        info!("map_buffers");
         let slice = readback.buffer.slice(..);
         let entity = readback.entity;
         let buffer = readback.buffer.clone();
@@ -258,7 +364,7 @@ fn map_buffers(mut readbacks: ResMut<GpuReadbacks>) {
                 warn!("Failed to send readback result: {:?}", e);
             }
         });
-        readbacks.mapped.push(readback);
+        readbacks.mapped.insert(e, readback);
     }
 }
 
@@ -277,12 +383,13 @@ impl ViewNode for RBRenderingNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         let readbacks = world.resource::<GpuReadbacks>();
-        for readback in &readbacks.requested {
+        for (_, readback) in &readbacks.requested {
             match &readback.src {
                 ReadbackSource::Buffer {
                     src_start,
                     dst_start,
                     buffer,
+                    pass,
                 } => {
                     let entity = graph.view_entity();
                     let engine = world.resource::<EngineResource>();
@@ -299,8 +406,9 @@ impl ViewNode for RBRenderingNode {
                         config,
                         render_context.command_encoder(),
                         target.main_texture_view(),
-                        &readback.pass,
+                        &pass,
                         passes,
+                        None,
                     );
 
                     render_context.command_encoder().copy_buffer_to_buffer(
@@ -309,6 +417,41 @@ impl ViewNode for RBRenderingNode {
                         &readback.buffer,
                         *dst_start,
                         buffer.size(),
+                    );
+                }
+                ReadbackSource::Texture {
+                    texture,
+                    layout,
+                    pass,
+                    size,
+                } => {
+                    let entity = graph.view_entity();
+                    let engine = world.resource::<EngineResource>();
+                    let passes = world.resource::<RdogPassResource>();
+                    let state = world.resource::<SyncedState>();
+                    let config = world.resource::<ExtractedConfig>();
+
+                    let Some(camera) = state.cameras.get(&entity) else {
+                        return Ok(());
+                    };
+
+                    engine.render_camera_pass(
+                        camera.handle,
+                        config,
+                        render_context.command_encoder(),
+                        target.main_texture_view(),
+                        &pass,
+                        passes,
+                        None,
+                    );
+
+                    render_context.command_encoder().copy_texture_to_buffer(
+                        texture.as_image_copy(),
+                        wgpu::ImageCopyBuffer {
+                            buffer: &readback.buffer,
+                            layout: *layout,
+                        },
+                        *size,
                     );
                 }
             }

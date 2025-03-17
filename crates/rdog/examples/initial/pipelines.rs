@@ -15,7 +15,8 @@ use wgpu::StoreOp;
 define_pass_constructor!(raster => RasterPass);
 define_pass_constructor!(readback => ReadbackPass);
 define_pass_constructor!(trace => TracePass);
-define_pass_constructor!(voxelAccel => VoxelAccelPass);
+define_pass_constructor!(output_trace => OutputTracePass);
+define_pass_constructor!(voxel_accel => VoxelAccelPass);
 
 #[derive(Debug)]
 pub struct RasterPass {
@@ -96,6 +97,7 @@ impl Pass for RasterPass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        _pass_params: Option<&[u8]>,
     ) {
         let alternate = camera.is_alternate();
 
@@ -175,6 +177,7 @@ impl Pass for ReadbackPass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
+        _pass_params: Option<&[u8]>,
     ) {
         self.compute_passes[0].run(camera, encoder, UVec3::ONE, ());
     }
@@ -218,6 +221,7 @@ impl Pass for TracePass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
+        _pass_params: Option<&[u8]>,
     ) {
         self.compute_passes[0].run(
             camera,
@@ -278,8 +282,61 @@ impl Pass for VoxelAccelPass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         _view: &wgpu::TextureView,
+        _pass_params: Option<&[u8]>,
     ) {
         self.compute_passes[0].run(camera, encoder, UVec3::splat(config.voxel_dim), ());
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct OutputTracePass {
+    name: String,
+    compute_passes: Vec<ComputePass<()>>,
+}
+
+impl OutputTracePass {
+    pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
+        let direct_pass = ComputePass::builder("trace")
+            .bind([
+                &buffers.get_old("out_camera").bind_readable(),
+                &buffers.get_old("globals").bind_readable(),
+                &buffers.get_old("out_config").bind_readable(),
+                &buffers.get_old("march_readback").bind_readable(),
+                &buffers.get_old("render_readback").bind_writable(),
+            ])
+            .bind([
+                &buffers.get_old("materials").bind_readable(),
+                &buffers.get_old("lights").bind_readable(),
+            ])
+            .bind([&buffers.get_old("voxels").bind_readable()])
+            .build(device, "main", &engine.shaders.get("trace").unwrap().module);
+
+        Self {
+            name: "trace".to_string(),
+            compute_passes: vec![direct_pass],
+        }
+    }
+}
+
+impl Pass for OutputTracePass {
+    fn run(
+        &self,
+        _engine: &Engine,
+        config: &Config,
+        camera: &CameraController,
+        encoder: &mut wgpu::CommandEncoder,
+        _view: &wgpu::TextureView,
+        _pass_params: Option<&[u8]>,
+    ) {
+        self.compute_passes[0].run(camera, encoder, config.output_res.extend(1), ());
     }
 
     fn name(&self) -> &str {

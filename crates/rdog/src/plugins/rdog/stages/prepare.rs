@@ -154,6 +154,7 @@ pub(crate) fn cameras(
                 info!("camera created");
                 entry.insert(SyncedCamera {
                     handle: engine.create_camera(camera),
+                    view: view_target.main_texture_view().clone(),
                 });
                 state_event.send(RdogStateEvent::CameraAdded);
             }

@@ -1,4 +1,10 @@
-use super::{buffers::Buffers, config::Camera, engine::Engine, passes::Passes, Config};
+use super::{
+    buffers::Buffers,
+    config::Camera,
+    engine::Engine,
+    passes::{self, Passes},
+    Config,
+};
 use bevy::utils::default;
 use log::info;
 use rdog_lib::{self as lib};
@@ -34,8 +40,9 @@ impl CameraController {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         passes: &Passes,
+        pass_params: Option<&[u8]>,
     ) {
-        passes.run_all(engine, config, self, encoder, view);
+        passes.run_all(engine, config, self, encoder, view, pass_params);
     }
 
     pub fn render_pass(
@@ -46,8 +53,9 @@ impl CameraController {
         view: &wgpu::TextureView,
         pass_type: &str,
         passes: &Passes,
+        pass_params: Option<&[u8]>,
     ) {
-        if !passes.run_pass(pass_type, engine, config, self, encoder, view) {
+        if !passes.run_pass(pass_type, engine, config, self, encoder, view, pass_params) {
             log::warn!("Attempted to run unknown pass: {}", pass_type);
         }
     }
