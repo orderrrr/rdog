@@ -2,7 +2,7 @@ use std::ops;
 
 use bevy::{
     prelude::*,
-    render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, RenderApp},
+    render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, Render, RenderApp},
     window::WindowResized,
 };
 use event::RdogEvent;
@@ -57,7 +57,8 @@ impl Plugin for RdogPlugin {
             render_app
                 .insert_resource(SyncedState::default())
                 .add_event::<RdogEvent>()
-                .add_event::<RdogStateEvent>();
+                .add_event::<RdogStateEvent>()
+                .add_systems(Render, events);
 
             stages::setup(render_app);
             graph::setup(render_app);
@@ -139,5 +140,15 @@ fn send_events(
 
     if config.reload {
         buf.send(RdogEvent::Recompute);
+    }
+}
+pub fn events(
+    mut events: EventReader<RdogEvent>,
+    mut engine: ResMut<EngineResource>,
+) {
+    for e in events.read() {
+        if let RdogEvent::Recompute | RdogEvent::RecomputePasses = e {
+            engine.dirty = true;
+        }
     }
 }

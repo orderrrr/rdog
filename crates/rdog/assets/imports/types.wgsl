@@ -84,3 +84,8 @@ struct OCTree {
     upper_mask: u32,
     lower_mask: u32,
 }
+
+struct OutputParams {
+    workgroup_offset: vec2u,
+    tile_size: vec2u,
+}

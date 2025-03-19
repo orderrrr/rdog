@@ -185,7 +185,7 @@ pub(crate) fn extras(
 ) {
     let engine = &mut *engine;
     engine.time = vec2(time.elapsed_secs(), time.delta_secs());
-    engine.frame = Frame::new(extras.frame);
+    engine.frame.next();
     engine.mouse = match extras.mouse {
         Some(x) => x,
         _ => Vec2::ZERO,

@@ -8,7 +8,7 @@
 //*     Ray, Material, MaterialIn, Light, LightIn, PassParams, Globals, Camera, Hit, ScatterRes, OCTree, OutputParams
 //* }
 //* #import ray::{
-//*     pd, dir
+//*     pd, dir, mv
 //* }
 //* #import cam::{
 //*     project_point3
@@ -31,7 +31,8 @@ var<private> num_levels: u32;
 @group(1) @binding(0) var<storage, read> material: array<MaterialIn>;
 @group(1) @binding(1) var<storage, read> light_in: array<LightIn>;
 
-@group(2) @binding(0) var voxels: texture_storage_3d<rgba16float, read_write>;
+@group(2) @binding(0) var voxel_depth: texture_storage_3d<rgba16float, read_write>;
+@group(2) @binding(1) var voxel_data: texture_storage_3d<rgba16float, read_write>;
 
 @compute @workgroup_size(1)
 fn main(
@@ -70,7 +71,8 @@ fn main(
 
     col /= f32(pass_params.pass_count);
 
-    combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
+    combine(id.xy, col);
+    // combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
 }
 
 fn calculate_coc(world_pos: vec3f, focal_dist: f32) -> f32 {
@@ -238,9 +240,10 @@ fn id_to_vec3u_bitwise(idx: u32) -> vec3u {
 //     return d;
 // }
 
-
 fn trace_voxel_mask(ri: Ray) -> vec4f {
     var r = ri;
+    r.o.y += 1.0;
+
     let vd = f32(pass_params.voxel_dim);
     r.o = (r.o * vd + vd) / 2.0 - vec3f(0.0, vd / 2.0, 0.0);
 
@@ -249,8 +252,43 @@ fn trace_voxel_mask(ri: Ray) -> vec4f {
 
     if !all(map_pos >= vec3i(0) && map_pos <= vec3i(pass_params.voxel_dim)) {
         let dist = rbi(r, vec3f(0.0), vec3f(pass_params.voxel_dim));
-        if dist == -1.0 {
+        if dist < 0.0 {
             return total;
+        }
+        r.o += r.d * (dist + 0.01);
+        map_pos = vec3i(floor(r.o));
+    }
+
+    for (var i: u32 = 0; i < RMAX * 2; i++) {
+        let d = get_voxel(map_pos);
+
+        if d.w < MIN_DIST {
+            return vec4f(d.xyz, 1.0);
+        }
+
+        r.o += r.d * (d.w * vd / 32.0);
+
+        map_pos = vec3i(floor(r.o));
+
+        if any(map_pos < vec3i(0) || map_pos >= vec3i(pass_params.voxel_dim)) {
+            return vec4f(0.0);
+        }
+    }
+
+    return vec4f(0.5, 0.0, 0.5, 1.0);
+}
+
+fn trace_voxel_mask_dda(ri: Ray) -> vec4f {
+    var r = ri;
+    let vd = f32(pass_params.voxel_dim);
+    r.o = (r.o * vd + vd) / 2.0 - vec3f(0.0, vd / 2.0, 0.0);
+
+    var map_pos = vec3i(floor(r.o));
+
+    if !all(map_pos >= vec3i(0) && map_pos <= vec3i(pass_params.voxel_dim)) {
+        let dist = rbi(r, vec3f(0.0), vec3f(pass_params.voxel_dim));
+        if dist == -1.0 {
+            return vec4f(0.0);
         }
         r.o += r.d * dist;
         map_pos = vec3i(floor(r.o));
@@ -264,18 +302,20 @@ fn trace_voxel_mask(ri: Ray) -> vec4f {
 
     for (var i: u32 = 0; i < pass_params.voxel_dim * 3; i++) {
         let d = get_voxel(map_pos);
-        total += vec4f(d, 1.0);
+        if d.w < MIN_DIST {
+            return vec4f(d.xyz, 1.0);
+        }
 
         mask = less_than_equal(side_dist.xyz, min(side_dist.yzx, side_dist.zxy));
         side_dist += vec3f(mask) * delta_dist;
         map_pos += vec3i(vec3f(mask)) * ray_step;
 
         if i > 1 && any(map_pos < vec3i(0) || map_pos >= vec3i(pass_params.voxel_dim)) {
-            return total;
+            return vec4f(0.0, 1.0, 0.5, 1.0);
         }
     }
 
-    return total;
+    return vec4f(1.0, 0.0, 1.0, 1.0);
 }
 
 fn trace(r: Ray) -> Hit {
@@ -301,13 +341,8 @@ fn trace(r: Ray) -> Hit {
     return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
 }
 
-fn get_voxel(c: vec3i) -> vec3f {
-
-    let col = textureLoad(voxels, vec3u(c));
-    if col.w <= 0.0 {
-        return col.xyz;
-    }
-    return ZERO;
+fn get_voxel(c: vec3i) -> vec4f {
+    return textureLoad(voxel_depth, vec3u(c));
 }
 
 fn less_than_equal(a: vec3f, b: vec3f) -> vec3<bool> {
@@ -322,8 +357,23 @@ fn ray_trace(ri: Ray) -> vec3f {
     var rad = ONE;
 
     for (var i: u32 = 0; i < pass_params.bounce_count; i++) {
+        if true {
+            var h = trace_voxel_mask(r);
+            return h.xyz;
+        }
+
+        if true {
+            var h = trace_voxel_mask_dda(r);
+            return h.xyz;
+        }
+
         var h = trace(r);
         r.o = pd(r, h.d);
+
+        if true {
+            h.n = calc_normal(r.o);
+            return h.n;
+        }
 
         if h.d >= TMAX {
             if i == 0 {

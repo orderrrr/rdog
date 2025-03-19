@@ -40,8 +40,20 @@ impl CameraController {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         passes: &Passes,
-        pass_params: Option<&[u8]>,
+        pass_params: Option<&Vec<u8>>,
     ) {
+        if engine.dirty {
+            passes.run_pass(
+                "voxel_accel",
+                engine,
+                config,
+                self,
+                encoder,
+                view,
+                pass_params,
+            );
+        }
+
         passes.run_all(engine, config, self, encoder, view, pass_params);
     }
 
@@ -53,7 +65,7 @@ impl CameraController {
         view: &wgpu::TextureView,
         pass_type: &str,
         passes: &Passes,
-        pass_params: Option<&[u8]>,
+        pass_params: Option<&Vec<u8>>,
     ) {
         if !passes.run_pass(pass_type, engine, config, self, encoder, view, pass_params) {
             log::warn!("Attempted to run unknown pass: {}", pass_type);

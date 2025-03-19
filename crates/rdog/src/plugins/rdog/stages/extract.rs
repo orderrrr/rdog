@@ -9,6 +9,7 @@ use bevy::{
     utils::HashSet,
     window::PrimaryWindow,
 };
+use rdog_lib::Frame;
 
 use crate::{
     plugins::rdog::{
@@ -17,7 +18,7 @@ use crate::{
         state::{ExtractedImage, ExtractedImageData, ExtractedImages, RdogExtractedCamera},
     },
     state::{ExtractedConfig, RdogExtractedExtras},
-    Config,
+    Config, EngineResource,
 };
 
 pub(crate) fn extras(
@@ -40,7 +41,10 @@ pub(crate) fn extras(
 pub(crate) fn events(
     mut events: Extract<EventReader<RdogEvent>>,
     mut render_events: EventWriter<RdogEvent>,
+    mut engine: ResMut<EngineResource>,
 ) {
+    engine.dirty = false;
+
     for e in events.read() {
         info!("event: {:?} being passed to render thread.", e);
         render_events.send(e.clone());

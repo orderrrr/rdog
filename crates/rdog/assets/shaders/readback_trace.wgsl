@@ -21,6 +21,7 @@ const TSTART: f32 = 0.01;
 const RMAX: u32 = 600;
 
 var<private> num_levels: u32;
+var<push_constant> pp: OutputParams;
 
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> globals: Globals;
@@ -33,15 +34,25 @@ var<private> num_levels: u32;
 
 @group(2) @binding(0) var voxels: texture_storage_3d<rgba16float, read_write>;
 
+
 @compute @workgroup_size(1)
 fn main(
     @builtin(global_invocation_id) id: vec3u,
 ) {
-
     rng_state = u32(id.x + (id.y * u32(camera.screen.y))) * globals.seed.y;
     num_levels = u32(log2(f32(pass_params.voxel_dim))) + 1;
 
-    var pos = vec2f(id.xy);
+    let local_pos = vec2f(id.xy);
+    let tile_size = vec2f(pp.tile_size);
+    let uid = f32(pp.workgroup_offset.x);
+
+    let num_tiles = f32(camera.screen.x) / tile_size.x;
+
+    let off_x = floor(uid % num_tiles) * tile_size.x;
+    let off_y = floor(uid / num_tiles) * tile_size.y;
+
+    let pos = vec2f(local_pos.x + off_x, local_pos.y + off_y);
+    let posi = vec2u(pos);
 
     let ss = vec2f(camera.screen.xy);
 
@@ -70,7 +81,7 @@ fn main(
 
     col /= f32(pass_params.pass_count);
 
-    combine(id.xy, srgb_vec(pow(col, vec3f(2.2))));
+    combine(posi, srgb_vec(pow(col, vec3f(2.2))));
 }
 
 fn calculate_coc(world_pos: vec3f, focal_dist: f32) -> f32 {

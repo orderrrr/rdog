@@ -1,4 +1,4 @@
-use pipelines::{OutputTracePass, OutputTracePassConstructor};
+use pipelines::OutputTracePassConstructor;
 use rdog::{
     bufferable::Bufferable,
     event::RdogEvent,
@@ -89,11 +89,7 @@ impl Plugin for InitialPlugin {
                         Box::new(RasterPassConstructor),
                         Box::new(OutputTracePassConstructor),
                     ],
-                    vec![
-                        String::from("voxel_accel"),
-                        String::from("trace"),
-                        String::from("raster"),
-                    ],
+                    vec![String::from("trace"), String::from("raster")],
                 ))
                 .add_systems(
                     Render,
@@ -255,11 +251,23 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
         )),
     );
     buffers.insert(
-        "voxels".to_string(),
+        "voxel_depth".to_string(),
         BT::from(
-            Texture::builder("voxels")
+            Texture::builder("voxel_depth")
                 .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rgba16Float) // TODO - pack 8 here instead of a single voxel
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .with_linear_filtering_sampler()
+                .build(device),
+        ),
+    );
+    buffers.insert(
+        "voxel_data".to_string(),
+        BT::from(
+            Texture::builder("voxel_data")
+                .with_size_3d(UVec3::splat(config.voxel_dim))
+                .with_format(wgpu::TextureFormat::Rgba16Float)
                 .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_linear_filtering_sampler()

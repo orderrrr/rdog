@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::Vec2;
+use glam::{UVec2, Vec2};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
@@ -24,4 +24,12 @@ impl PassParams {
             voxel_dim: octree_dim,
         }
     }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct OutputParams {
+    pub workgroup_offset: UVec2,
+    pub tile_size: UVec2,
 }

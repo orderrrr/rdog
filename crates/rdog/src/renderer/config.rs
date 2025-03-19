@@ -41,6 +41,7 @@ pub struct Config {
     pub output_pass_count: u32,
     pub output_bounce_count: u32,
     pub output_res: UVec2,
+    pub output_pass_per_frame: UVec2,
 }
 
 impl Config {
@@ -97,6 +98,10 @@ impl Config {
 
         l
     }
+
+    pub fn compute_pass_size(&self) -> UVec2 {
+        (self.output_res.as_vec2() / self.output_pass_per_frame.as_vec2()).as_uvec2()
+    }
 }
 
 impl Default for Config {
@@ -117,12 +122,13 @@ impl Default for Config {
             pass_count: 8,
             bounce_count: 8,
             ray_debug: false,
-            voxel_dim: 8,
+            voxel_dim: 64,
             light_tree: LightList::default(),
             camera_config: CameraConfig::default(),
-            output_res: uvec2(640, 480),
-            output_pass_count: 4096,
-            output_bounce_count: 64,
+            output_res: uvec2(2160, 1440),
+            output_pass_count: 8,
+            output_bounce_count: 32,
+            output_pass_per_frame: uvec2(2160 / 40, 480 / (1440 / 40)),
         }
     }
 }

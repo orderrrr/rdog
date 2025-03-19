@@ -18,11 +18,12 @@ use bevy::{
         view::ViewTarget,
         MainWorld, Render, RenderApp, RenderSet,
     },
-    utils::HashMap,
+    utils::{info, HashMap},
 };
+use rdog_lib::OutputParams;
 use wgpu::{BufferUsages, Extent3d, ImageDataLayout, TextureFormat};
 
-use crate::{state::SyncedState, CameraHandle};
+use crate::{bufferable::Bufferable, state::SyncedState, CameraHandle, Config};
 
 use super::{
     graph::{Rdog, RdogE},
@@ -225,6 +226,7 @@ enum ReadbackSource {
         layout: ImageDataLayout,
         size: Extent3d,
         pass: String,
+        current_pass: u32,
     },
 }
 
@@ -308,6 +310,7 @@ fn prepare_buffers(
                             texture: Arc::clone(&tex.tex),
                             layout,
                             size,
+                            current_pass: 0,
                         },
                         buffer: write_buffer,
                         rx,
@@ -342,12 +345,29 @@ pub(crate) fn layout_data(width: u32, height: u32, format: TextureFormat) -> Ima
     }
 }
 
-fn map_buffers(mut readbacks: ResMut<GpuReadbacks>) {
+fn map_buffers(mut readbacks: ResMut<GpuReadbacks>, config: Res<ExtractedConfig>) {
     let requested = readbacks
         .requested
         .drain()
         .collect::<Vec<(MainEntity, GpuReadback)>>();
-    for (e, readback) in requested {
+    for (e, mut readback) in requested {
+        if let ReadbackSource::Texture {
+            texture: _,
+            layout: _,
+            size: _,
+            pass: _,
+            current_pass,
+        } = &mut readback.src
+        {
+            if !(*current_pass + 1
+                >= config.output_pass_per_frame.x * config.output_pass_per_frame.y)
+            {
+                *current_pass += 1;
+                readbacks.requested.insert(e, readback);
+                return;
+            }
+        }
+
         info!("map_buffers");
         let slice = readback.buffer.slice(..);
         let entity = readback.entity;
@@ -424,12 +444,15 @@ impl ViewNode for RBRenderingNode {
                     layout,
                     pass,
                     size,
+                    current_pass,
                 } => {
                     let entity = graph.view_entity();
                     let engine = world.resource::<EngineResource>();
                     let passes = world.resource::<RdogPassResource>();
                     let state = world.resource::<SyncedState>();
                     let config = world.resource::<ExtractedConfig>();
+
+                    info!("current: {current_pass}");
 
                     let Some(camera) = state.cameras.get(&entity) else {
                         return Ok(());
@@ -442,17 +465,30 @@ impl ViewNode for RBRenderingNode {
                         target.main_texture_view(),
                         &pass,
                         passes,
-                        None,
+                        Some(
+                            &OutputParams {
+                                workgroup_offset: UVec2::splat(*current_pass),
+                                tile_size: config.compute_pass_size(),
+                            }
+                            .data()
+                            .to_vec(),
+                        ),
                     );
 
-                    render_context.command_encoder().copy_texture_to_buffer(
-                        texture.as_image_copy(),
-                        wgpu::ImageCopyBuffer {
-                            buffer: &readback.buffer,
-                            layout: *layout,
-                        },
-                        *size,
-                    );
+                    if *current_pass + 1
+                        >= config.output_pass_per_frame.x * config.output_pass_per_frame.y
+                    {
+                        info!("should get result");
+                        render_context.command_encoder().copy_texture_to_buffer(
+                            texture.as_image_copy(),
+                            wgpu::ImageCopyBuffer {
+                                buffer: &readback.buffer,
+                                layout: *layout,
+                            },
+                            *size,
+                        );
+                        return Ok(());
+                    }
                 }
             }
         }

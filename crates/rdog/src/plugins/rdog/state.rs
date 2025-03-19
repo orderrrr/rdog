@@ -1,5 +1,4 @@
 use bevy::{prelude::*, render::{render_resource::TextureView, renderer::RenderDevice}, utils::HashMap};
-use wgpu::TextureViewDimension;
 
 use crate::{passes::PassRegistry, Config};
 

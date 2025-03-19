@@ -1,6 +1,6 @@
 use bytemuck::Pod;
 use glam::Vec4;
-use rdog_lib::{self as gpu, camera::Camera, Light, Material, PassParams};
+use rdog_lib::{self as gpu, camera::Camera, Light, Material, OutputParams, PassParams};
 use std::slice;
 
 /// Object that can be sent into the GPU
@@ -37,6 +37,12 @@ impl Bufferable for Camera {
 }
 
 impl Bufferable for PassParams {
+    fn data(&self) -> &[u8] {
+        bytemuck::cast_slice(slice::from_ref(self))
+    }
+}
+
+impl Bufferable for OutputParams {
     fn data(&self) -> &[u8] {
         bytemuck::cast_slice(slice::from_ref(self))
     }

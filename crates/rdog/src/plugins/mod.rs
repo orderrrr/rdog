@@ -1,9 +1,9 @@
+pub mod debug;
 pub mod rdog;
 pub mod rdog_buffers;
-pub mod debug;
-pub mod readback;
-pub mod rdog_passes;
 pub mod rdog_headless;
+pub mod rdog_passes;
+pub mod readback;
 
-pub use rdog::*;
 pub use debug::*;
+pub use rdog::*;

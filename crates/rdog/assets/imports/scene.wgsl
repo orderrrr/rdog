@@ -25,19 +25,21 @@ const DANGER = vec3f(1.0, 0.0, 1.0);
 fn map(p: vec3f) -> vec3f {
     let l = lights(p);
 
-    // let d = sd_box(p, vec3(1.0));
-    var dt = sd_fbm(p, length(p) - 2.0);
-    dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
+    // var dt = sd_fbm(p, length(p) - 1.0);
+    // dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
+    // var out = vec3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y));
 
-    // dt.x = op_intersection(length(p) - 2.0, dt.x);
+    // var out = vec3f(length(p) - 1.0, pack_material_ids(1.0, 2.0), 0.0);
 
-    var out = vec3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y));
-    out = sd_min3(vec3f(length(p - vec3f(0.0, 1.5, 0.)) - 1.0, pack_material_ids(1.0, 2.0), 0.0), out);
+    var out = vec3f(sd_torus(p, vec2f(0.5, 0.2)), pack_material_ids(1.0, 2.0), 0.0);
+
     // // if pass_params.voxel_debug > 0 {
-    // out = sd_min3(out, vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0));
+    // var out = vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0);
     // // }
     // var out = vec3f(length(p - vec3f(1.0)) - 0.5, pack_material_ids(1.0, 1.0), 0.0);
     // out = sd_min3(vec3f(length(p) - 2.0, pack_material_ids(2.0, 2.0), 0.0), out);
+
+    // var out = vec3(length(p) - 0.5, pack_material_ids(1.0, 2.0), 0.0);
 
     return sd_min3(out, l);
 }
@@ -272,4 +274,9 @@ fn sd_box_frame(pi: vec3f, b: vec3f, e: f32) -> f32 {
         length(max(vec3(q.x, p.y, q.z), vec3f(0.0))) + min(max(q.x, max(p.y, q.z)), 0.0)
     ),
         length(max(vec3(q.x, q.y, p.z), vec3f(0.0))) + min(max(q.x, max(q.y, p.z)), 0.0));
+}
+
+fn sd_torus(p: vec3<f32>, t: vec2<f32>) -> f32 {
+    var q: vec2<f32> = vec2<f32>(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
 }

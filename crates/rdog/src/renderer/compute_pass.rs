@@ -40,7 +40,7 @@ where
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         size: UVec3,
-        params: P,
+        params: Option<&Vec<u8>>,
     ) {
         let label = format!("rdog_{}_pass", self.label);
 
@@ -51,8 +51,8 @@ where
 
         pass.set_pipeline(&self.pipeline);
 
-        if mem::size_of::<P>() > 0 {
-            pass.set_push_constants(0, bytemuck::bytes_of(&params));
+        if params.is_some() {
+            pass.set_push_constants(0, params.unwrap());
         }
 
         for (bind_group_idx, bind_group) in self.bind_groups.iter().enumerate() {

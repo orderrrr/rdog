@@ -1,3 +1,4 @@
+use bevy::log::info;
 use bevy::utils::hashbrown::HashMap;
 use log::debug;
 use std::any::Any;
@@ -56,7 +57,7 @@ pub trait Pass: std::fmt::Debug + Any + Send + Sync {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        pass_params: Option<&[u8]>,
+        pass_params: Option<&Vec<u8>>,
     );
 
     /// Returns the name of this pass
@@ -182,7 +183,7 @@ impl Passes {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        pass_params: Option<&[u8]>,
+        pass_params: Option<&Vec<u8>>,
     ) {
         for pass_name in &self.pass_order {
             if let Some(pass) = self.passes.get(pass_name) {
@@ -200,12 +201,14 @@ impl Passes {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        pass_params: Option<&[u8]>,
+        pass_params: Option<&Vec<u8>>,
     ) -> bool {
         if let Some(pass) = self.passes.get(name) {
+            info!("run pass: {name}");
             pass.run(engine, config, camera, encoder, view, pass_params);
             true
         } else {
+            info!("can't run pass: {name}");
             false
         }
     }

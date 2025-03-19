@@ -1,1 +1,98 @@
-{"res":0.01,"direct_pass":true,"specular_pass":true,"scatter_pass":true,"multi_frame_override":true,"multi_frame":true,"realtime_atmosphere":false,"user_orbit":false,"orbit_reset":false,"voxel_dim":8,"reload":false,"bounce_count":8,"pass_count":8,"sun_pos":[0.5,0.7],"material_tree":{"mats":[{"id":0.0,"diffuse_scale":1.0,"specular_scale":0.0,"scattering_scale":0.0,"ior":0.0,"refraction":0.04,"roughness":0.0,"albedo":[0.99,0.98,1.0],"scattering_color":[0.0,0.0,0.0],"emissive":8.0},{"id":0.0,"diffuse_scale":1.0,"specular_scale":0.0,"scattering_scale":0.0,"ior":0.0,"refraction":0.04,"roughness":0.0,"albedo":[0.99,0.55,0.7],"scattering_color":[0.0,0.0,0.0],"emissive":0.0}]},"light_tree":{"lights":[{"pos":[1.0,1.0,0.0],"radius":0.6,"mat_id":0.0,"falloff":8.0}]},"ray_debug":false,"camera_config":{"focus_dist":2.450491,"focus_point":[1.4926457,1.3328965,0.08289563],"focal_length":1.4,"aperture":0.52},"output_pass_count":1024,"output_bounce_count":32,"output_res":[640,480]}
+{
+  "res": 1.0,
+  "direct_pass": true,
+  "specular_pass": true,
+  "scatter_pass": true,
+  "multi_frame_override": true,
+  "multi_frame": true,
+  "realtime_atmosphere": false,
+  "user_orbit": false,
+  "orbit_reset": false,
+  "voxel_dim": 512,
+  "reload": false,
+  "bounce_count": 8,
+  "pass_count": 8,
+  "sun_pos": [
+    0.5,
+    0.7
+  ],
+  "material_tree": {
+    "mats": [
+      {
+        "id": 0.0,
+        "diffuse_scale": 1.0,
+        "specular_scale": 0.0,
+        "scattering_scale": 0.0,
+        "ior": 0.0,
+        "refraction": 0.04,
+        "roughness": 0.0,
+        "albedo": [
+          0.99,
+          0.98,
+          1.0
+        ],
+        "scattering_color": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "emissive": 8.0
+      },
+      {
+        "id": 0.0,
+        "diffuse_scale": 1.0,
+        "specular_scale": 0.0,
+        "scattering_scale": 0.0,
+        "ior": 0.0,
+        "refraction": 0.04,
+        "roughness": 0.0,
+        "albedo": [
+          0.99,
+          0.55,
+          0.7
+        ],
+        "scattering_color": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "emissive": 0.0
+      }
+    ]
+  },
+  "light_tree": {
+    "lights": [
+      {
+        "pos": [
+          1.0,
+          1.0,
+          0.0
+        ],
+        "radius": 0.3,
+        "mat_id": 0.0,
+        "falloff": 8.0
+      }
+    ]
+  },
+  "ray_debug": false,
+  "camera_config": {
+    "focus_dist": 3.0,
+    "focus_point": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "focal_length": 1.4,
+    "aperture": 0.0
+  },
+  "output_pass_count": 8,
+  "output_bounce_count": 32,
+  "output_res": [
+    2160,
+    1440
+  ],
+  "output_pass_per_frame": [
+    54,
+    13
+  ]
+}

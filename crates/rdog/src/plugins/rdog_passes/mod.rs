@@ -70,6 +70,7 @@ pub fn setup_passes(
                         ),
                     );
                 }
+                info!("finished creating");
             }
             _ => (),
         }

@@ -1,4 +1,5 @@
 use crate::{
+    buffers,
     shader::{FType, RdogShaderAsset, ShaderType},
     texture::Texture,
 };
@@ -19,12 +20,11 @@ use bevy::{
     utils::{default, HashMap},
 };
 use glam::Vec2;
-use naga_oil::compose::{ComposableModuleDescriptor, Composer};
-use std::sync::Arc;
-use wgpu::Buffer;
-
 use log::info;
+use naga_oil::compose::{ComposableModuleDescriptor, Composer};
 use rdog_lib::{self as lib};
+use std::sync::Arc;
+use wgpu::{naga, Buffer};
 
 #[derive(Debug)]
 pub struct Engine {
@@ -38,7 +38,7 @@ pub struct Engine {
 
     pub cameras: RenderControllers,
     images: Images,
-    has_dirty_images: bool,
+    pub dirty: bool,
 
     pub mouse: Vec2,
 }
@@ -53,10 +53,16 @@ impl Engine {
             images: Images::new(device),
             time: default(),
             cameras: default(),
-            has_dirty_images: false,
+            dirty: true,
             seed,
             mouse: Vec2::default(),
-            shader_compose: Composer::default(),
+            shader_compose: {
+                let mut composer = naga_oil::compose::Composer::default();
+                composer
+                    .capabilities
+                    .insert(naga::valid::Capabilities::PUSH_CONSTANT);
+                composer
+            },
         }
     }
 
@@ -178,7 +184,7 @@ impl Engine {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         passes: &HashMap<CameraHandle, Passes>,
-        pass_params: Option<&[u8]>,
+        pass_params: Option<&Vec<u8>>,
     ) {
         if passes.contains_key(&handle) {
             self.cameras.get(handle).render(
@@ -200,7 +206,7 @@ impl Engine {
         view: &wgpu::TextureView,
         pass: &str,
         passes: &HashMap<CameraHandle, Passes>,
-        pass_params: Option<&[u8]>,
+        pass_params: Option<&Vec<u8>>,
     ) {
         info!("render_camera_pass: {}", pass);
         self.cameras.get(handle).render_pass(
@@ -242,7 +248,7 @@ impl Engine {
     /// Creates or updates an image.
     pub fn insert_image(&mut self, image_handle: AssetId<BevyImage>, image: Image) {
         self.images.insert(image_handle, image);
-        self.has_dirty_images = true;
+        self.dirty = true;
     }
 
     /// Removes an image.
@@ -251,6 +257,6 @@ impl Engine {
     /// refer to this image.
     pub fn remove_image(&mut self, handle: AssetId<BevyImage>) {
         self.images.remove(handle);
-        self.has_dirty_images = true;
+        self.dirty = true;
     }
 }
