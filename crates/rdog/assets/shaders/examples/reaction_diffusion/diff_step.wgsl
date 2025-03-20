@@ -9,7 +9,7 @@
 @group(0) @binding(1) var<uniform> globals: Globals;
 @group(0) @binding(2) var<uniform> pass_params: PassParams;
 
-@group(2) @binding(0) var voxel_depth: texture_storage_3d<rgba32float, read_write>;
+@group(2) @binding(0) var voxel_depth: texture_storage_3d<rg32float, read_write>;
 
 @compute @workgroup_size(1,1,1)
 fn main(
@@ -28,12 +28,19 @@ fn main(
     let ab2 = a * b * b;
 
     // TODO: constants
-    let da_db = vec2f(1.0, 0.7);
-    let k = 0.053;
-    let f = 0.026;
+    let da_db = vec2f(1.0, 0.5);
+    let k = 0.065;
+    let f = 0.016;
 
-    // let x = max(pow(((length(pos) - 1.0) * -1.0) * (worley((globals.time.x * 0.1) + pos + f32(rng_state * 23), 0.6) * 1.23), 2.2), 0.0);
-    let x = max(pow(((length(pos) - 1.0) * -1.0), 2.2), 0.0);
+    // let x = max(pow(((length(pos) - 1.0) * -1.0) * (worley((globals.time.x * 0.0) + pos + f32(rng_state * 23), 0.6) * 1.23), 2.2), 0.0);
+
+    var x: f32;
+    if ((length(pos) - 1.0) * -1.0) > 0.0 {
+        x = 1.0;
+    } else {
+        x = 0.0;
+    }
+
 
     let lap = x * laplacian;
 
@@ -47,7 +54,7 @@ fn main(
 
     let dt = 0.2;
 
-    let out = vec4(max(vec2(0.0), min(vec2(1.0), y + dydt * dt)), 0, 1);
+    let out = vec4f(max(vec2(0.0), min(vec2(1.0), y + dydt * dt)), 0, 0);
 
     textureStore(voxel_depth, vec3u(id), out);
 }

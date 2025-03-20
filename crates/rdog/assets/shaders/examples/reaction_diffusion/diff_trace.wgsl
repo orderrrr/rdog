@@ -31,7 +31,7 @@ var<private> num_levels: u32;
 @group(1) @binding(0) var<storage, read> material: array<MaterialIn>;
 @group(1) @binding(1) var<storage, read> light_in: array<LightIn>;
 
-@group(2) @binding(0) var voxel_depth: texture_storage_3d<rgba32float, read_write>;
+@group(2) @binding(0) var voxel_depth: texture_storage_3d<rg32float, read_write>;
 
 @compute @workgroup_size(1)
 fn main(
@@ -239,43 +239,43 @@ fn id_to_vec3u_bitwise(idx: u32) -> vec3u {
 //     return d;
 // }
 
-fn trace_voxel_mask(ri: Ray) -> vec4f {
-    var r = ri;
-    r.o.y += 1.0;
-
-    let vd = f32(pass_params.voxel_dim);
-    r.o = (r.o * vd + vd) / 2.0 - vec3f(0.0, vd / 2.0, 0.0);
-
-    var map_pos = vec3i(floor(r.o));
-    var total = vec4f(0.0);
-
-    if !all(map_pos >= vec3i(0) && map_pos < vec3i(pass_params.voxel_dim)) {
-        let dist = rbi(r, vec3f(0.0), vec3f(pass_params.voxel_dim));
-        if dist < 0.0 {
-            return total;
-        }
-        r.o += r.d * (dist + 0.01);
-        map_pos = vec3i(floor(r.o));
-    }
-
-    for (var i: u32 = 0; i < RMAX * 2; i++) {
-        let d = get_voxel(map_pos);
-
-        if d.w < MIN_DIST {
-            return vec4f(d.xyz, 1.0);
-        }
-
-        r.o += r.d * (d.w * vd / 32.0);
-
-        map_pos = vec3i(floor(r.o));
-
-        if any(map_pos < vec3i(0) || map_pos >= vec3i(pass_params.voxel_dim)) {
-            return vec4f(0.0);
-        }
-    }
-
-    return vec4f(0.5, 0.0, 0.5, 1.0);
-}
+// fn trace_voxel_mask(ri: Ray) -> vec4f {
+//     var r = ri;
+//     r.o.y += 1.0;
+//
+//     let vd = f32(pass_params.voxel_dim);
+//     r.o = (r.o * vd + vd) / 2.0 - vec3f(0.0, vd / 2.0, 0.0);
+//
+//     var map_pos = vec3i(floor(r.o));
+//     var total = vec4f(0.0);
+//
+//     if !all(map_pos >= vec3i(0) && map_pos < vec3i(pass_params.voxel_dim)) {
+//         let dist = rbi(r, vec3f(0.0), vec3f(pass_params.voxel_dim));
+//         if dist < 0.0 {
+//             return total;
+//         }
+//         r.o += r.d * (dist + 0.01);
+//         map_pos = vec3i(floor(r.o));
+//     }
+//
+//     for (var i: u32 = 0; i < RMAX * 2; i++) {
+//         let d = get_voxel(map_pos);
+//
+//         if d.w < MIN_DIST {
+//             return vec4f(d.xyz, 1.0);
+//         }
+//
+//         r.o += r.d * (d.w * vd / 32.0);
+//
+//         map_pos = vec3i(floor(r.o));
+//
+//         if any(map_pos < vec3i(0) || map_pos >= vec3i(pass_params.voxel_dim)) {
+//             return vec4f(0.0);
+//         }
+//     }
+//
+//     return vec4f(0.5, 0.0, 0.5, 1.0);
+// }
 
 fn compute_voxel_visibility(chemical_b_concentration: f32) -> vec2f {
     // Hardcoded constants from the UI defaults
@@ -331,7 +331,15 @@ fn trace_voxel_mask_dda(ri: Ray) -> vec4f {
             let c2 = vec3f(1.4, -1.2, -2.4);
             let color = vec3f(0.05) + d.x * (vec3f(1.0) - c1) + d.y * (c1 - c2);
 
+            // if vis.y < 0.000001 {
+            //     return total + vec4f(1.0, 0.0, 0.0, 1.0);
+            // }
+
             total += vec4f(color * vis.y * 1.0, vis.y);
+
+            // if length(total.xyz) > 0.1 {
+            //     return total;
+            // }
         }
 
         mask = less_than_equal(side_dist.xyz, min(side_dist.yzx, side_dist.zxy));
@@ -369,8 +377,8 @@ fn trace(r: Ray) -> Hit {
     return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
 }
 
-fn get_voxel(c: vec3i) -> vec4f {
-    return textureLoad(voxel_depth, vec3u(c));
+fn get_voxel(c: vec3i) -> vec2f {
+    return textureLoad(voxel_depth, vec3u(c)).xy;
 }
 
 fn less_than_equal(a: vec3f, b: vec3f) -> vec3<bool> {
@@ -385,11 +393,6 @@ fn ray_trace(ri: Ray) -> vec3f {
     var rad = ONE;
 
     for (var i: u32 = 0; i < pass_params.bounce_count; i++) {
-        if false {
-            var h = trace_voxel_mask(r);
-            return h.xyz;
-        }
-
         if true {
             var h = trace_voxel_mask_dda(r);
             return h.xyz;

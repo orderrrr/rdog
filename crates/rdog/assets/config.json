@@ -1,5 +1,5 @@
 {
-  "res": 0.21,
+  "res": 0.15,
   "direct_pass": true,
   "specular_pass": true,
   "scatter_pass": true,

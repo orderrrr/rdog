@@ -255,7 +255,7 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
         BT::from(
             Texture::builder("voxel")
                 .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rgba32Float)
+                .with_format(wgpu::TextureFormat::Rg32Float)
                 .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_linear_filtering_sampler()

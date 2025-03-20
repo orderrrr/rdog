@@ -9,7 +9,7 @@
 @group(0) @binding(1) var<uniform> globals: Globals;
 @group(0) @binding(2) var<uniform> pass_params: PassParams;
 
-@group(2) @binding(0) var voxel_depth: texture_storage_3d<rgba32float, read_write>;
+@group(2) @binding(0) var voxel_depth: texture_storage_3d<rg32float, read_write>;
 
 @compute @workgroup_size(1,1,1)
 fn main(
@@ -20,19 +20,19 @@ fn main(
 
     let pos = ((vec3f(id) / f32(vd)) - .5) * 2.;
 
-    // let r = length(pos);
-    // let ball = smoothstep(0.25, 0.2, r);
-    // let a = 1.0;
-    // let f = 12.0;
-    // let b = max(0.0, min(1.0, 0.5 + 4.0 * cos(pos.x * f - 1.0) * cos(pos.y * f - 2.0) * cos(pos.z * f - 3.0)));
-    // let out = vec4(a, b * ball, 0, 1);
-
-    let rng = worley(pos, 1.23) * 1.0;
+    let r = length(pos);
+    let ball = smoothstep(0.25, 0.2, r);
     let a = 1.0;
     let f = 12.0;
-    let r = ((length(pos) - 1.0) * -1.0) * 3.0;
-    let b = max((rng * (worley(pos * f32(rng_state), 1.44) * 0.25)) * r, 0.0);
-    let out = vec4(a, b, 0, 1);
+    let b = max(0.0, min(1.0, 0.5 + 4.0 * cos(pos.x * f - 1.0) * cos(pos.y * f - 2.0) * cos(pos.z * f - 3.0)));
+    let out = vec4(a, b * ball, 0, 1);
+
+    // let rng = worley(pos, 1.23) * 1.0;
+    // let a = 1.0;
+    // let f = 12.0;
+    // let r = ((length(pos) - 1.0) * -1.0) * 3.0;
+    // let b = max((rng * (worley(pos * f32(rng_state), 1.44) * 0.25)) * r, 0.0);
+    // let out = vec4(a, b, 0, 1);
 
     textureStore(voxel_depth, vec3u(id), out);
 }
