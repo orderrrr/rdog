@@ -32,7 +32,8 @@ fn main(
     let k = 0.053;
     let f = 0.026;
 
-    let x = max(pow(((length(pos) - 1.0) * -1.0) * (worley((globals.time.x * 0.1) + pos + f32(rng_state * 23), 0.6) * 1.23), 2.2), 0.0);
+    // let x = max(pow(((length(pos) - 1.0) * -1.0) * (worley((globals.time.x * 0.1) + pos + f32(rng_state * 23), 0.6) * 1.23), 2.2), 0.0);
+    let x = max(pow(((length(pos) - 1.0) * -1.0), 2.2), 0.0);
 
     let lap = x * laplacian;
 
@@ -44,7 +45,7 @@ fn main(
     );
 
 
-    let dt = 0.15;
+    let dt = 0.2;
 
     let out = vec4(max(vec2(0.0), min(vec2(1.0), y + dydt * dt)), 0, 1);
 
