@@ -25,13 +25,15 @@ const DANGER = vec3f(1.0, 0.0, 1.0);
 fn map(p: vec3f) -> vec3f {
     let l = lights(p);
 
-    // var dt = sd_fbm(p, length(p) - 1.0);
-    // dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
-    // var out = vec3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y));
+    var dt = sd_fbm(p, length(p) - 1.0);
+    dt.y = 1.0 + dt.y * 2.0; dt.y = dt.y * dt.y;
+    var out = vec3(vec3f(dt.x, pack_material_ids(1.0, 2.0), dt.y));
 
     // var out = vec3f(length(p) - 1.0, pack_material_ids(1.0, 2.0), 0.0);
 
-    var out = vec3f(sd_torus(p, vec2f(0.5, 0.2)), pack_material_ids(1.0, 2.0), 0.0);
+    // var out = vec3f(sd_torus(p, vec2f(0.5, 0.2)), pack_material_ids(1.0, 2.0), 0.0);
+    // out.x = max(op_onion(out.x, 0.05), p.y);
+
 
     // // if pass_params.voxel_debug > 0 {
     // var out = vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0);
@@ -279,4 +281,8 @@ fn sd_box_frame(pi: vec3f, b: vec3f, e: f32) -> f32 {
 fn sd_torus(p: vec3<f32>, t: vec2<f32>) -> f32 {
     var q: vec2<f32> = vec2<f32>(length(p.xz) - t.x, p.y);
     return length(q) - t.y;
+}
+
+fn op_onion(sdf: f32, thickness: f32) -> f32 {
+    return abs(sdf) - thickness;
 }

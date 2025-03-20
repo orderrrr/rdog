@@ -29,7 +29,7 @@ fn main(
     var col = vec4f(0.0, 0.0, 0.0, dist.x);
     var data = vec4f(0.0);
 
-    if dist.x <= MIN_DIST * 8.0 && dist.x >= -MIN_DIST * 8.0 { // TODO: check if 1.1 can be lowered
+    if dist.x <= MIN_DIST * 4.0 && dist.x >= -MIN_DIST * 4.0 { // TODO: check if 1.1 can be lowered
 
         let no = calc_normal(pos);
         col.x = no.x;
@@ -37,11 +37,7 @@ fn main(
         col.z = no.z;
     }
 
-    // let voxel_size = 2.0 / f32(vd);
-    // col.w = floor(col.w / voxel_size);
-
     textureStore(voxel_depth, vec3u(id), col);
-    // textureStore(depth, vec3u(id), col);
 }
 
 fn calc_normal(pos: vec3f) -> vec3f {
@@ -52,5 +48,3 @@ fn calc_normal(pos: vec3f) -> vec3f {
         0. + e.xyy * map(pos + ep * e.xyy).x + e.yyx * map(pos + ep * e.yyx).x + e.yxy * map(pos + ep * e.yxy).x + e.xxx * map(pos + ep * e.xxx).x
     );
 }
-
-            // return Hit(t, vec3f(0.0), interior, mat_2(h));

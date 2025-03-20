@@ -18,7 +18,7 @@ use rdog::{
 use wgpu::Device;
 
 use crate::pipelines::{
-    RasterPassConstructor, ReadbackPassConstructor, TracePassConstructor, VoxelAccelPassConstructor,
+    DiffPassConstructor, RasterPassConstructor, ReadbackPassConstructor, TracePassConstructor,
 };
 use bevy::{
     prelude::*,
@@ -83,17 +83,13 @@ impl Plugin for InitialPlugin {
             render_app
                 .insert_resource(RdogPassRegistry::new(
                     vec![
-                        Box::new(VoxelAccelPassConstructor),
+                        Box::new(DiffPassConstructor),
                         Box::new(ReadbackPassConstructor),
                         Box::new(TracePassConstructor),
                         Box::new(RasterPassConstructor),
                         Box::new(OutputTracePassConstructor),
                     ],
-                    vec![
-                        String::from("voxel_accel"),
-                        String::from("trace"),
-                        String::from("raster"),
-                    ],
+                    vec![String::from("diff"), String::from("trace"), String::from("raster")],
                 ))
                 .add_systems(
                     Render,
@@ -255,23 +251,11 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
         )),
     );
     buffers.insert(
-        "voxel_depth".to_string(),
+        "voxel".to_string(),
         BT::from(
-            Texture::builder("voxel_depth")
+            Texture::builder("voxel")
                 .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rgba16Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_linear_filtering_sampler()
-                .build(device),
-        ),
-    );
-    buffers.insert(
-        "voxel_data".to_string(),
-        BT::from(
-            Texture::builder("voxel_data")
-                .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_linear_filtering_sampler()

@@ -17,7 +17,7 @@ define_pass_constructor!(raster => RasterPass);
 define_pass_constructor!(readback => ReadbackPass);
 define_pass_constructor!(trace => TracePass);
 define_pass_constructor!(output_trace => OutputTracePass);
-define_pass_constructor!(voxel_accel => VoxelAccelPass);
+define_pass_constructor!(diff => DiffPass);
 
 #[derive(Debug)]
 pub struct RasterPass {
@@ -204,14 +204,11 @@ impl TracePass {
                 &buffers.get_old("materials").bind_readable(),
                 &buffers.get_old("lights").bind_readable(),
             ])
-            .bind([
-                &buffers.get_old("voxel_depth").bind_readable(),
-                &buffers.get_old("voxel_data").bind_readable(),
-            ])
+            .bind([&buffers.get_old("voxel").bind_readable()])
             .build(
                 device,
                 "main",
-                &engine.shaders.get("voxel_trace").unwrap().module,
+                &engine.shaders.get("diff_trace").unwrap().module,
             );
 
         Self {
@@ -251,14 +248,16 @@ impl Pass for TracePass {
 }
 
 #[derive(Debug)]
-pub struct VoxelAccelPass {
+pub struct DiffPass {
     name: String,
     compute_passes: Vec<ComputePass>,
 }
 
-impl VoxelAccelPass {
+impl DiffPass {
     pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
-        let octree_pass = ComputePass::builder("voxel")
+        let name = "diff";
+
+        let diff_init = ComputePass::builder(name)
             .bind([
                 &buffers.get_old("curr_camera").bind_readable(),
                 &buffers.get_old("globals").bind_readable(),
@@ -268,24 +267,38 @@ impl VoxelAccelPass {
                 &buffers.get_old("materials").bind_readable(),
                 &buffers.get_old("lights").bind_readable(),
             ])
-            .bind([
-                &buffers.get_old("voxel_depth").bind_writable(),
-                &buffers.get_old("voxel_data").bind_writable(),
-            ])
+            .bind([&buffers.get_old("voxel").bind_writable()])
             .build(
                 device,
                 &"main",
-                &engine.shaders.get("voxel").unwrap().module,
+                &engine.shaders.get("diff_init").unwrap().module,
+            );
+
+        let diff_step = ComputePass::builder(name)
+            .bind([
+                &buffers.get_old("curr_camera").bind_readable(),
+                &buffers.get_old("globals").bind_readable(),
+                &buffers.get_old("config").bind_readable(),
+            ])
+            .bind([
+                &buffers.get_old("materials").bind_readable(),
+                &buffers.get_old("lights").bind_readable(),
+            ])
+            .bind([&buffers.get_old("voxel").bind_writable()])
+            .build(
+                device,
+                &"main",
+                &engine.shaders.get("diff_step").unwrap().module,
             );
 
         Self {
-            name: "voxel".to_string(),
-            compute_passes: vec![octree_pass],
+            name: name.to_string(),
+            compute_passes: vec![diff_init, diff_step],
         }
     }
 }
 
-impl Pass for VoxelAccelPass {
+impl Pass for DiffPass {
     fn run(
         &self,
         e: &Engine,
@@ -298,6 +311,8 @@ impl Pass for VoxelAccelPass {
         if e.dirty {
             self.compute_passes[0].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
         }
+
+        self.compute_passes[1].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
     }
 
     fn name(&self) -> &str {
@@ -329,10 +344,7 @@ impl OutputTracePass {
                 &buffers.get_old("materials").bind_readable(),
                 &buffers.get_old("lights").bind_readable(),
             ])
-            .bind([
-                &buffers.get_old("voxel_depth").bind_readable(),
-                &buffers.get_old("voxel_data").bind_readable(),
-            ])
+            .bind([&buffers.get_old("voxel").bind_readable()])
             .build(
                 device,
                 "main",

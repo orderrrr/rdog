@@ -42,18 +42,6 @@ impl CameraController {
         passes: &Passes,
         pass_params: Option<&Vec<u8>>,
     ) {
-        if engine.dirty {
-            passes.run_pass(
-                "voxel_accel",
-                engine,
-                config,
-                self,
-                encoder,
-                view,
-                pass_params,
-            );
-        }
-
         passes.run_all(engine, config, self, encoder, view, pass_params);
     }
 

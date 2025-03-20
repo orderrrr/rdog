@@ -1,17 +1,17 @@
 {
-  "res": 1.0,
+  "res": 0.3,
   "direct_pass": true,
   "specular_pass": true,
   "scatter_pass": true,
-  "multi_frame_override": true,
-  "multi_frame": true,
+  "multi_frame_override": false,
+  "multi_frame": false,
   "realtime_atmosphere": false,
   "user_orbit": false,
   "orbit_reset": false,
-  "voxel_dim": 512,
+  "voxel_dim": 256,
   "reload": false,
-  "bounce_count": 8,
-  "pass_count": 8,
+  "bounce_count": 1,
+  "pass_count": 1,
   "sun_pos": [
     0.5,
     0.7
@@ -76,13 +76,13 @@
   },
   "ray_debug": false,
   "camera_config": {
-    "focus_dist": 3.0,
+    "focus_dist": 2.5,
     "focus_point": [
       0.0,
       0.0,
       0.0
     ],
-    "focal_length": 1.4,
+    "focal_length": 1.0,
     "aperture": 0.0
   },
   "output_pass_count": 8,

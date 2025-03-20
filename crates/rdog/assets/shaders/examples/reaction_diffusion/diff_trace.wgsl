@@ -31,8 +31,7 @@ var<private> num_levels: u32;
 @group(1) @binding(0) var<storage, read> material: array<MaterialIn>;
 @group(1) @binding(1) var<storage, read> light_in: array<LightIn>;
 
-@group(2) @binding(0) var voxel_depth: texture_storage_3d<rgba16float, read_write>;
-@group(2) @binding(1) var voxel_data: texture_storage_3d<rgba16float, read_write>;
+@group(2) @binding(0) var voxel_depth: texture_storage_3d<rgba32float, read_write>;
 
 @compute @workgroup_size(1)
 fn main(
@@ -278,9 +277,24 @@ fn trace_voxel_mask(ri: Ray) -> vec4f {
     return vec4f(0.5, 0.0, 0.5, 1.0);
 }
 
+fn compute_voxel_visibility(chemical_b_concentration: f32) -> vec2f {
+    // Hardcoded constants from the UI defaults
+    let exponent: f32 = 3.3;
+    let alpha_global: f32 = 1.0;
+    let alpha_threshold: f32 = 0.0001;
+    
+    // Compute the alpha value
+    let alpha = pow(chemical_b_concentration, exponent) * alpha_global;
+    
+    // Determine if the voxel is visible
+    let visible = alpha >= alpha_threshold;
+
+    return vec2f(f32(visible), alpha);
+}
+
 fn trace_voxel_mask_dda(ri: Ray) -> vec4f {
     var r = ri;
-    r.o.y += 1.0;
+    // r.o.y += 1.0;
 
     let vd = f32(pass_params.voxel_dim);
     r.o = (r.o * vd + vd) / 2.0 - vec3f(0.0, vd / 2.0, 0.0);
@@ -306,8 +320,18 @@ fn trace_voxel_mask_dda(ri: Ray) -> vec4f {
 
     for (var i: u32 = 0; i < pass_params.voxel_dim * 3; i++) {
         let d = get_voxel(map_pos);
-        if d.w <= 0.0 {
-            total += vec4f(0.001, 0.001, 0.001, 1.0);
+
+        let vis = compute_voxel_visibility(d.y);
+
+        if vis.x == 1.0 {
+
+            // Render this voxel with visibility.alpha transparency
+            // Color could be calculated like this (simplified from the original shader):
+            let c1 = vec3f(-1.9, -1.0, 1.5);
+            let c2 = vec3f(1.4, -1.2, -2.4);
+            let color = vec3f(0.05) + d.x * (vec3f(1.0) - c1) + d.y * (c1 - c2);
+
+            total += vec4f(color * vis.y * 0.6, vis.y);
         }
 
         mask = less_than_equal(side_dist.xyz, min(side_dist.yzx, side_dist.zxy));

@@ -91,7 +91,10 @@ pub trait PassConstructor: std::fmt::Debug + Send + Sync {
 
 impl PassRegistry {
     /// Create a new empty pass registry
-    pub fn new(constructor: Vec<Box<dyn PassConstructor>>, pass_order: Vec<String>) -> Self {
+    pub fn new(
+        constructor: Vec<Box<dyn PassConstructor>>,
+        pass_order: Vec<String>,
+    ) -> Self {
         let mut pr = PassRegistry::default();
 
         for p in constructor {
