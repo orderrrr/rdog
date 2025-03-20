@@ -312,7 +312,9 @@ impl Pass for DiffPass {
             self.compute_passes[0].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
         }
 
-        self.compute_passes[1].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
+        for _ in 0..2 {
+            self.compute_passes[1].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
+        }
     }
 
     fn name(&self) -> &str {

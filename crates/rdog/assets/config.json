@@ -1,5 +1,5 @@
 {
-  "res": 0.3,
+  "res": 0.21,
   "direct_pass": true,
   "specular_pass": true,
   "scatter_pass": true,
@@ -8,7 +8,7 @@
   "realtime_atmosphere": false,
   "user_orbit": false,
   "orbit_reset": false,
-  "voxel_dim": 256,
+  "voxel_dim": 512,
   "reload": false,
   "bounce_count": 1,
   "pass_count": 1,
@@ -76,7 +76,7 @@
   },
   "ray_debug": false,
   "camera_config": {
-    "focus_dist": 2.5,
+    "focus_dist": 3.0,
     "focus_point": [
       0.0,
       0.0,

@@ -331,7 +331,7 @@ fn trace_voxel_mask_dda(ri: Ray) -> vec4f {
             let c2 = vec3f(1.4, -1.2, -2.4);
             let color = vec3f(0.05) + d.x * (vec3f(1.0) - c1) + d.y * (c1 - c2);
 
-            total += vec4f(color * vis.y * 0.6, vis.y);
+            total += vec4f(color * vis.y * 1.0, vis.y);
         }
 
         mask = less_than_equal(side_dist.xyz, min(side_dist.yzx, side_dist.zxy));
