@@ -5,7 +5,6 @@ use super::bindable::DoubleBufferedBindable;
 #[derive(Debug)]
 pub struct BindGroup {
     bind_group_a: wgpu::BindGroup,
-    bind_group_b: wgpu::BindGroup,
     bind_group_layout: wgpu::BindGroupLayout,
 }
 
@@ -19,11 +18,7 @@ impl BindGroup {
     }
 
     pub fn get(&self, alternate: bool) -> &wgpu::BindGroup {
-        if alternate {
-            &self.bind_group_b
-        } else {
-            &self.bind_group_a
-        }
+        &self.bind_group_a
     }
 
     pub fn layout(&self) -> &wgpu::BindGroupLayout {
@@ -79,15 +74,8 @@ impl<'a> BindGroupBuilder<'a> {
             entries: &resources_a,
         });
 
-        let bind_group_b = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(&label),
-            layout: &bind_group_layout,
-            entries: &resources_b,
-        });
-
         BindGroup {
             bind_group_a,
-            bind_group_b,
             bind_group_layout,
         }
     }

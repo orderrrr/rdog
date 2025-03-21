@@ -85,11 +85,11 @@ impl Plugin for InitialPlugin {
                     vec![
                         Box::new(DiffPassConstructor),
                         Box::new(ReadbackPassConstructor),
-                        Box::new(TracePassConstructor),
+                        // Box::new(TracePassConstructor),
                         Box::new(RasterPassConstructor),
                         Box::new(OutputTracePassConstructor),
                     ],
-                    vec![String::from("diff"), String::from("trace"), String::from("raster")],
+                    vec![String::from("diff"), String::from("raster")],
                 ))
                 .add_systems(
                     Render,
@@ -201,7 +201,7 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
                 .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_nearest_filtering_sampler()
+                .with_linear_filtering_sampler()
                 .build(device),
         ),
     );
@@ -255,7 +255,7 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
         BT::from(
             Texture::builder("voxel")
                 .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rg32Float)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_linear_filtering_sampler()

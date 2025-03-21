@@ -200,7 +200,7 @@ impl Bindable for SampledTextureBinder<'_> {
             visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::Texture {
                 multisampled: false,
-                view_dimension: wgpu::TextureViewDimension::D2,
+                view_dimension: self.parent.dimension,
                 sample_type: wgpu::TextureSampleType::Float {
                     filterable: self.parent.filterable,
                 },
@@ -220,7 +220,6 @@ impl Bindable for SampledTextureBinder<'_> {
         };
 
         let image_resource = wgpu::BindingResource::TextureView(&self.parent.view);
-
         let sampler_resource = wgpu::BindingResource::Sampler(&self.parent.sampler);
 
         vec![

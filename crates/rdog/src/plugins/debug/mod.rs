@@ -10,6 +10,7 @@ use bevy::{app::Plugin, render::view::RenderLayers};
 use crate::orbit::{PanOrbitSettings, PanOrbitState};
 use crate::{Config, GIZMO};
 
+use super::plugin_config::read_config;
 use super::readback::{Readback, ReadbackComplete};
 use super::shader::RdogShaderState;
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,7 @@ impl Plugin for RdogDebugPlugin {
             .add_systems(
                 Update,
                 (
+                    keymap,
                     update_bevy_cam.run_if(any_with_component::<PanOrbitState>),
                     ui_system,
                     readback_setup,
@@ -52,6 +54,13 @@ impl Plugin for RdogDebugPlugin {
     }
 
     fn finish(&self, _: &mut App) {}
+}
+
+fn keymap(keys: Res<ButtonInput<KeyCode>>, mut config: ResMut<Config>) {
+    if keys.just_pressed(KeyCode::KeyR) {
+        *config = read_config().unwrap_or(Config::default());
+        config.reload = true;
+    }
 }
 
 fn update_bevy_cam(

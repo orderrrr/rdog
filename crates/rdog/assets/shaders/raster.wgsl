@@ -7,6 +7,8 @@
 @group(0) @binding(2) var<uniform> globals: Globals;
 @group(1) @binding(0) var trace: texture_2d<f32>;
 @group(1) @binding(1) var trace_sample: sampler;
+@group(1) @binding(2) var voxel: texture_3d<f32>;
+@group(1) @binding(3) var voxel_sample: sampler;
 
 @fragment
 fn fs(@builtin(position) vertex: vec4f) -> @location(0) vec4f {

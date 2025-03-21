@@ -1,5 +1,5 @@
 {
-  "res": 0.15,
+  "res": 1.0,
   "direct_pass": true,
   "specular_pass": true,
   "scatter_pass": true,
@@ -8,7 +8,7 @@
   "realtime_atmosphere": false,
   "user_orbit": false,
   "orbit_reset": false,
-  "voxel_dim": 512,
+  "voxel_dim": 256,
   "reload": false,
   "bounce_count": 1,
   "pass_count": 1,

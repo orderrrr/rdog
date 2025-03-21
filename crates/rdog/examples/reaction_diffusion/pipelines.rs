@@ -24,6 +24,7 @@ pub struct RasterPass {
     name: String,
     bg0: BindGroup,
     bg1: BindGroup,
+    bg2: BindGroup,
     pipeline: wgpu::RenderPipeline,
 }
 
@@ -32,18 +33,23 @@ impl RasterPass {
         debug!("Initializing pass: raster");
 
         let bg0 = BindGroup::builder("raster_bg0")
-            .add(&buffers.get_old("config").bind_readable())
             .add(&buffers.get_old("curr_camera").bind_readable())
             .add(&buffers.get_old("globals").bind_readable())
+            .add(&buffers.get_old("config").bind_readable())
             .build(device);
 
         let bg1 = BindGroup::builder("raster_bg1")
-            .add(&buffers.get_old("render_tx").bind_sampled())
+            .add(&buffers.get_old("materials").bind_readable())
+            .add(&buffers.get_old("lights").bind_readable())
+            .build(device);
+
+        let bg2 = BindGroup::builder("raster_bg2")
+            .add(&buffers.get_old("voxel").bind_sampled())
             .build(device);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("rdog_raster_pipeline_layout"),
-            bind_group_layouts: &[bg0.layout(), bg1.layout()],
+            bind_group_layouts: &[bg0.layout(), bg1.layout(), bg2.layout()],
             push_constant_ranges: &[],
         });
 
@@ -51,7 +57,7 @@ impl RasterPass {
             label: Some("rdog_raster_pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &engine.shaders.get("raster").unwrap().module, // TODO actually error handle.
+                module: &engine.shaders.get("diff_raster").unwrap().module, // TODO actually error handle.
                 entry_point: Some("vs"),
                 buffers: &[],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
@@ -60,7 +66,7 @@ impl RasterPass {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
-                module: &engine.shaders.get("raster").unwrap().module,
+                module: &engine.shaders.get("diff_raster").unwrap().module,
                 entry_point: Some("fs"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
@@ -77,6 +83,7 @@ impl RasterPass {
             name: "raster".to_string(),
             bg0,
             bg1,
+            bg2,
             pipeline,
         }
     }
@@ -126,6 +133,7 @@ impl Pass for RasterPass {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, self.bg0.get(alternate), &[]);
         pass.set_bind_group(1, self.bg1.get(alternate), &[]);
+        pass.set_bind_group(2, self.bg2.get(alternate), &[]);
         pass.draw(0..3, 0..1);
     }
 }
