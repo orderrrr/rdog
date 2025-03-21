@@ -83,10 +83,8 @@ impl Engine {
         const MAX_RETRIES: usize = 5; // Adjust based on your needs
 
         while !shaders_remaining.is_empty() && retry_count < MAX_RETRIES {
-            let mut failed_shaders = Vec::new();
-
-            for i in 0..shaders_remaining.len() {
-                let shader = &mut shaders_remaining[i];
+            let s: Vec<RdogShaderAsset> = shaders_remaining.drain(..).collect();
+            for shader in s.into_iter() {
                 match shader.stype {
                     ShaderType::Lib => {
                         if let FType::Wgsl(source) = &shader.data {
@@ -106,7 +104,7 @@ impl Engine {
                                         "Failed to load library module {}: {e:#?}. Retrying...",
                                         shader.name
                                     );
-                                    failed_shaders.push(shader.clone());
+                                    shaders_remaining.push(shader);
                                 }
                             }
                         }
@@ -114,9 +112,6 @@ impl Engine {
                     _ => (),
                 }
             }
-
-            // Remove successfully processed shaders
-            shaders_remaining.retain(|s| !lib_names.contains(&s.name));
 
             retry_count += 1;
         }
