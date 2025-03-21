@@ -2,7 +2,9 @@ use std::ops;
 
 use bevy::{
     prelude::*,
-    render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, Render, RenderApp},
+    render::{
+        camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, Render, RenderApp,
+    },
     window::WindowResized,
 };
 use event::RdogEvent;
@@ -11,7 +13,7 @@ use shader::{
     check_textures, load_shader_libs, load_shaders, RdogShaderAsset, RdogShaderAssetLoader,
     RdogShaderState,
 };
-use stages::cache::RdogShaderCache;
+use stages::{cache::RdogShaderCache, prepare::parse_shaders};
 use state::SyncedState;
 
 use crate::{orbit::PanOrbitState, rdog_buffers::BufferPlugin, rdog_passes::PassesPlugin, Config};
@@ -57,6 +59,7 @@ impl Plugin for RdogPlugin {
             render_app
                 .insert_resource(SyncedState::default())
                 .add_event::<RdogEvent>()
+                .init_resource::<State<RdogShaderState>>()
                 .add_event::<RdogStateEvent>()
                 .add_systems(Render, events);
 
@@ -124,8 +127,6 @@ fn rdog_setup_scene(mut commands: Commands, mut rdog_e: EventWriter<RdogEvent>) 
         CameraRenderGraph::new(self::graph::Rdog),
         RdogRender,
     ));
-
-    rdog_e.send(RdogEvent::Recompute);
 }
 
 fn send_events(
@@ -142,10 +143,7 @@ fn send_events(
         buf.send(RdogEvent::Recompute);
     }
 }
-pub fn events(
-    mut events: EventReader<RdogEvent>,
-    mut engine: ResMut<EngineResource>,
-) {
+pub fn events(mut events: EventReader<RdogEvent>, mut engine: ResMut<EngineResource>) {
     for e in events.read() {
         if let RdogEvent::Recompute | RdogEvent::RecomputePasses = e {
             engine.dirty = true;

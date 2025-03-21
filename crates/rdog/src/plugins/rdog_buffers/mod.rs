@@ -4,7 +4,9 @@ use bevy::{
     utils::HashMap,
 };
 
-use crate::{renderer::buffers::Buffers, stages::prepare::cameras, CameraHandle};
+use crate::{
+    renderer::buffers::Buffers, shader::RdogShaderState, stages::prepare::cameras, CameraHandle,
+};
 
 use super::{event::RdogEvent, state::SyncedState};
 
@@ -17,7 +19,12 @@ impl Plugin for BufferPlugin {
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
                 .insert_resource(RdogBufferResource(HashMap::new()))
-                .add_systems(Render, create_buffer.after(cameras));
+                .add_systems(
+                    Render,
+                    create_buffer
+                        .run_if(in_state(RdogShaderState::Finished))
+                        .after(cameras),
+                );
         }
     }
 }

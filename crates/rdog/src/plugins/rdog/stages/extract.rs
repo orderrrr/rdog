@@ -17,6 +17,7 @@ use crate::{
         event::RdogEvent,
         state::{ExtractedImage, ExtractedImageData, ExtractedImages, RdogExtractedCamera},
     },
+    shader::RdogShaderState,
     state::{ExtractedConfig, RdogExtractedExtras},
     Config, EngineResource,
 };
@@ -25,7 +26,11 @@ pub(crate) fn extras(
     mut commands: Commands,
     q_windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     q_frame: Extract<Res<FrameCount>>,
+    state: Extract<Res<State<RdogShaderState>>>,
+    mut rstate: ResMut<State<RdogShaderState>>,
 ) {
+    *rstate = State::new(*state.get());
+
     let mut pos = None;
     if let Ok(window) = q_windows.get_single() {
         if let Some(position) = window.physical_cursor_position() {

@@ -12,6 +12,8 @@ use super::Engine;
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, PartialEq, TrackChanges)]
 pub struct Config {
+    pub ready: bool,
+
     pub res: f32,
     pub direct_pass: bool,
     pub specular_pass: bool,
@@ -107,6 +109,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            ready: false,
             res: 0.25,
             reload: true,
             direct_pass: true,

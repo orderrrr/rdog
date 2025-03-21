@@ -1,9 +1,7 @@
 pub mod event;
 
 use crate::{
-    passes::{PassConstructor, PassRegistry, Passes},
-    rdog_buffers::create_buffer,
-    CameraHandle,
+    passes::{PassConstructor, PassRegistry, Passes}, rdog_buffers::create_buffer, shader::RdogShaderState, CameraHandle
 };
 use bevy::{
     prelude::*,
@@ -24,7 +22,12 @@ impl Plugin for PassesPlugin {
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.insert_resource(RdogPassResource::default());
             render_app.insert_resource(RdogPassRegistry::default());
-            render_app.add_systems(Render, setup_passes.after(create_buffer));
+            render_app.add_systems(
+                Render,
+                setup_passes
+                    .run_if(in_state(RdogShaderState::Finished))
+                    .after(create_buffer),
+            );
         }
     }
 }

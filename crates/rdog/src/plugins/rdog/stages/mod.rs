@@ -40,7 +40,7 @@ pub(crate) fn setup(render_app: &mut SubApp) {
         Render,
         prepare::parse_shaders
             .run_if(in_state(RdogShaderState::Finished))
-            .in_set(RenderSet::PrepareResourcesFlush),
+            .in_set(RenderSet::PrepareAssets),
     );
     render_app.add_systems(
         Render,

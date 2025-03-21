@@ -15,8 +15,6 @@ pub(crate) fn shader(
     shaders: Extract<Res<Assets<RdogShaderAsset>>>,
     mut events: Extract<EventReader<AssetEvent<RdogShaderAsset>>>,
 ) {
-    cache.clear();
-
     for event in events.read() {
         match event {
             AssetEvent::Added { id } | AssetEvent::Modified { id } => {

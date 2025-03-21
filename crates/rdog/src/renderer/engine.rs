@@ -1,5 +1,4 @@
 use crate::{
-    buffers,
     shader::{FType, RdogShaderAsset, ShaderType},
     texture::Texture,
 };
@@ -28,6 +27,8 @@ use wgpu::{naga, Buffer};
 
 #[derive(Debug)]
 pub struct Engine {
+    pub ready: bool,
+
     pub shaders: ShaderCache,
     pub shader_compose: Composer,
 
@@ -48,6 +49,7 @@ impl Engine {
         info!("Initializing");
 
         Self {
+            ready: false,
             shaders: ShaderCache::new_cache(),
             frame: lib::Frame::new(1),
             images: Images::new(device),

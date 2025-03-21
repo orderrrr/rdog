@@ -10,6 +10,7 @@ use rdog::{
         buffers::{Buffers, BT},
         config::Camera,
     },
+    shader::RdogShaderState,
     state::{ExtractedConfig, SyncedState},
     storage_buffer::StorageBuffer,
     texture::Texture,
@@ -18,7 +19,7 @@ use rdog::{
 use wgpu::Device;
 
 use crate::pipelines::{
-    DiffPassConstructor, RasterPassConstructor, ReadbackPassConstructor, TracePassConstructor,
+    DiffPassConstructor, RasterPassConstructor, ReadbackPassConstructor,
 };
 use bevy::{
     prelude::*,
@@ -93,7 +94,10 @@ impl Plugin for InitialPlugin {
                 ))
                 .add_systems(
                     Render,
-                    buffer_events.after(create_buffer).before(setup_passes), // TODO: better way to do this ordering
+                    buffer_events
+                        .run_if(in_state(RdogShaderState::Finished))
+                        .after(create_buffer)
+                        .before(setup_passes), // TODO: better way to do this ordering
                 );
         }
     }
