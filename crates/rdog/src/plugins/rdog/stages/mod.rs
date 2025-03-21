@@ -5,6 +5,8 @@ pub mod prepare;
 use bevy::prelude::*;
 use bevy::render::{Render, RenderSet};
 
+use super::shader::RdogShaderState;
+
 pub(crate) fn setup(render_app: &mut SubApp) {
     render_app.add_systems(
         ExtractSchedule,
@@ -36,7 +38,9 @@ pub(crate) fn setup(render_app: &mut SubApp) {
     render_app.add_systems(Render, prepare::extras.in_set(RenderSet::Prepare));
     render_app.add_systems(
         Render,
-        prepare::parse_shaders.in_set(RenderSet::PrepareResourcesFlush),
+        prepare::parse_shaders
+            .run_if(in_state(RdogShaderState::Finished))
+            .in_set(RenderSet::PrepareResourcesFlush),
     );
     render_app.add_systems(
         Render,
