@@ -23,16 +23,16 @@ fn main(
     let r = length(pos);
     let ball = smoothstep(0.25, 0.2, r);
     let a = 1.0;
-    let f = 12.0;
+    let f = 13.0;
     let b = max(0.0, min(1.0, 0.5 + 4.0 * cos(pos.x * f - 1.0) * cos(pos.y * f - 2.0) * cos(pos.z * f - 3.0)));
     let out = vec4(a, b * ball, 0.0, 1);
 
-    // let rng = worley(pos, 1.23) * 1.0;
-    // let a = 1.0;
-    // let f = 12.0;
-    // let r = ((length(pos) - 1.0) * -1.0) * 1.0;
-    // let b = max((rng * (worley(pos * f32(rng_state), 1.44) * 0.25)) * r, 0.0);
-    // let out = vec4(a, b, 0, 1);
+//     let rng = worley(pos, 1.23) * 1.0;
+//     let a = 1.0;
+//     let f = 12.0;
+//     let r = ((length(pos) - 1.0) * -1.0) * 2.0;
+//     let b = max((rng * (worley(pos * f32(rng_state), 1.44) * 0.25)) * r, 0.0);
+//     let out = vec4(a, b, 0, 1);
 
     textureStore(voxel_depth, vec3u(id), out);
 }

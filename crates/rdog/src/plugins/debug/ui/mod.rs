@@ -65,10 +65,10 @@ pub fn ui_system(
     let changes = ui_state.track_changes(&prev_state);
 
     if !changes.is_empty() {
-        info!("update");
+        // info!("update");
 
         for (field, change_desc) in &changes {
-            info!("field changed: {} | {}", field, change_desc);
+            // info!("field changed: {} | {}", field, change_desc);
 
             match field.as_str() {
                 "res" => {

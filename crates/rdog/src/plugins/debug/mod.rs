@@ -58,6 +58,7 @@ impl Plugin for RdogDebugPlugin {
 
 fn keymap(keys: Res<ButtonInput<KeyCode>>, mut config: ResMut<Config>) {
     if keys.just_pressed(KeyCode::KeyR) {
+        info!("r pressed?");
         *config = read_config().unwrap_or(Config::default());
         config.reload = true;
     }

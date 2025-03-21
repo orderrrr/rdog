@@ -24,29 +24,29 @@ fn main(
     let pos = ((vec3f(id) / f32(vd)) - .5) * 2.;
 
     let y = textureLoad(voxel_depth, id).xy;
-    let laplacian = textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(1., 0., 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(-1, 0., 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., 1., 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., -1, 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., 0., 1.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., 0., -1) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy - 6.0 * y;
+    let laplacian =
+        textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(1., 0., 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy
+        + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(-1, 0., 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy
+        + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., 1., 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy
+        + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., -1, 0.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy
+        + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., 0., 1.) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy
+        + textureLoad(voxel_depth, vec3u(md(vec3f(id) + vec3f(0., 0., -1) + 0.5, vec3f(pass_params.voxel_dim)) - 0.5)).xy - 6.0 * y;
 
     let a = y.x;
     let b = y.y;
     let ab2 = a * b * b;
 
-    // TODO: constants
-    let da_db = vec2f(1.0, 0.5);
-    let k = 0.063;
-    let f = 0.024;
+        // TODO: constants
+        let da_db = vec2f(1.0, 0.5);
+        let k = 0.063;
+        let f = 0.028;
 
-    // let x = max(pow(((length(pos) - 1.0) * -1.0), 2.2), 0.0);
-    // let x = max(pow(sd_torus(p, vec2f(.5, .2)) * -1.0, 2.2), 0.0);
-    // let x = max(worley(((globals.time.x * 1.0) + pos) + f32(rng_state * 23), 0.6));
-    let x = 1.0;
+//     // TODO: constants
+//     let da_db = vec2f(1.0, 0.2);
+//     let k = 0.053;
+//     let f = 0.016;
 
-    // var x: f32;
-    // if ((length(pos) - 1.0) * -1.0) > 0.0 {
-    //     x = 1.0;
-    // } else {
-    //     x = 0.0;
-    // }
-
+     let x = max(pow(((length(pos) - 1.0) * -1.0), 2.2), 0.0);
 
     let lap = x * laplacian;
 

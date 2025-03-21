@@ -13,7 +13,7 @@ use shader::{
     check_textures, load_shader_libs, load_shaders, RdogShaderAsset, RdogShaderAssetLoader,
     RdogShaderState,
 };
-use stages::{cache::RdogShaderCache, prepare::parse_shaders};
+use stages::cache::RdogShaderCache;
 use state::SyncedState;
 
 use crate::{orbit::PanOrbitState, rdog_buffers::BufferPlugin, rdog_passes::PassesPlugin, Config};

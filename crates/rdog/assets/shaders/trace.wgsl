@@ -5,7 +5,7 @@
 //*     sample_atmos, map, light_map, MIN_DIST, TMAX, mat_2, rbi, DEFAULT_MAT, DANGER
 //* }
 //* #import types::{
-//*     Ray, Material, MaterialIn, Light, LightIn, PassParams, Globals, Camera, Hit, ScatterRes, OCTree, OutputParams
+//*     Ray, Material, MaterialIn, Light, LightIn, PassParams, Globals, Camera, ScatterRes, OCTree, OutputParams
 //* }
 //* #import ray::{
 //*     pd, dir
@@ -16,6 +16,13 @@
 //* #import util::{
 //*     EPSILON, ONE, ZERO, PI
 //* }
+
+struct Hit {
+    d: f32,
+    n: vec3f,
+    i: bool,
+    m: Material,
+}
 
 const TSTART: f32 = 0.01;
 const RMAX: u32 = 600;

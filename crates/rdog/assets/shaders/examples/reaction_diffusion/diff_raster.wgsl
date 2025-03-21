@@ -5,7 +5,7 @@
 //*     sample_atmos, map, light_map, MIN_DIST, TMAX, mat_2, rbi, DEFAULT_MAT, DANGER
 //* }
 //* #import types::{
-//*     Ray, Material, MaterialIn, Light, LightIn, PassParams, Globals, Camera, Hit, ScatterRes, OCTree, OutputParams
+//*     Ray, Material, MaterialIn, Light, LightIn, PassParams, Globals, Camera, ScatterRes, OCTree, OutputParams
 //* }
 //* #import ray::{
 //*     pd, dir, mv
@@ -16,6 +16,14 @@
 //* #import util::{
 //*     EPSILON, ONE, ZERO, PI
 //* }
+
+struct Hit {
+    d: f32,
+    n: vec3f,
+    a: vec3f,
+    i: bool,
+    m: Material,
+}
 
 const TSTART: f32 = 0.01;
 const RMAX: u32 = 600;
@@ -66,8 +74,7 @@ fn fs(@builtin(position) vertex: vec4f) -> @location(0) vec4f {
 
     col /= f32(pass_params.pass_count);
 
-    return vec4f(col, 1.0);
-    // return vec4f(pow(col, vec3f(2.2)), 1.0);
+     return vec4f(srgb_vec(pow(col, vec3f(2.2))), 1.0);
 }
 
 @vertex
@@ -164,10 +171,10 @@ fn trace_voxel_mask(ri: Ray) -> vec4f {
             let c2 = vec3f(1.4, -1.2, -2.4);
             let color = vec3f(0.05) + d.x * (vec3f(1.0) - c1) + d.y * (c1 - c2);
 
-            if true {
-                return vec4f(calc_normal(r.o), 1.00);
-                // return vec4f(color, 1.0);
-            }
+//            if d.z >= 0.025 {
+//                return vec4f(calc_normal(r.o), 1.00);
+//                // return vec4f(color, 1.0);
+//            }
 
             total += vec4f(color * d.z * 1.0, d.z);
         }
