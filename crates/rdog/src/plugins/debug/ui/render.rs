@@ -16,7 +16,7 @@ pub fn render_tab(ui: &mut Ui, ui_state: &mut Config, d: &mut DebugConfig) {
 }
 
 fn camera_ui(ui_state: &mut Config, d: &mut DebugConfig, ui: &mut Ui) {
-    egui::Grid::new("")
+    egui::Grid::new("eeee")
         .num_columns(4)
         .striped(true)
         .spacing([4.0, 4.0])

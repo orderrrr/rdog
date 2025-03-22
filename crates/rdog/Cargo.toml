@@ -17,10 +17,8 @@ path = "examples/reaction_diffusion/mod.rs"
 [dependencies]
 # shared = { path = "crates/shaders/shared" }
 glam = { version = "0.29", default-features = false }
-cfg-if = "1.0.0"
 bytemuck = { workspace = true }
 wgpu = { version = "23.0.1" }
-winit = { version = "0.30", features = ["rwh_06"] }
 # Workspace
 rdog_lib = { path = "../rdog_lib" }
 rdog_macro = { path = "../rdog_macro" }
@@ -36,14 +34,13 @@ log = { workspace = true }
 derivative = "2.2.0"
 guillotiere = "0.6.2"
 bevy = { workspace = true }
-bevy_egui = "0.32.0"
+bevy_egui = "0.33.0"
 rand = "0.8.5"
 thiserror = "2.0.9"
 humantime = { version = "2.1.0", optional = true }
 serde = "1.0.217"
 serde_json = "1.0.136"
 transform-gizmo-bevy = "0.4.0"
-flume = "0.11.1"
 async-channel = "2.3.1"
 naga_oil = "0.16.0"
 paste = "1.0"

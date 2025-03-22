@@ -1,5 +1,3 @@
-pub mod event;
-
 use crate::{
     passes::{PassConstructor, PassRegistry, Passes}, rdog_buffers::create_buffer, shader::RdogShaderState, CameraHandle
 };

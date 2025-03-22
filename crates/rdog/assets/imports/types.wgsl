@@ -63,13 +63,6 @@ struct Camera {
     af: vec4f,
 }
 
-struct Hit {
-    d: f32,
-    n: vec3f,
-    i: bool,
-    m: Material,
-}
-
 struct ScatterRes {
     dir: vec3f,
     scatter: bool,
@@ -78,6 +71,7 @@ struct ScatterRes {
     radiance: vec3f,
     refract: bool,
     reflect: bool,
+    stype: f32,
 }
 
 struct OCTree {
@@ -88,4 +82,14 @@ struct OCTree {
 struct OutputParams {
     workgroup_offset: vec2u,
     tile_size: vec2u,
+}
+
+struct Hit {
+    d: f32,
+    n: vec3f,
+    a: vec3f,
+    i: bool,
+    m: Material,
+    h: bool,
+    v: bool,
 }

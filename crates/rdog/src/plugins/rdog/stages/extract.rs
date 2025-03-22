@@ -9,7 +9,6 @@ use bevy::{
     utils::HashSet,
     window::PrimaryWindow,
 };
-use rdog_lib::Frame;
 
 use crate::{
     plugins::rdog::{

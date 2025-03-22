@@ -90,14 +90,6 @@ impl RasterPass {
 }
 
 impl Pass for RasterPass {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn run(
         &self,
         _engine: &Engine,
@@ -136,6 +128,14 @@ impl Pass for RasterPass {
         pass.set_bind_group(2, self.bg2.get(alternate), &[]);
         pass.draw(0..3, 0..1);
     }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -171,14 +171,6 @@ impl ReadbackPass {
 }
 
 impl Pass for ReadbackPass {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn run(
         &self,
         _e: &Engine,
@@ -189,6 +181,14 @@ impl Pass for ReadbackPass {
         pass_params: Option<&Vec<u8>>,
     ) {
         self.compute_passes[0].run(camera, encoder, UVec3::ONE, pass_params);
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -271,10 +271,7 @@ impl DiffPass {
                 &buffers.get_old("globals").bind_readable(),
                 &buffers.get_old("config").bind_readable(),
             ])
-            .bind([
-                &buffers.get_old("materials").bind_readable(),
-                &buffers.get_old("lights").bind_readable(),
-            ])
+            .bind([])
             .bind([&buffers.get_old("voxel").bind_writable()])
             .build(
                 device,
@@ -288,10 +285,7 @@ impl DiffPass {
                 &buffers.get_old("globals").bind_readable(),
                 &buffers.get_old("config").bind_readable(),
             ])
-            .bind([
-                &buffers.get_old("materials").bind_readable(),
-                &buffers.get_old("lights").bind_readable(),
-            ])
+            .bind([])
             .bind([&buffers.get_old("voxel").bind_writable()])
             .build(
                 device,
@@ -299,9 +293,20 @@ impl DiffPass {
                 &engine.shaders.get("diff_step").unwrap().module,
             );
 
+        let diff_step_final = ComputePass::builder(name)
+            .bind([])
+            .bind([])
+            .bind([&buffers.get_old("voxel").bind_writable()])
+            .build(
+                device,
+                &"main",
+                &engine.shaders.get("diff_step_final").unwrap().module,
+            );
+
+
         Self {
             name: name.to_string(),
-            compute_passes: vec![diff_init, diff_step],
+            compute_passes: vec![diff_init, diff_step, diff_step_final],
         }
     }
 }
@@ -320,9 +325,10 @@ impl Pass for DiffPass {
             self.compute_passes[0].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
         }
 
-        for _ in 0..2 {
+        for _ in 0..4 {
             self.compute_passes[1].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
         }
+        self.compute_passes[2].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
     }
 
     fn name(&self) -> &str {

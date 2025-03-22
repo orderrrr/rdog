@@ -1,10 +1,4 @@
-use super::{
-    buffers::Buffers,
-    config::Camera,
-    engine::Engine,
-    passes::{self, Passes},
-    Config,
-};
+use super::{buffers::Buffers, config::Camera, engine::Engine, passes::Passes, Config};
 use bevy::utils::default;
 use log::info;
 use rdog_lib::{self as lib};

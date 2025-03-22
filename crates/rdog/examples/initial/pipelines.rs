@@ -83,14 +83,6 @@ impl RasterPass {
 }
 
 impl Pass for RasterPass {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn run(
         &self,
         _engine: &Engine,
@@ -128,6 +120,14 @@ impl Pass for RasterPass {
         pass.set_bind_group(1, self.bg1.get(alternate), &[]);
         pass.draw(0..3, 0..1);
     }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -163,14 +163,6 @@ impl ReadbackPass {
 }
 
 impl Pass for ReadbackPass {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn run(
         &self,
         _e: &Engine,
@@ -181,6 +173,14 @@ impl Pass for ReadbackPass {
         pass_params: Option<&Vec<u8>>,
     ) {
         self.compute_passes[0].run(camera, encoder, UVec3::ONE, pass_params);
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

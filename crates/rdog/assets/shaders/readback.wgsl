@@ -64,7 +64,7 @@ fn trace(r: Ray) -> Hit {
         h.x = abs(h.x);
 
         if h.x < MIN_DIST {
-            return Hit(t, vec3f(0.0), interior, mat_2(h));
+            return Hit(t, ZERO, ZERO, interior, mat_2(h), true ,false);
         }
 
         if t > TMAX {
@@ -74,5 +74,5 @@ fn trace(r: Ray) -> Hit {
         t += h.x;
     }
 
-    return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
+    return Hit(TMAX, ZERO, ZERO, false, DEFAULT_MAT, false, false);
 }

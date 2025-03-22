@@ -1,4 +1,7 @@
 #define_import_path rng
+//* #import util::{
+//*     EPSILON, ONE, ZERO, PI
+//* }
 
 var<private> rng_state: u32;
 
@@ -85,4 +88,34 @@ fn step(edge: vec3f, x: vec3f) -> vec3f {
         select(0.0, 1.0, x.y >= edge.y),
         select(0.0, 1.0, x.z >= edge.z)
     );
+}
+
+fn get_random_sample() -> vec3f {
+    let ct = sqrt(1.0 - rand_f());
+    let st = sqrt(max(1.0 - (ct * ct), 0.0));
+    let phi = rand_f() * 2.0 * PI;
+    return vec3f(cos(phi) * st, ct, sin(phi) * st);
+}
+
+fn random_in_unit_sphere() -> vec3f {
+    let rand = vec3(rand_f(), rand_f(), rand_f());
+    let phi = 2.0 * PI * rand.x;
+    let cos_theta = 2.0 * rand.y - 1.0;
+    let u = rand.z;
+
+    let theta = acos(cos_theta);
+    let r = pow(u, 1.0 / 3.0);
+
+    let x = r * sin(theta) * cos(phi);
+    let y = r * sin(theta) * sin(phi);
+    let z = r * cos(theta);
+
+    return vec3f(x, y, z);
+}
+
+fn random_on_hemisphere(normal: vec3f) -> vec3f {
+    let rd = random_in_unit_sphere();
+    let res = rd + normal;
+
+    return normalize(res);
 }

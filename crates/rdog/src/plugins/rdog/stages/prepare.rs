@@ -13,7 +13,6 @@ use bevy::{
     },
 };
 use glam::vec2;
-use rdog_lib::Frame;
 
 use crate::event::RdogEvent;
 use crate::images::ImageData;

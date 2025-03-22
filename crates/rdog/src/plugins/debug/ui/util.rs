@@ -1,4 +1,4 @@
-use bevy_egui::egui::{self, Color32, Ui};
+use bevy_egui::egui::{Color32, Ui};
 use glam::{vec3, Vec3};
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
@@ -24,7 +24,7 @@ pub trait C32 {
 
 impl C32 for Vec3 {
     fn to_c32(self) -> Color32 {
-        egui::Color32::from_rgb(
+        Color32::from_rgb(
             (self.x * 255.999) as u8,
             (self.y * 255.999) as u8,
             (self.z * 255.999) as u8,

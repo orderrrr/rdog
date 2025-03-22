@@ -18,12 +18,12 @@ use bevy::{
         view::ViewTarget,
         MainWorld, Render, RenderApp, RenderSet,
     },
-    utils::{info, HashMap},
+    utils::HashMap,
 };
 use rdog_lib::OutputParams;
 use wgpu::{BufferUsages, Extent3d, ImageDataLayout, TextureFormat};
 
-use crate::{bufferable::Bufferable, state::SyncedState, CameraHandle, Config};
+use crate::{bufferable::Bufferable, state::SyncedState, CameraHandle};
 
 use super::{
     graph::{Rdog, RdogE},
@@ -327,7 +327,7 @@ pub(crate) const fn align_byte_size(value: u32) -> u32 {
     RenderDevice::align_copy_bytes_per_row(value as usize) as u32
 }
 
-/// Get the size of a image when the size of each row has been rounded up to [`wgpu::COPY_BYTES_PER_ROW_ALIGNMENT`].
+/// Get the size of an image when the size of each row has been rounded up to [`wgpu::COPY_BYTES_PER_ROW_ALIGNMENT`].
 pub(crate) const fn get_aligned_size(width: u32, height: u32, pixel_size: u32) -> u32 {
     height * align_byte_size(width * pixel_size)
 }

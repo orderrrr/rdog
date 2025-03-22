@@ -9,7 +9,6 @@ use std::{
 use bevy::{log::error, prelude::DerefMut, utils::hashbrown::HashMap};
 use futures::task::noop_waker;
 use naga_oil::compose::{get_preprocessor_data, Composer, NagaModuleDescriptor};
-
 use crate::shader::{FType, RdogShaderAsset};
 
 #[derive(Debug)]
@@ -39,7 +38,7 @@ impl RdogShader {
         });
 
         let Ok(module) = module else {
-            error!("module compile error: {:?}", module);
+            error!("module compile error: {}", &module.err().unwrap().emit_to_string(composer));
             return None;
         };
 

@@ -38,8 +38,8 @@ fn main(
 
         // TODO: constants
         let da_db = vec2f(1.0, 0.5);
-        let k = 0.063;
-        let f = 0.028;
+        let k = 0.064;
+        let f = 0.03;
 
 //     // TODO: constants
 //     let da_db = vec2f(1.0, 0.2);
@@ -48,6 +48,7 @@ fn main(
 
      let x = max(pow(((length(pos) - 1.0) * -1.0), 2.2), 0.0);
 
+//    let x = 1.0;
     let lap = x * laplacian;
 
     // let x = pow(worley(pos * f32(rng_state * 23), 0.2), 2.2);
@@ -62,24 +63,7 @@ fn main(
 
     let out = vec4f(max(vec2(0.0), min(vec2(1.0), y + dydt * dt)), 0, 0);
 
-    let vis = compute_voxel_visibility(out.y);
-
-    textureStore(voxel_depth, vec3u(id), vec4f(out.x, out.y, vis.y, 1.0));
-}
-
-fn compute_voxel_visibility(chemical_b_concentration: f32) -> vec2f {
-    // Hardcoded constants from the UI defaults
-    let exponent: f32 = 3.3;
-    let alpha_global: f32 = 1.0;
-    let alpha_threshold: f32 = 0.0001;
-    
-    // Compute the alpha value
-    let alpha = pow(chemical_b_concentration, exponent) * alpha_global;
-    
-    // Determine if the voxel is visible
-    let visible = alpha >= alpha_threshold;
-
-    return vec2f(f32(visible), alpha);
+    textureStore(voxel_depth, vec3u(id), vec4f(out.x, out.y, 0.0, 1.0));
 }
 
 fn md(x: vec3f, y: vec3f) -> vec3f {

@@ -50,7 +50,7 @@ impl Plugin for RdogPlugin {
             .add_systems(OnEnter(RdogShaderState::Finished), rdog_setup_scene)
             .add_systems(
                 Update,
-                (check_textures).run_if(in_state(RdogShaderState::Setup)),
+                check_textures.run_if(in_state(RdogShaderState::Setup)),
             )
             .add_systems(Update, send_events)
             .add_plugins((BufferPlugin, PassesPlugin));
@@ -109,7 +109,7 @@ impl ops::DerefMut for EngineResource {
 #[derive(Component)]
 pub struct RdogRender;
 
-fn rdog_setup_scene(mut commands: Commands, mut rdog_e: EventWriter<RdogEvent>) {
+fn rdog_setup_scene(mut commands: Commands, _rdog_e: EventWriter<RdogEvent>) {
     log::info!("Camera being setup");
 
     let state = PanOrbitState::default();
@@ -124,7 +124,7 @@ fn rdog_setup_scene(mut commands: Commands, mut rdog_e: EventWriter<RdogEvent>) 
             order: -1,
             ..default()
         },
-        CameraRenderGraph::new(self::graph::Rdog),
+        CameraRenderGraph::new(graph::Rdog),
         RdogRender,
     ));
 }

@@ -299,7 +299,7 @@ fn trace(r: Ray) -> Hit {
         h.x = abs(h.x);
 
         if h.x < MIN_DIST {
-            return Hit(t, vec3f(0.0), interior, mat_2(h));
+            return Hit(t, ZERO, ZERO, interior, mat_2(h), true, false);
         }
 
         if t > TMAX {
@@ -309,7 +309,7 @@ fn trace(r: Ray) -> Hit {
         t += h.x;
     }
 
-    return Hit(TMAX, vec3f(0.0), false, DEFAULT_MAT);
+    return Hit(TMAX, ZERO, ZERO, false, DEFAULT_MAT, false, false);
 }
 
 fn get_voxel(c: vec3i) -> vec3f {
@@ -452,13 +452,13 @@ fn scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
     } else if rng < prob.x + prob.z {
         return specular_scatter(h, r);
     } else {
-        return ScatterRes(vec3f(0.0, 1.0, 0.0), false, h.m.a, 0.0, ONE, false, false);
+        return ScatterRes(vec3f(0.0, 1.0, 0.0), false, h.m.a, 0.0, ONE, false, false, 0.0);
     }
 }
 
 fn diffuse_scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
     let dir = translate_to_ws(get_random_sample(), h.n);
-    return ScatterRes(dir, true, h.m.a, 0.0, ONE, false, false);
+    return ScatterRes(dir, true, h.m.a, 0.0, ONE, false, false, 0.0);
 }
 
 fn get_random_sample() -> vec3f {
@@ -543,7 +543,7 @@ fn specular_scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
 
     let albedo = h.m.a; // todo may want to apply tint to reflections in future.
 
-    return ScatterRes(dir, true, albedo, fresnel, radiance, !reflect, reflect);
+    return ScatterRes(dir, true, albedo, fresnel, radiance, !reflect, reflect, 0.0);
 }
 
 

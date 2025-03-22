@@ -16,8 +16,6 @@ use super::shader::RdogShaderState;
 use serde::{Deserialize, Serialize};
 use ui::{ui_system, SelectedTab};
 
-use std::process::Command;
-
 pub mod ui;
 
 #[derive(Clone, Debug, Resource, Serialize, Deserialize, Default)]
@@ -250,11 +248,6 @@ pub fn readback_poll_system(
                         },
                     )
                     .unwrap();
-
-                    Command::new("open")
-                        .arg("/Users/nmcintosh/dev/prs/bevy_radiance/rdog/out.exr")
-                        .spawn()
-                        .expect("failed to execute child");
 
                     if let Some(mut e) = commands.get_entity(v.0) {
                         e.despawn();

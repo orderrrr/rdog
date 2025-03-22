@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::mem;
 
 use bevy::utils::default;
 use bytemuck::Pod;
@@ -105,10 +104,10 @@ where
 
         let bind_group_layouts: Vec<_> = bind_groups.iter().map(|bg| bg.layout()).collect();
 
-        let push_constant_ranges = if mem::size_of::<P>() > 0 {
+        let push_constant_ranges = if size_of::<P>() > 0 {
             vec![wgpu::PushConstantRange {
                 stages: wgpu::ShaderStages::COMPUTE,
-                range: 0..mem::size_of::<P>() as u32,
+                range: 0..size_of::<P>() as u32,
             }]
         } else {
             vec![]

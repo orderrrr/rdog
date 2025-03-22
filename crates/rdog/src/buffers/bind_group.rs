@@ -17,7 +17,7 @@ impl BindGroup {
         }
     }
 
-    pub fn get(&self, alternate: bool) -> &wgpu::BindGroup {
+    pub fn get(&self, _alternate: bool) -> &wgpu::BindGroup {
         &self.bind_group_a
     }
 
@@ -50,7 +50,7 @@ impl<'a> BindGroupBuilder<'a> {
             entries: &self.layouts,
         });
 
-        let (resources_a, resources_b): (Vec<_>, Vec<_>) = self
+        let (resources_a, _resources_b): (Vec<_>, Vec<_>) = self
             .resources
             .into_iter()
             .enumerate()

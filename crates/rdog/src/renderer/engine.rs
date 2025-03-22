@@ -59,7 +59,7 @@ impl Engine {
             seed,
             mouse: Vec2::default(),
             shader_compose: {
-                let mut composer = naga_oil::compose::Composer::default();
+                let mut composer = Composer::default();
                 composer
                     .capabilities
                     .insert(naga::valid::Capabilities::PUSH_CONSTANT);
@@ -69,11 +69,11 @@ impl Engine {
     }
 
     pub fn get_buffer(&self, buffers: &Buffers, buffer_name: &str) -> Arc<Buffer> {
-        return buffers.get_old(&buffer_name).buffer();
+        buffers.get_old(&buffer_name).buffer()
     }
 
     pub fn get_texture<'a>(&self, buffers: &'a Buffers, buffer_name: &str) -> &'a Texture {
-        return buffers.get_old(&buffer_name).texture();
+        buffers.get_old(&buffer_name).texture()
     }
 
     // TODO: redo this.
@@ -84,7 +84,7 @@ impl Engine {
         let mut retry_count = 0;
         const MAX_RETRIES: usize = 5; // Adjust based on your needs
 
-        while !shaders_remaining.is_empty() && retry_count < MAX_RETRIES {
+        while !shaders_remaining.is_empty() && retry_count <= MAX_RETRIES {
             let s: Vec<RdogShaderAsset> = shaders_remaining.drain(..).collect();
             for shader in s.into_iter() {
                 match shader.stype {
@@ -102,10 +102,13 @@ impl Engine {
                                     lib_names.push(shader.name.clone());
                                 }
                                 Err(e) => {
-                                    error!(
-                                        "Failed to load library module {}: {e:#?}. Retrying...",
-                                        shader.name
-                                    );
+                                    if retry_count == MAX_RETRIES - 1 {
+                                        error!(
+                                            "Failed to load library module {}, {}",
+                                            shader.name,
+                                            e.emit_to_string(&self.shader_compose)
+                                        );
+                                    }
                                     shaders_remaining.push(shader);
                                 }
                             }
@@ -155,7 +158,7 @@ impl Engine {
         for shader in shaders {
             match shader.stype {
                 ShaderType::Shader => {
-                    log::info!("Computing shader: {}", shader.name);
+                    info!("Computing shader: {}", shader.name);
                     if let Some(comp) =
                         RdogShader::new(self.frame.get(), device, shader, &mut self.shader_compose)
                     {

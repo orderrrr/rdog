@@ -2,7 +2,7 @@
 //*     PassParams, Globals, Camera
 //* }
 //* #import rng::{
-//*     rng_state, worley
+//*     rng_state, worley, rand_f
 //* }
 
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -21,10 +21,10 @@ fn main(
     let pos = ((vec3f(id) / f32(vd)) - .5) * 2.;
 
     let r = length(pos);
-    let ball = smoothstep(0.25, 0.2, r);
+    let ball = smoothstep(0.5, 0.2, r);
     let a = 1.0;
-    let f = 13.0;
-    let b = max(0.0, min(1.0, 0.5 + 4.0 * cos(pos.x * f - 1.0) * cos(pos.y * f - 2.0) * cos(pos.z * f - 3.0)));
+    let f = 12.0;
+    let b = max(0.0, min(1.0, (pow(0.5 * worley(pos, 16.0), 5.) + pow(worley(pos + f32(globals.time.x) , 4.0), 5.))));
     let out = vec4(a, b * ball, 0.0, 1);
 
 //     let rng = worley(pos, 1.23) * 1.0;

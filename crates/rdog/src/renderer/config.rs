@@ -84,7 +84,7 @@ impl Config {
     }
 
     pub fn material_pass(&self) -> Vec<Material> {
-        let mut m: Vec<rdog_lib::Material> = vec![];
+        let mut m: Vec<Material> = vec![];
         for mat in self.material_tree.mats.iter() {
             m.push(mat.to_shader());
         }
@@ -93,7 +93,7 @@ impl Config {
     }
 
     pub fn light_pass(&self) -> Vec<Light> {
-        let mut l: Vec<rdog_lib::Light> = vec![];
+        let mut l: Vec<Light> = vec![];
         for light in self.light_tree.lights.iter() {
             l.push(light.to_shader());
         }

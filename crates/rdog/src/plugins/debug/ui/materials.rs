@@ -82,7 +82,7 @@ impl TUi for MaterialList {
 
 impl TUi for Material {
     fn ui(&mut self, ui: &mut Ui) {
-        egui::Grid::new("Material Instance")
+        egui::Grid::new(self.id.to_string())
             .num_columns(4)
             .striped(true)
             .spacing([10.0, 4.0])

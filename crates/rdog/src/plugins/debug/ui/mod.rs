@@ -67,7 +67,7 @@ pub fn ui_system(
     if !changes.is_empty() {
         // info!("update");
 
-        for (field, change_desc) in &changes {
+        for (field, _change_desc) in &changes {
             // info!("field changed: {} | {}", field, change_desc);
 
             match field.as_str() {
