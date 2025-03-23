@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use bevy::prelude::*;
 use bevy::{app::Plugin, render::view::RenderLayers};
 
+use crate::event::RdogEvent;
 use crate::orbit::{PanOrbitSettings, PanOrbitState};
 use crate::{Config, GIZMO};
 
@@ -54,11 +55,15 @@ impl Plugin for RdogDebugPlugin {
     fn finish(&self, _: &mut App) {}
 }
 
-fn keymap(keys: Res<ButtonInput<KeyCode>>, mut config: ResMut<Config>) {
+fn keymap(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut config: ResMut<Config>,
+    mut buf: EventWriter<RdogEvent>,
+) {
     if keys.just_pressed(KeyCode::KeyR) {
         info!("r pressed?");
         *config = read_config().unwrap_or(Config::default());
-        config.reload = true;
+        buf.send(RdogEvent::Recompute);
     }
 }
 

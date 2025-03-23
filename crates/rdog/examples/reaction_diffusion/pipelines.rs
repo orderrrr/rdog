@@ -93,7 +93,7 @@ impl Pass for RasterPass {
     fn run(
         &self,
         _engine: &Engine,
-        _config: &Config,
+        config: &Config,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
@@ -116,11 +116,13 @@ impl Pass for RasterPass {
             occlusion_query_set: None,
         });
 
+        let res = (camera.camera.viewport.size.as_vec2() * config.res).as_uvec2();
+
         pass.set_scissor_rect(
             camera.camera.viewport.position.x,
             camera.camera.viewport.position.y,
-            camera.camera.viewport.size.x,
-            camera.camera.viewport.size.y,
+            res.x,
+            res.y,
         );
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, self.bg0.get(alternate), &[]);
@@ -302,7 +304,6 @@ impl DiffPass {
                 &"main",
                 &engine.shaders.get("diff_step_final").unwrap().module,
             );
-
 
         Self {
             name: name.to_string(),
