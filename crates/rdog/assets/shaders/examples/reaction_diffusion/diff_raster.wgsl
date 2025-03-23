@@ -249,9 +249,9 @@ fn trace_voxel_mask(ri: Ray) -> Hit {
             let c2 = vec3f(1.4, -1.2, -2.4);
             let color = vec3f(0.05) + d.x * (vec3f(1.0) - c1) + d.y * (c1 - c2);
 
-           total += vec4f(color * d.z * 1.0, d.z);
+           // total += vec4f(color * d.z * 1.0, d.z);
 
-            // total += vec4f(sample_light(r, r.d), d.z);
+            total += vec4f(sample_light(r, r.d), d.z);
 
 //            return Hit(t, DANGER, 1. / sample_light(r, r.d), false, mat(u32(1)), false, true);
 
@@ -291,7 +291,7 @@ fn trace_voxel_mask_only(ri: Ray) -> Hit {
     var map_pos = vec3i(floor(r.o));
 
     let full_step = dot(abs(r.d), vec3f(4.0 / vd));
-    let min_step = dot(abs(r.d), vec3f(1.0 / vd));
+    let min_step = dot(abs(r.d), vec3f(3.0 / vd));
 
     var total = vec4f(0.0);
 
@@ -313,7 +313,7 @@ fn trace_voxel_mask_only(ri: Ray) -> Hit {
     var cdt = TMAX;
 
     // Ray marching loop
-    for (var i: u32 = 0; i < pass_params.voxel_dim * 2; i++) {
+    for (var i: u32 = 0; i < pass_params.voxel_dim; i++) {
         let d = get_voxel(r.o);
 
         if cdt >= pd / 2.0 {
@@ -463,12 +463,7 @@ fn sample_light(ri: Ray, n: vec3f) -> vec3f {
 
 fn t(s: f32) -> vec3f {
     return
-        vec3f(0.233, 0.455, 0.649) * exp(-s * s / 0.0064) +
-        vec3f(0.100, 0.336, 0.344) * exp(-s * s / 0.0484) +
-        vec3f(0.118, 0.198, 0.000) * exp(-s * s / 0.187) +
-        vec3f(0.113, 0.007, 0.007) * exp(-s * s / 0.567) +
-        vec3f(0.358, 0.004, 0.000) * exp(-s * s / 1.99) +
-        vec3f(0.078, 0.000, 0.000) * exp(-s * s / 7.41);
+        vec3f(0.233, 0.455, 0.649) * exp(-s * s / 0.0064) + vec3f(0.100, 0.336, 0.344) * exp(-s * s / 0.0484) + vec3f(0.118, 0.198, 0.000) * exp(-s * s / 0.187) + vec3f(0.113, 0.007, 0.007) * exp(-s * s / 0.567) + vec3f(0.358, 0.004, 0.000) * exp(-s * s / 1.99) + vec3f(0.078, 0.000, 0.000) * exp(-s * s / 7.41);
 }
 
 fn sample_direct(ri: Ray, n: vec3f) -> vec3f {
