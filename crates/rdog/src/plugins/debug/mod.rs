@@ -1,4 +1,3 @@
-use bevy::input::keyboard::Key;
 use exr::prelude::write_rgba_file;
 
 use bytemuck::cast_slice;
