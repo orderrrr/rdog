@@ -9,7 +9,7 @@ use log::debug;
 pub struct Texture {
     pub tex: Arc<wgpu::Texture>,
     pub format: wgpu::TextureFormat,
-    view: wgpu::TextureView,
+    pub view: Arc<wgpu::TextureView>,
     dimension: wgpu::TextureViewDimension,
     sampler: wgpu::Sampler,
     filterable: bool,
@@ -180,7 +180,7 @@ impl TextureBuilder {
         Texture {
             tex,
             format,
-            view,
+            view: Arc::new(view),
             sampler,
             filterable,
             dimension: view_dimension,

@@ -249,9 +249,9 @@ fn trace_voxel_mask(ri: Ray) -> Hit {
             let c2 = vec3f(1.4, -1.2, -2.4);
             let color = vec3f(0.05) + d.x * (vec3f(1.0) - c1) + d.y * (c1 - c2);
 
-           // total += vec4f(color * d.z * 1.0, d.z);
+            total += vec4f(color * d.z * 1.0, d.z);
 
-            total += vec4f(sample_light(r, r.d), d.z);
+            // total += vec4f(sample_light(r, r.d), d.z);
 
 //            return Hit(t, DANGER, 1. / sample_light(r, r.d), false, mat(u32(1)), false, true);
 

@@ -1,4 +1,4 @@
-use pipelines::OutputTracePassConstructor;
+use pipelines::{DiffRasterPassConstructor, OutputTracePassConstructor};
 use rdog::{
     bufferable::Bufferable,
     event::RdogEvent,
@@ -87,10 +87,11 @@ impl Plugin for InitialPlugin {
                         Box::new(DiffPassConstructor),
                         Box::new(ReadbackPassConstructor),
                         // Box::new(TracePassConstructor),
+                        Box::new(DiffRasterPassConstructor),
                         Box::new(RasterPassConstructor),
                         Box::new(OutputTracePassConstructor),
                     ],
-                    vec![String::from("diff"), String::from("raster")],
+                    vec![String::from("diff"), String::from("diff_raster"), String::from("raster")],
                 ))
                 .add_systems(
                     Render,
@@ -203,8 +204,8 @@ fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera
             Texture::builder("render")
                 .with_size(camera.scale(&config))
                 .with_format(wgpu::TextureFormat::Rgba32Float)
+                .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
                 .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_linear_filtering_sampler()
                 .build(device),
         ),
