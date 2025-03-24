@@ -1,15 +1,16 @@
 use std::{
     borrow::Cow,
+    collections::HashMap,
     future::Future,
     ops::Deref,
     pin::Pin,
     task::{Context, Poll},
 };
 
-use bevy::{log::error, prelude::DerefMut, utils::hashbrown::HashMap};
+use crate::shader::{FType, RdogShaderAsset};
+use bevy::{log::error, prelude::DerefMut, utils::default};
 use futures::task::noop_waker;
 use naga_oil::compose::{get_preprocessor_data, Composer, NagaModuleDescriptor};
-use crate::shader::{FType, RdogShaderAsset};
 
 #[derive(Debug)]
 pub struct RdogShader {
@@ -34,11 +35,14 @@ impl RdogShader {
         let module = composer.make_naga_module(NagaModuleDescriptor {
             source: &data,
             file_path: &asset.name,
-            ..Default::default()
+            ..default()
         });
 
         let Ok(module) = module else {
-            error!("module compile error: {}", &module.err().unwrap().emit_to_string(composer));
+            error!(
+                "module compile error: {}",
+                &module.err().unwrap().emit_to_string(composer)
+            );
             return None;
         };
 

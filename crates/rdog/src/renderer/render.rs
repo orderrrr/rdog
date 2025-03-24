@@ -49,9 +49,7 @@ impl CameraController {
         passes: &Passes,
         pass_params: Option<&Vec<u8>>,
     ) {
-        if !passes.run_pass(pass_type, engine, config, self, encoder, view, pass_params) {
-            log::warn!("Attempted to run unknown pass: {}", pass_type);
-        }
+        passes.run_pass(pass_type, engine, config, self, encoder, view, pass_params);
     }
 
     pub fn flush(&mut self, frame: lib::Frame, queue: &wgpu::Queue, buffers: &mut Buffers) {

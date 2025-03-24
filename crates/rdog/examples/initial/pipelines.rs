@@ -1,23 +1,11 @@
 use bevy::log::{debug, info};
 use glam::UVec3;
 use rdog::{
-    bind_group::BindGroup,
-    compute_pass::ComputePass,
-    define_pass_constructor,
-    passes::{Pass, PassConstructor},
-    render::CameraController,
-    renderer::buffers::Buffers,
-    Camera, Config, Engine,
+    bind_group::BindGroup, compute_pass::ComputePass, passes::Pass, render::CameraController,
+    renderer::buffers::Buffers, Camera, Config, Engine,
 };
 use rdog_lib::OutputParams;
-use std::any::Any;
 use wgpu::StoreOp;
-
-define_pass_constructor!(raster => RasterPass);
-define_pass_constructor!(readback => ReadbackPass);
-define_pass_constructor!(trace => TracePass);
-define_pass_constructor!(output_trace => OutputTracePass);
-define_pass_constructor!(voxel_accel => VoxelAccelPass);
 
 #[derive(Debug)]
 pub struct RasterPass {
@@ -124,10 +112,6 @@ impl Pass for RasterPass {
     fn name(&self) -> &str {
         &self.name
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 #[derive(Debug)]
@@ -177,10 +161,6 @@ impl Pass for ReadbackPass {
 
     fn name(&self) -> &str {
         &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -244,10 +224,6 @@ impl Pass for TracePass {
     fn name(&self) -> &str {
         &self.name
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 #[derive(Debug)]
@@ -302,10 +278,6 @@ impl Pass for VoxelAccelPass {
 
     fn name(&self) -> &str {
         &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -368,9 +340,5 @@ impl Pass for OutputTracePass {
 
     fn name(&self) -> &str {
         &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }

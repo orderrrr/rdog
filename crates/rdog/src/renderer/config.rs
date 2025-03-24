@@ -1,6 +1,9 @@
 use rdog_macro::TrackChanges;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+};
 
 use bevy::{prelude::Resource, utils::default};
 use glam::{uvec2, vec4, Mat4, UVec2, Vec2, Vec3};
@@ -44,6 +47,8 @@ pub struct Config {
     pub output_bounce_count: u32,
     pub output_res: UVec2,
     pub output_pass_per_frame: UVec2,
+
+    pub map: HashMap<String, f32>,
 }
 
 impl Config {
@@ -132,6 +137,7 @@ impl Default for Config {
             output_pass_count: 8,
             output_bounce_count: 32,
             output_pass_per_frame: uvec2(2160 / 40, 480 / (1440 / 40)),
+            map: default(),
         }
     }
 }

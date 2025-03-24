@@ -3,22 +3,14 @@ use glam::UVec3;
 use rdog::{
     bind_group::BindGroup,
     compute_pass::ComputePass,
-    define_pass_constructor,
-    passes::{Pass, PassConstructor},
+    passes::{Pass, PassConstruct},
     render::CameraController,
     renderer::buffers::Buffers,
     Camera, Config, Engine,
 };
 use rdog_lib::OutputParams;
-use std::{any::Any, sync::Arc};
+use std::sync::Arc;
 use wgpu::StoreOp;
-
-define_pass_constructor!(raster => RasterPass);
-define_pass_constructor!(diff_raster => DiffRasterPass);
-define_pass_constructor!(readback => ReadbackPass);
-define_pass_constructor!(trace => TracePass);
-define_pass_constructor!(output_trace => OutputTracePass);
-define_pass_constructor!(diff => DiffPass);
 
 #[derive(Debug)]
 pub struct DiffRasterPass {
@@ -30,13 +22,13 @@ pub struct DiffRasterPass {
     view: Arc<wgpu::TextureView>,
 }
 
-impl DiffRasterPass {
-    pub fn new(
+impl PassConstruct for DiffRasterPass {
+    fn new(
         engine: &Engine,
         device: &wgpu::Device,
         _config: &Camera,
         buffers: &Buffers,
-    ) -> Self {
+    ) -> Box<dyn Pass> {
         debug!("Initializing pass: raster");
 
         let format = buffers.get_old("render_tx").texture().format;
@@ -88,14 +80,14 @@ impl DiffRasterPass {
             cache: None,
         });
 
-        Self {
-            name: "raster".to_string(),
+        Box::new(Self {
+            name: "dif_raster".to_string(),
             bg0,
             bg1,
             bg2,
             pipeline,
             view: Arc::clone(&buffers.get("render_tx").unwrap().texture().view),
-        }
+        })
     }
 }
 
@@ -139,10 +131,6 @@ impl Pass for DiffRasterPass {
     fn name(&self) -> &str {
         &self.name
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 #[derive(Debug)]
@@ -151,8 +139,8 @@ pub struct ReadbackPass {
     compute_passes: Vec<ComputePass>,
 }
 
-impl ReadbackPass {
-    pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
+impl PassConstruct for ReadbackPass {
+    fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Box<dyn Pass> {
         let readback_mouse = ComputePass::builder("readback")
             .bind([
                 &buffers.get_old("curr_camera").bind_readable(),
@@ -170,10 +158,10 @@ impl ReadbackPass {
                 &engine.shaders.get("readback").unwrap().module,
             );
 
-        Self {
+        Box::new(Self {
             name: "readback".to_string(),
             compute_passes: vec![readback_mouse],
-        }
+        })
     }
 }
 
@@ -193,10 +181,6 @@ impl Pass for ReadbackPass {
     fn name(&self) -> &str {
         &self.name
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 #[derive(Debug)]
@@ -205,8 +189,8 @@ pub struct TracePass {
     compute_passes: Vec<ComputePass>,
 }
 
-impl TracePass {
-    pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
+impl PassConstruct for TracePass {
+    fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Box<dyn Pass> {
         let direct_pass = ComputePass::builder("trace")
             .bind([
                 &buffers.get_old("curr_camera").bind_readable(),
@@ -226,10 +210,10 @@ impl TracePass {
                 &engine.shaders.get("diff_trace").unwrap().module,
             );
 
-        Self {
+        Box::new(Self {
             name: "trace".to_string(),
             compute_passes: vec![direct_pass],
-        }
+        })
     }
 }
 
@@ -256,10 +240,6 @@ impl Pass for TracePass {
     fn name(&self) -> &str {
         &self.name
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 #[derive(Debug)]
@@ -268,8 +248,8 @@ pub struct DiffPass {
     compute_passes: Vec<ComputePass>,
 }
 
-impl DiffPass {
-    pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
+impl PassConstruct for DiffPass {
+    fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Box<dyn Pass> {
         let name = "diff";
 
         let diff_init = ComputePass::builder(name)
@@ -310,10 +290,10 @@ impl DiffPass {
                 &engine.shaders.get("diff_step_final").unwrap().module,
             );
 
-        Self {
+        Box::new(Self {
             name: name.to_string(),
             compute_passes: vec![diff_init, diff_step, diff_step_final],
-        }
+        })
     }
 }
 
@@ -340,9 +320,60 @@ impl Pass for DiffPass {
     fn name(&self) -> &str {
         &self.name
     }
+}
 
-    fn as_any(&self) -> &dyn Any {
-        self
+#[derive(Debug)]
+pub struct AccumPass {
+    name: String,
+    compute_passes: Vec<ComputePass>,
+}
+
+impl PassConstruct for AccumPass {
+    fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Box<dyn Pass> {
+        let name = "accum";
+
+        let diff_step_final = ComputePass::builder(name)
+            .bind([
+                &buffers.get_old("curr_camera").bind_readable(),
+                &buffers.get_old("config").bind_readable(),
+                &buffers.get_old("render_tx").bind_writable(),
+                &buffers.get_old("accum_render").bind_writable(),
+            ])
+            .build(
+                device,
+                &"main",
+                &engine.shaders.get("accum").unwrap().module,
+            );
+
+        Box::new(Self {
+            name: name.to_string(),
+            compute_passes: vec![diff_step_final],
+        })
+    }
+}
+
+impl Pass for AccumPass {
+    fn run(
+        &self,
+        _e: &Engine,
+        config: &Config,
+        camera: &CameraController,
+        encoder: &mut wgpu::CommandEncoder,
+        _view: &wgpu::TextureView,
+        _pass_params: Option<&Vec<u8>>,
+    ) {
+        self.compute_passes[0].run(
+            camera,
+            encoder,
+            (camera.camera.viewport.size.as_vec2() * config.res)
+                .as_uvec2()
+                .extend(1),
+            None,
+        );
+    }
+
+    fn name(&self) -> &str {
+        &self.name
     }
 }
 
@@ -352,8 +383,8 @@ pub struct OutputTracePass {
     compute_passes: Vec<ComputePass<OutputParams>>,
 }
 
-impl OutputTracePass {
-    pub fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Self {
+impl PassConstruct for OutputTracePass {
+    fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Box<dyn Pass> {
         let direct_pass = ComputePass::builder("output_trace")
             .bind([
                 &buffers.get_old("out_camera").bind_readable(),
@@ -373,10 +404,10 @@ impl OutputTracePass {
                 &engine.shaders.get("readback_trace").unwrap().module,
             );
 
-        Self {
+        Box::new(Self {
             name: "output_trace".to_string(),
             compute_passes: vec![direct_pass],
-        }
+        })
     }
 }
 
@@ -403,10 +434,6 @@ impl Pass for OutputTracePass {
     fn name(&self) -> &str {
         &self.name
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 #[derive(Debug)]
@@ -417,8 +444,13 @@ pub struct RasterPass {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl RasterPass {
-    pub fn new(engine: &Engine, device: &wgpu::Device, config: &Camera, buffers: &Buffers) -> Self {
+impl PassConstruct for RasterPass {
+    fn new(
+        engine: &Engine,
+        device: &wgpu::Device,
+        config: &Camera,
+        buffers: &Buffers,
+    ) -> Box<dyn Pass> {
         debug!("Initializing pass: raster");
 
         let bg0 = BindGroup::builder("raster_bg0")
@@ -428,7 +460,7 @@ impl RasterPass {
             .build(device);
 
         let bg1 = BindGroup::builder("raster_bg1")
-            .add(&buffers.get_old("render_tx").bind_sampled())
+            .add(&buffers.get_old("accum_render").bind_sampled())
             .build(device);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -463,12 +495,12 @@ impl RasterPass {
             cache: None,
         });
 
-        Self {
+        Box::new(Self {
             name: "raster".to_string(),
             bg0,
             bg1,
             pipeline,
-        }
+        })
     }
 }
 
@@ -513,9 +545,5 @@ impl Pass for RasterPass {
 
     fn name(&self) -> &str {
         &self.name
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }

@@ -16,13 +16,13 @@ use bevy::{
     asset::AssetId,
     log::{error, warn},
     prelude::Image as BevyImage,
-    utils::{default, HashMap},
+    utils::default,
 };
 use glam::Vec2;
 use log::info;
 use naga_oil::compose::{ComposableModuleDescriptor, Composer};
 use rdog_lib::{self as lib};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use wgpu::{naga, Buffer};
 
 #[derive(Debug)]
@@ -94,7 +94,7 @@ impl Engine {
                                 ComposableModuleDescriptor {
                                     source,
                                     file_path: &shader.name,
-                                    ..Default::default()
+                                    ..default()
                                 },
                             ) {
                                 Ok(_) => {

@@ -16,8 +16,9 @@ use crate::utils;
 #[derive(Debug)]
 pub struct StorageBuffer {
     pub buffer: Arc<wgpu::Buffer>,
-    data: Vec<u8>,
-    dirty: bool,
+    pub(crate) data: Vec<u8>,
+    pub(crate) label: String,
+    pub(crate) dirty: bool,
 }
 
 impl StorageBuffer {
@@ -38,6 +39,7 @@ impl StorageBuffer {
         });
 
         Self {
+            label: label.to_string(),
             buffer: Arc::new(buffer),
             data: data.data().into(),
             dirty: true,
@@ -70,6 +72,10 @@ impl StorageBuffer {
             parent: self,
             read_only: false,
         }
+    }
+
+    pub fn label(&self) -> &str {
+        &self.label
     }
 }
 

@@ -1,13 +1,12 @@
-use std::ops;
+use std::{collections::HashMap, ops};
 
 use bevy::{
     prelude::*,
-    render::{
-        camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, Render, RenderApp,
-    },
+    render::{camera::CameraRenderGraph, renderer::RenderDevice, view::RenderLayers, RenderApp},
     window::WindowResized,
 };
 use event::RdogEvent;
+use passes::RdogPassResource;
 use plugin_config::read_config;
 use shader::{
     check_textures, load_shader_libs, load_shaders, RdogShaderAsset, RdogShaderAssetLoader,
@@ -16,7 +15,7 @@ use shader::{
 use stages::cache::RdogShaderCache;
 use state::SyncedState;
 
-use crate::{orbit::PanOrbitState, rdog_buffers::BufferPlugin, rdog_passes::PassesPlugin, Config};
+use crate::{orbit::PanOrbitState, renderer::buffers::Buffers, CameraHandle, Config};
 
 use super::readback::RdogReadbackPlugin;
 
@@ -26,6 +25,7 @@ pub const MAIN: usize = 0;
 pub mod camera;
 pub mod event;
 pub mod graph;
+pub mod passes;
 pub mod plugin_config;
 pub mod rendering;
 pub mod shader;
@@ -52,16 +52,16 @@ impl Plugin for RdogPlugin {
                 Update,
                 check_textures.run_if(in_state(RdogShaderState::Setup)),
             )
-            .add_systems(Update, send_events)
-            .add_plugins((BufferPlugin, PassesPlugin));
+            .add_systems(Update, send_events);
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
                 .insert_resource(SyncedState::default())
-                .add_event::<RdogEvent>()
+                .insert_resource(RdogBufferResource(HashMap::new()))
                 .init_resource::<State<RdogShaderState>>()
-                .add_event::<RdogStateEvent>()
-                .add_systems(Render, events);
+                .insert_resource(RdogPassResource::default())
+                .add_event::<RdogEvent>()
+                .add_event::<RdogStateEvent>();
 
             stages::setup(render_app);
             graph::setup(render_app);
@@ -140,13 +140,10 @@ fn send_events(
     }
 
     if config.reload {
+        info!("config reloaded");
         buf.send(RdogEvent::Recompute);
     }
 }
-pub fn events(mut events: EventReader<RdogEvent>, mut engine: ResMut<EngineResource>) {
-    for e in events.read() {
-        if let RdogEvent::Recompute | RdogEvent::RecomputePasses = e {
-            engine.dirty = true;
-        }
-    }
-}
+
+#[derive(Resource, TypePath, Default, Debug, Deref, DerefMut)]
+pub struct RdogBufferResource(HashMap<CameraHandle, Buffers>);

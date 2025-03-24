@@ -1,28 +1,15 @@
-use pipelines::OutputTracePassConstructor;
 use rdog::{
     bufferable::Bufferable,
     event::RdogEvent,
-    map_write_buffer::MapWriteBuffer,
-    mapped_uniform_buffer::MappedUniformBuffer,
-    rdog_buffers::{create_buffer, RdogBufferResource},
-    rdog_passes::{setup_passes, RdogPassRegistry},
-    renderer::{
-        buffers::{Buffers, BT},
-        config::Camera,
-    },
+    renderer::{buffers::Buffers, config::Camera},
     state::{ExtractedConfig, SyncedState},
-    storage_buffer::StorageBuffer,
-    texture::Texture,
-    Config, Engine, EngineResource, Globals,
+    Config, Engine, EngineResource, Globals, RdogBufferResource,
 };
 use wgpu::Device;
 
-use crate::pipelines::{
-    RasterPassConstructor, ReadbackPassConstructor, TracePassConstructor, VoxelAccelPassConstructor,
-};
 use bevy::{
     prelude::*,
-    render::{renderer::RenderDevice, Render, RenderApp},
+    render::{renderer::RenderDevice, Render, RenderApp, RenderSet},
     window::{PresentMode, WindowResolution},
 };
 
@@ -80,28 +67,28 @@ impl Plugin for InitialPlugin {
              * Pipeline Registry Plugin for registering plugins from app world.
              * TODO: need a way to specify an order, or better yet a graph for this.
              */
-            render_app
-                .insert_resource(RdogPassRegistry::new(
-                    vec![
-                        Box::new(VoxelAccelPassConstructor),
-                        Box::new(ReadbackPassConstructor),
-                        Box::new(TracePassConstructor),
-                        Box::new(RasterPassConstructor),
-                        Box::new(OutputTracePassConstructor),
-                    ],
-                    vec![
-                        String::from("voxel_accel"),
-                        String::from("trace"),
-                        String::from("raster"),
-                    ],
-                ))
-                .add_systems(
-                    Render,
-                    buffer_events.after(create_buffer).before(setup_passes), // TODO: better way to do this ordering
-                );
+            render_app.add_systems(
+                Render,
+                buffer_events.in_set(RenderSet::Prepare), // TODO: better way to do this ordering
+            );
         }
     }
 }
+
+// .insert_resource(RdogPassRegistry::new(
+//     vec![
+//         Box::new(VoxelAccelPassConstructor),
+//         Box::new(ReadbackPassConstructor),
+//         Box::new(TracePassConstructor),
+//         Box::new(RasterPassConstructor),
+//         Box::new(OutputTracePassConstructor),
+//     ],
+//     vec![
+//         String::from("voxel_accel"),
+//         String::from("trace"),
+//         String::from("raster"),
+//     ],
+// ))
 
 fn buffer_events(
     engine: Res<EngineResource>,
@@ -150,140 +137,143 @@ fn update(
     camera: &Camera,
     config: &Config,
 ) {
-    buffers.update("curr_camera", camera.serialize(&config).data().into());
-    buffers.update("out_camera", camera.serialize_out(&config).data().into());
+    buffers.update("curr_camera", camera.serialize(&config).data());
+    buffers.update("out_camera", camera.serialize_out(&config).data());
     buffers.update(
         "globals",
-        Globals::from_engine(engine, &camera)
-            .serialize()
-            .data()
-            .into(),
+        Globals::from_engine(engine, &camera).serialize().data(),
     );
-    buffers.update("config", config.to_pass_params().data().into());
-    buffers.update("out_config", config.to_pass_params_out().data().into());
-    buffers.update("march_readback", Vec4::ZERO.data().into());
+    buffers.update("config", config.to_pass_params().data());
+    buffers.update("out_config", config.to_pass_params_out().data());
+    buffers.update("march_readback", Vec4::ZERO.data());
 
-    buffers.update("materials", config.material_pass().data().into());
-    buffers.update("lights", config.light_pass().data().into());
+    buffers.update("materials", config.material_pass().data());
+    buffers.update("lights", config.light_pass().data());
 }
 
-fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera, config: &Config) {
-    debug!("Initializing camera buffers");
-
-    buffers.insert(
-        "curr_camera".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "camera",
-            camera.serialize(config).data().to_vec(),
-        )),
-    );
-    buffers.insert(
-        "out_camera".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "camera",
-            camera.serialize_out(config).data().to_vec(),
-        )),
-    );
-    buffers.insert(
-        "globals".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "globals",
-            Globals::from_engine(engine, camera)
-                .serialize()
-                .data()
-                .to_vec(),
-        )),
-    );
-    buffers.insert(
-        "render_tx".to_string(),
-        BT::from(
-            Texture::builder("render")
-                .with_size(camera.scale(&config))
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_nearest_filtering_sampler()
-                .build(device),
-        ),
-    );
-    buffers.insert(
-        "render_readback".to_string(),
-        BT::from(
-            Texture::builder("render_readback")
-                .with_size(config.output_res)
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::COPY_SRC)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_nearest_filtering_sampler()
-                .build(device),
-        ),
-    );
-    buffers.insert(
-        "config".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "config",
-            config.to_pass_params().data().to_vec(),
-        )),
-    );
-    buffers.insert(
-        "out_config".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "config",
-            config.to_pass_params_out().data().to_vec(),
-        )),
-    );
-    buffers.insert(
-        "materials".to_string(),
-        BT::from(StorageBuffer::new(
-            device,
-            "materials",
-            config.material_pass().data().to_vec(),
-        )),
-    );
-    buffers.insert(
-        "lights".to_string(),
-        BT::from(StorageBuffer::new(
-            device,
-            "lights",
-            config.light_pass().data().to_vec(),
-        )),
-    );
-    buffers.insert(
-        "voxel_depth".to_string(),
-        BT::from(
-            Texture::builder("voxel_depth")
-                .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rgba16Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_linear_filtering_sampler()
-                .build(device),
-        ),
-    );
-    buffers.insert(
-        "voxel_data".to_string(),
-        BT::from(
-            Texture::builder("voxel_data")
-                .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rgba16Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_linear_filtering_sampler()
-                .build(device),
-        ),
-    );
-    buffers.insert(
-        "march_readback".to_string(),
-        BT::from(MapWriteBuffer::new(
-            device,
-            "march_readback",
-            Vec4::ZERO.data().to_vec(),
-        )),
-    );
+fn bufs(
+    _engine: &Engine,
+    _device: &Device,
+    _buffers: &mut Buffers,
+    _camera: &Camera,
+    _config: &Config,
+) {
+    // debug!("Initializing camera buffers");
+    //
+    // buffers.insert(
+    //     "curr_camera".to_string(),
+    //     BT::from(MappedUniformBuffer::new(
+    //         device,
+    //         "camera",
+    //         camera.serialize(config).data().to_vec(),
+    //     )),
+    // );
+    // buffers.insert(
+    //     "out_camera".to_string(),
+    //     BT::from(MappedUniformBuffer::new(
+    //         device,
+    //         "camera",
+    //         camera.serialize_out(config).data().to_vec(),
+    //     )),
+    // );
+    // buffers.insert(
+    //     "globals".to_string(),
+    //     BT::from(MappedUniformBuffer::new(
+    //         device,
+    //         "globals",
+    //         Globals::from_engine(engine, camera)
+    //             .serialize()
+    //             .data()
+    //             .to_vec(),
+    //     )),
+    // );
+    // buffers.insert(
+    //     "render_tx".to_string(),
+    //     BT::from(
+    //         Texture::builder("render")
+    //             .with_size(camera.scale(&config))
+    //             .with_format(wgpu::TextureFormat::Rgba32Float)
+    //             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+    //             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+    //             .with_nearest_filtering_sampler()
+    //             .build(device),
+    //     ),
+    // );
+    // buffers.insert(
+    //     "render_readback".to_string(),
+    //     BT::from(
+    //         Texture::builder("render_readback")
+    //             .with_size(config.output_res)
+    //             .with_format(wgpu::TextureFormat::Rgba32Float)
+    //             .with_usage(wgpu::TextureUsages::COPY_SRC)
+    //             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+    //             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+    //             .with_nearest_filtering_sampler()
+    //             .build(device),
+    //     ),
+    // );
+    // buffers.insert(
+    //     "config".to_string(),
+    //     BT::from(MappedUniformBuffer::new(
+    //         device,
+    //         "config",
+    //         config.to_pass_params().data().to_vec(),
+    //     )),
+    // );
+    // buffers.insert(
+    //     "out_config".to_string(),
+    //     BT::from(MappedUniformBuffer::new(
+    //         device,
+    //         "config",
+    //         config.to_pass_params_out().data().to_vec(),
+    //     )),
+    // );
+    // buffers.insert(
+    //     "materials".to_string(),
+    //     BT::from(StorageBuffer::new(
+    //         device,
+    //         "materials",
+    //         config.material_pass().data().to_vec(),
+    //     )),
+    // );
+    // buffers.insert(
+    //     "lights".to_string(),
+    //     BT::from(StorageBuffer::new(
+    //         device,
+    //         "lights",
+    //         config.light_pass().data().to_vec(),
+    //     )),
+    // );
+    // buffers.insert(
+    //     "voxel_depth".to_string(),
+    //     BT::from(
+    //         Texture::builder("voxel_depth")
+    //             .with_size_3d(UVec3::splat(config.voxel_dim))
+    //             .with_format(wgpu::TextureFormat::Rgba16Float)
+    //             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+    //             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+    //             .with_linear_filtering_sampler()
+    //             .build(device),
+    //     ),
+    // );
+    // buffers.insert(
+    //     "voxel_data".to_string(),
+    //     BT::from(
+    //         Texture::builder("voxel_data")
+    //             .with_size_3d(UVec3::splat(config.voxel_dim))
+    //             .with_format(wgpu::TextureFormat::Rgba16Float)
+    //             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+    //             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+    //             .with_linear_filtering_sampler()
+    //             .build(device),
+    //     ),
+    // );
+    // buffers.insert(
+    //     "march_readback".to_string(),
+    //     BT::from(MapWriteBuffer::new(
+    //         device,
+    //         "march_readback",
+    //         Vec4::ZERO.data().to_vec(),
+    //     )),
+    // );
 }

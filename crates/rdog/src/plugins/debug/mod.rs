@@ -1,7 +1,8 @@
-use bevy::utils::HashMap;
+use bevy::input::keyboard::Key;
 use exr::prelude::write_rgba_file;
 
 use bytemuck::cast_slice;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
@@ -63,7 +64,13 @@ fn keymap(
     if keys.just_pressed(KeyCode::KeyR) {
         info!("r pressed?");
         *config = read_config().unwrap_or(Config::default());
+        config.orbit_reset = false;
         buf.send(RdogEvent::Recompute);
+    }
+
+    if keys.just_pressed(KeyCode::KeyX) {
+        info!("c pressed?");
+        config.orbit_reset = true;
     }
 }
 

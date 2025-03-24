@@ -11,6 +11,7 @@ pub struct Texture {
     pub format: wgpu::TextureFormat,
     pub view: Arc<wgpu::TextureView>,
     dimension: wgpu::TextureViewDimension,
+    label: String,
     sampler: wgpu::Sampler,
     filterable: bool,
     size: UVec3,
@@ -74,6 +75,10 @@ impl Texture {
     pub fn get_size(&self) -> UVec3 {
         self.size
     }
+
+    pub fn label(&self) -> &str {
+        &self.label
+    }
 }
 
 #[derive(Clone, Default)]
@@ -136,7 +141,7 @@ impl TextureBuilder {
             sampler,
         } = self;
 
-        let label = format!("rdog_{}", label);
+        let label = format!("{}", label);
         let size = size.expect("Missing property: size");
         let format = format.expect("Missing property: format");
         let usage = usage.expect("Missing property: usage");
@@ -178,6 +183,7 @@ impl TextureBuilder {
         });
 
         Texture {
+            label,
             tex,
             format,
             view: Arc::new(view),

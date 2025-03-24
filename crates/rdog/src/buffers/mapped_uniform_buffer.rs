@@ -12,14 +12,15 @@ use super::{bindable::Bindable, bufferable::Bufferable};
 
 #[derive(Debug)]
 pub struct MappedUniformBuffer {
+    pub label: String,
     pub buffer: Arc<wgpu::Buffer>,
-    data: Vec<u8>,
-    dirty: bool,
+    pub data: Vec<u8>,
+    pub dirty: bool,
 }
 
 impl MappedUniformBuffer {
     pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: Vec<u8>) -> Self {
-        let label = format!("rdog_{}", label.as_ref());
+        let label = format!("{}", label.as_ref());
         let size = utils::pad_size(data.len() * size_of::<u8>());
 
         debug!("Allocating uniform buffer `{label}`; size={size}");
@@ -32,6 +33,7 @@ impl MappedUniformBuffer {
         });
 
         Self {
+            label,
             buffer: Arc::new(buffer),
             data: data.data().into(),
             dirty: true,
@@ -54,6 +56,10 @@ impl MappedUniformBuffer {
     /// ```
     pub fn bind_readable(&self) -> impl Bindable + '_ {
         MappedUniformBufferBinder { parent: self }
+    }
+
+    pub fn label(&self) -> &str {
+        &self.label
     }
 }
 

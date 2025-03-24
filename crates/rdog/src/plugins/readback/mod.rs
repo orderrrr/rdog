@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use async_channel::{Receiver, Sender};
 use bevy::{
@@ -18,7 +18,6 @@ use bevy::{
         view::ViewTarget,
         MainWorld, Render, RenderApp, RenderSet,
     },
-    utils::HashMap,
 };
 use rdog_lib::OutputParams;
 use wgpu::{BufferUsages, Extent3d, ImageDataLayout, TextureFormat};
@@ -27,10 +26,9 @@ use crate::{bufferable::Bufferable, state::SyncedState, CameraHandle};
 
 use super::{
     graph::{Rdog, RdogE},
-    rdog_buffers::RdogBufferResource,
-    rdog_passes::RdogPassResource,
+    passes::RdogPassResource,
     state::ExtractedConfig,
-    EngineResource,
+    EngineResource, RdogBufferResource,
 };
 
 pub struct RdogReadbackPlugin {
@@ -341,7 +339,7 @@ pub(crate) fn layout_data(width: u32, height: u32, format: TextureFormat) -> Ima
             None
         },
         rows_per_image: None,
-        ..Default::default()
+        ..default()
     }
 }
 

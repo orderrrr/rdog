@@ -1,31 +1,21 @@
-use pipelines::{DiffRasterPassConstructor, OutputTracePassConstructor};
-use rdog::{
-    bufferable::Bufferable,
-    event::RdogEvent,
-    map_write_buffer::MapWriteBuffer,
-    mapped_uniform_buffer::MappedUniformBuffer,
-    rdog_buffers::{create_buffer, RdogBufferResource},
-    rdog_passes::{setup_passes, RdogPassRegistry},
-    renderer::{
-        buffers::{Buffers, BT},
-        config::Camera,
-    },
-    shader::RdogShaderState,
-    state::{ExtractedConfig, SyncedState},
-    storage_buffer::StorageBuffer,
-    texture::Texture,
-    Config, Engine, EngineResource, Globals,
-};
-use wgpu::Device;
-
-use crate::pipelines::{
-    DiffPassConstructor, RasterPassConstructor, ReadbackPassConstructor,
-};
 use bevy::{
     prelude::*,
-    render::{renderer::RenderDevice, Render, RenderApp},
+    render::{renderer::RenderDevice, Render, RenderApp, RenderSet},
     window::{PresentMode, WindowResolution},
 };
+use pipelines::{AccumPass, DiffPass, DiffRasterPass, OutputTracePass, RasterPass, ReadbackPass};
+use rdog::{
+    buffer_builder::BufferBuilder,
+    event::RdogEvent,
+    passes::{PassConstruct, Passes},
+    rdog::passes::RdogPassResource,
+    renderer::{buffers::Buffers, config::Camera},
+    shader::RdogShaderState,
+    state::{ExtractedConfig, SyncedState},
+    texture::Texture,
+    Config, Engine, EngineResource, Globals, RdogBufferResource,
+};
+use wgpu::Device;
 
 use bevy_egui::EguiPlugin;
 use rand::Rng;
@@ -81,25 +71,55 @@ impl Plugin for InitialPlugin {
              * Pipeline Registry Plugin for registering plugins from app world.
              * TODO: need a way to specify an order, or better yet a graph for this.
              */
-            render_app
-                .insert_resource(RdogPassRegistry::new(
-                    vec![
-                        Box::new(DiffPassConstructor),
-                        Box::new(ReadbackPassConstructor),
-                        // Box::new(TracePassConstructor),
-                        Box::new(DiffRasterPassConstructor),
-                        Box::new(RasterPassConstructor),
-                        Box::new(OutputTracePassConstructor),
-                    ],
-                    vec![String::from("diff"), String::from("diff_raster"), String::from("raster")],
-                ))
-                .add_systems(
-                    Render,
-                    buffer_events
-                        .run_if(in_state(RdogShaderState::Finished))
-                        .after(create_buffer)
-                        .before(setup_passes), // TODO: better way to do this ordering
-                );
+            render_app.add_systems(
+                Render,
+                (buffer_events, setup_passes)
+                    .chain()
+                    .in_set(RenderSet::Prepare)
+                    .run_if(in_state(RdogShaderState::Finished)),
+            );
+        }
+    }
+}
+
+pub fn setup_passes(
+    buffers: Res<RdogBufferResource>,
+    mut events: EventReader<RdogEvent>,
+    mut passes: ResMut<RdogPassResource>,
+    engine: Res<EngineResource>,
+    state: Res<SyncedState>,
+    device: Res<RenderDevice>,
+) {
+    for e in events.read() {
+        match e {
+            RdogEvent::Recompute | RdogEvent::RecomputePasses => {
+                info!("need to create passes");
+
+                let device = device.wgpu_device();
+
+                for handle in state.cameras.values() {
+                    info!("create passes");
+                    let cam = &engine.cameras.get(handle.handle).camera;
+                    let buf = &buffers.get(&handle.handle).unwrap();
+
+                    let mut p = Passes::new();
+
+                    let dif = DiffPass::new(&engine, &device, cam, &buf);
+                    let readback = ReadbackPass::new(&engine, &device, cam, &buf);
+                    let draster = DiffRasterPass::new(&engine, &device, cam, &buf);
+                    let raster = RasterPass::new(&engine, &device, cam, &buf);
+                    let accum = AccumPass::new(&engine, &device, cam, &buf);
+                    let output = OutputTracePass::new(&engine, &device, cam, &buf);
+
+                    p.set_pass_order(vec![&dif, &draster, &accum, &raster]);
+                    p.insert_all(vec![dif, readback, draster, accum, raster, output]);
+
+                    passes.insert(handle.handle, p);
+                }
+
+                info!("finished creating");
+            }
+            _ => (),
         }
     }
 }
@@ -118,11 +138,14 @@ fn buffer_events(
                 info!("need to init buffer");
                 for handle in state.cameras.values() {
                     info!("init_buffers");
-                    let buffers = buffers.get_mut(&handle.handle).unwrap();
+                    buffers.insert(handle.handle, Buffers::new());
+
+                    let mut buffers = buffers.get_mut(&handle.handle).unwrap();
+
                     bufs(
                         &engine,
                         device.wgpu_device(),
-                        buffers,
+                        &mut buffers,
                         &engine.cameras.get(handle.handle).camera,
                         &config,
                     );
@@ -134,7 +157,7 @@ fn buffer_events(
 
     for handle in state.cameras.values() {
         let buffers = buffers.get_mut(&handle.handle).unwrap();
-        update(
+        update_buffers(
             &engine,
             device.wgpu_device(),
             buffers,
@@ -144,135 +167,106 @@ fn buffer_events(
     }
 }
 
-fn update(
+fn update_buffers(
     engine: &Engine,
     _device: &Device,
     buffers: &mut Buffers,
     camera: &Camera,
     config: &Config,
 ) {
-    buffers.update("curr_camera", camera.serialize(&config).data().into());
-    buffers.update("out_camera", camera.serialize_out(&config).data().into());
-    buffers.update(
-        "globals",
-        Globals::from_engine(engine, &camera)
-            .serialize()
-            .data()
-            .into(),
-    );
-    buffers.update("config", config.to_pass_params().data().into());
-    buffers.update("out_config", config.to_pass_params_out().data().into());
-    buffers.update("march_readback", Vec4::ZERO.data().into());
-
-    buffers.update("materials", config.material_pass().data().into());
-    buffers.update("lights", config.light_pass().data().into());
+    buffers.update("curr_camera", camera.serialize(&config));
+    buffers.update("out_camera", camera.serialize_out(&config));
+    buffers.update("globals", Globals::from_engine(engine, &camera).serialize());
+    buffers.update("config", config.to_pass_params());
+    buffers.update("out_config", config.to_pass_params_out());
+    buffers.update("march_readback", Vec4::ZERO);
+    buffers.update("materials", config.material_pass());
+    buffers.update("lights", config.light_pass());
 }
 
 fn bufs(engine: &Engine, device: &Device, buffers: &mut Buffers, camera: &Camera, config: &Config) {
     debug!("Initializing camera buffers");
 
-    buffers.insert(
-        "curr_camera".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "camera",
-            camera.serialize(config).data().to_vec(),
-        )),
+    buffers.add(
+        BufferBuilder::new("curr_camera")
+            .with_data(camera.serialize(config))
+            .build_uniform(device),
     );
-    buffers.insert(
-        "out_camera".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "camera",
-            camera.serialize_out(config).data().to_vec(),
-        )),
+    buffers.add(
+        BufferBuilder::new("out_camera")
+            .with_data(camera.serialize_out(config))
+            .build_uniform(device),
     );
-    buffers.insert(
-        "globals".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "globals",
-            Globals::from_engine(engine, camera)
-                .serialize()
-                .data()
-                .to_vec(),
-        )),
+    buffers.add(
+        BufferBuilder::new("globals")
+            .with_data(Globals::from_engine(engine, camera).serialize())
+            .build_uniform(device),
     );
-    buffers.insert(
-        "render_tx".to_string(),
-        BT::from(
-            Texture::builder("render")
-                .with_size(camera.scale(&config))
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_linear_filtering_sampler()
-                .build(device),
-        ),
+    buffers.add(
+        Texture::builder("render_tx")
+            .with_size(camera.scale(&config))
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .with_linear_filtering_sampler()
+            .build(device),
     );
-    buffers.insert(
-        "render_readback".to_string(),
-        BT::from(
-            Texture::builder("render_readback")
-                .with_size(config.output_res)
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::COPY_SRC)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_nearest_filtering_sampler()
-                .build(device),
-        ),
+    buffers.add(
+        Texture::builder("accum_render")
+            .with_size(camera.scale(&config))
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_nearest_filtering_sampler()
+            .build(device),
     );
-    buffers.insert(
-        "config".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "config",
-            config.to_pass_params().data().to_vec(),
-        )),
+    buffers.add(
+        Texture::builder("render_readback")
+            .with_size(config.output_res)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::COPY_SRC)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_nearest_filtering_sampler()
+            .build(device),
     );
-    buffers.insert(
-        "out_config".to_string(),
-        BT::from(MappedUniformBuffer::new(
-            device,
-            "config",
-            config.to_pass_params_out().data().to_vec(),
-        )),
+    buffers.add(
+        BufferBuilder::new("config")
+            .with_data(config.to_pass_params())
+            .build_uniform(device),
     );
-    buffers.insert(
-        "materials".to_string(),
-        BT::from(StorageBuffer::new(
-            device,
-            "materials",
-            config.material_pass().data().to_vec(),
-        )),
+    buffers.add(
+        BufferBuilder::new("out_config")
+            .with_data(config.to_pass_params_out())
+            .build_uniform(device),
     );
-    buffers.insert(
-        "lights".to_string(),
-        BT::from(StorageBuffer::new(
-            device,
-            "lights",
-            config.light_pass().data().to_vec(),
-        )),
+    buffers.add(
+        BufferBuilder::new("materials")
+            .with_data(config.material_pass())
+            .build_storage(device),
     );
-    buffers.insert(
-        "voxel".to_string(),
-        BT::from(
-            Texture::builder("voxel")
-                .with_size_3d(UVec3::splat(config.voxel_dim))
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_linear_filtering_sampler()
-                .build(device),
-        ),
+    buffers.add(
+        BufferBuilder::new("lights")
+            .with_data(config.light_pass())
+            .build_storage(device),
     );
-    buffers.insert(
-        "march_readback".to_string(),
-        BT::from(MapWriteBuffer::new(
-            device,
-            "march_readback",
-            Vec4::ZERO.data().to_vec(),
-        )),
+    buffers.add(
+        Texture::builder("voxel")
+            .with_size_3d(UVec3::splat(config.voxel_dim))
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_linear_filtering_sampler()
+            .build(device),
+    );
+    buffers.add(
+        BufferBuilder::new("march_readback")
+            .with_usage(
+                wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::STORAGE,
+            )
+            .with_data(Vec4::ZERO)
+            .build_storage(device),
     );
 }

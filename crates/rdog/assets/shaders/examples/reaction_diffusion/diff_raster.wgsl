@@ -82,7 +82,7 @@ fn fs(@builtin(position) vertex: vec4f) -> @location(0) vec4f {
     col /= f32(pass_params.pass_count);
 
     return vec4f(srgb_vec(pow(col, vec3f(2.2))), 1.0);
-//    return vec4f(col, 1.0);
+    // return vec4f(vec3f(1.0), 1.0);
 }
 
 fn srgb_vec(col: vec3f) -> vec3f {

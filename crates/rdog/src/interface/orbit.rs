@@ -52,7 +52,7 @@ pub enum PanOrbitAction {
 impl Default for PanOrbitState {
     fn default() -> Self {
         PanOrbitState {
-            center: Vec3::Y,
+            center: Vec3::ZERO,
             radius: 4.0,
             upside_down: false,
             pitch: -10.0_f32.to_radians(),

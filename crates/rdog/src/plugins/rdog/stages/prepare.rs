@@ -1,10 +1,11 @@
+use std::collections::hash_map::Entry;
+use std::collections::HashSet;
 use std::mem;
 
 use bevy::render::camera::ExtractedCamera as BevyExtractedCamera;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::texture::GpuImage;
 use bevy::render::view::{ExtractedView, RenderLayers};
-use bevy::utils::{Entry, HashSet};
 use bevy::{
     prelude::*,
     render::{
@@ -18,10 +19,9 @@ use crate::event::RdogEvent;
 use crate::images::ImageData;
 use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
 use crate::plugins::rdog::EngineResource;
-use crate::plugins::rdog_passes::RdogPassResource;
-use crate::rdog_buffers::RdogBufferResource;
+use crate::rdog::passes::RdogPassResource;
 use crate::state::{ExtractedConfig, RdogExtractedExtras};
-use crate::{CameraMode, RdogStateEvent, MAIN};
+use crate::{CameraMode, RdogBufferResource, RdogStateEvent, MAIN};
 
 use super::cache::RdogShaderCache;
 
@@ -35,7 +35,6 @@ pub fn flush(queue: Res<RenderQueue>, mut buffers: ResMut<RdogBufferResource>) {
 
 pub fn parse_shaders(
     device: Res<RenderDevice>,
-    mut events: EventWriter<RdogEvent>,
     mut engine: ResMut<EngineResource>,
     mut cache: ResMut<RdogShaderCache>,
     state: Res<SyncedState>,
@@ -43,7 +42,6 @@ pub fn parse_shaders(
     if !cache.is_empty() {
         log::info!("computing shaders");
         state.compute_shaders(&mut engine, &device, &cache);
-        events.send(RdogEvent::Recompute);
         engine.ready = true;
 
         cache.clear();
@@ -183,6 +181,7 @@ pub(crate) fn cameras(
 pub(crate) fn extras(
     mut engine: ResMut<EngineResource>,
     extras: Res<RdogExtractedExtras>,
+    mut events: EventReader<RdogEvent>,
     time: Res<Time>,
 ) {
     let engine = &mut *engine;
@@ -192,4 +191,13 @@ pub(crate) fn extras(
         Some(x) => x,
         _ => Vec2::ZERO,
     };
+
+    for event in events.read() {
+        match event {
+            RdogEvent::Recompute | RdogEvent::RecomputeBuffers => {
+                engine.dirty = true;
+            }
+            _ => (),
+        }
+    }
 }

@@ -1,6 +1,11 @@
-use bevy::{prelude::*, render::{render_resource::TextureView, renderer::RenderDevice}, utils::HashMap};
+use std::collections::HashMap;
 
-use crate::{passes::PassRegistry, Config};
+use bevy::{
+    prelude::*,
+    render::{render_resource::TextureView, renderer::RenderDevice},
+};
+
+use crate::Config;
 
 use super::shader::RdogShaderAsset;
 
@@ -51,9 +56,6 @@ pub struct ExtractedImages {
 
 #[derive(Debug, Resource, Deref)]
 pub struct ExtractedConfig(pub Config);
-
-#[derive(Debug, Resource, Deref, DerefMut)]
-pub struct ExtractedPipelineRegistry(pub PassRegistry);
 
 #[derive(Debug)]
 pub struct ExtractedImage {
