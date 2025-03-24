@@ -82,7 +82,6 @@ fn fs(@builtin(position) vertex: vec4f) -> @location(0) vec4f {
     col /= f32(pass_params.pass_count);
 
     return vec4f(srgb_vec(pow(col, vec3f(2.2))), 1.0);
-    // return vec4f(vec3f(1.0), 1.0);
 }
 
 fn srgb_vec(col: vec3f) -> vec3f {
@@ -121,6 +120,10 @@ fn ray_trace(ri: Ray) -> vec3f {
     for (var i: u32 = 0; i < pass_params.bounce_count; i++) {
         var h = trace_voxel_mask(r);
         r.o = pd(r, h.d);
+
+        if !h.h && i == 0 {
+            break;
+        }
 
         if !h.h {
             t += sample_atmos(r) * a * rad + h.a;
@@ -174,29 +177,6 @@ fn ray_trace(ri: Ray) -> vec3f {
 
 
 
-fn trace_voxesl_mask(r: Ray) -> Hit {
-    var t = 0.01;
-
-    for (var i: u32 = 0; i < RMAX; i++) {
-        let p = pd(r, t);
-        var h = map(p);
-        let interior = h.x <= 0.0;
-        h.x = abs(h.x);
-
-        if h.x < MIN_DIST {
-            return Hit(t, ZERO, ZERO, interior, mat_2(h), true, false);
-        }
-
-        if t > TMAX {
-            break;
-        }
-
-        t += h.x;
-    }
-
-    return Hit(TMAX, ZERO, ZERO, false, DEFAULT_MAT, false, false);
-}
-
 fn trace_voxel_mask(ri: Ray) -> Hit {
     var r = ri;
 
@@ -211,17 +191,15 @@ fn trace_voxel_mask(ri: Ray) -> Hit {
 
     var t = 0.0;
 
-    if any(r.o < vec3f(-1.0) || r.o > vec3f(1.0)) {
-        let dist = rbi(r, vec3f(-1.0), vec3f(1.0));
-        if dist < 0.0 {
-            return Hit(TMAX, DANGER, DANGER, false, mat(u32(1)), false, false);
-        }
-
-        let mv = (dist + 0.01);
-        t += mv;
-
-        r.o += r.d * mv;
+    let dist = rbi(r, vec3f(-1.0), vec3f(1.0));
+    if dist == -1.0 {
+        return Hit(TMAX, DANGER, DANGER, false, mat(u32(1)), false, false);
     }
+
+    let mv = (max(dist, 0.0) + 0.01);
+    t += mv;
+
+    r.o += r.d * mv;
 
     var pd = 0.0;
     var cdt = TMAX;
@@ -256,9 +234,9 @@ fn trace_voxel_mask(ri: Ray) -> Hit {
 //            return Hit(t, DANGER, 1. / sample_light(r, r.d), false, mat(u32(1)), false, true);
 
 
-//            if d.z > (rand_f() * 2.0 - 1.0) * 0.01 + .025 {
-//               return Hit(t, DANGER, total.xyz, false, mat(u32(1)), true, true);
-//            }
+            if d.z > (rand_f() * 2.0 - 1.0) * 0.01 + .025 {
+                return Hit(t, DANGER, total.xyz, true, mat(u32(1)), true, true);
+            }
         }
 
         // we only want to lower res when we get close to dense areas

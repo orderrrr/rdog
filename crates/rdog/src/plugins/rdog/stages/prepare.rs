@@ -37,12 +37,14 @@ pub fn parse_shaders(
     device: Res<RenderDevice>,
     mut engine: ResMut<EngineResource>,
     mut cache: ResMut<RdogShaderCache>,
+    mut event: EventWriter<RdogEvent>,
     state: Res<SyncedState>,
 ) {
     if !cache.is_empty() {
         log::info!("computing shaders");
         state.compute_shaders(&mut engine, &device, &cache);
         engine.ready = true;
+        event.send(RdogEvent::Recompute);
 
         cache.clear();
     }
