@@ -118,7 +118,7 @@ impl Pass for DiffRasterPass {
             occlusion_query_set: None,
         });
 
-        let res = (camera.camera.viewport.size.as_vec2() * config.res).as_uvec2();
+        let res = camera.camera.scale(config);
 
         pass.set_scissor_rect(0, 0, res.x, res.y);
         pass.set_pipeline(&self.pipeline);
@@ -227,14 +227,7 @@ impl Pass for TracePass {
         _view: &wgpu::TextureView,
         _pass_params: Option<&Vec<u8>>,
     ) {
-        self.compute_passes[0].run(
-            camera,
-            encoder,
-            (camera.camera.viewport.size.as_vec2() * config.res)
-                .as_uvec2()
-                .extend(1),
-            None,
-        );
+        self.compute_passes[0].run(camera, encoder, camera.camera.scale(config).extend(1), None);
     }
 
     fn name(&self) -> &str {
@@ -362,14 +355,7 @@ impl Pass for AccumPass {
         _view: &wgpu::TextureView,
         _pass_params: Option<&Vec<u8>>,
     ) {
-        self.compute_passes[0].run(
-            camera,
-            encoder,
-            (camera.camera.viewport.size.as_vec2() * config.res)
-                .as_uvec2()
-                .extend(1),
-            None,
-        );
+        self.compute_passes[0].run(camera, encoder, camera.camera.scale(config).extend(1), None);
     }
 
     fn name(&self) -> &str {
