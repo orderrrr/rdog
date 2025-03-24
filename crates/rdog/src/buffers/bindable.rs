@@ -26,3 +26,18 @@ where
             .collect()
     }
 }
+
+impl DoubleBufferedBindable for Box<dyn Bindable + '_> {
+    fn bind(&self, binding: u32) -> Vec<(wgpu::BindGroupLayoutEntry, [wgpu::BindingResource; 2])> {
+        // Dereference the boxed trait object and call its bind method.
+        (**self)
+            .bind(binding)
+            .into_iter()
+            .map(|(layout, resource)| {
+                let resource_a = resource.clone();
+                let resource_b = resource;
+                (layout, [resource_a, resource_b])
+            })
+            .collect()
+    }
+}

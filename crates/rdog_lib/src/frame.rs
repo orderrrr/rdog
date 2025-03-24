@@ -11,6 +11,10 @@ impl Frame {
         Self(id)
     }
 
+    pub fn next(&mut self) {
+        self.0 += 1;
+    }
+
     pub fn get(self) -> u32 {
         self.0
     }

@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec2, Vec3, Vec4};
+use glam::{vec2, Mat4, UVec2, Vec2, Vec3, Vec4, Vec4Swizzles};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
@@ -10,6 +10,8 @@ pub struct Camera {
     pub ndc_to_world: Mat4,
     pub origin: Vec4,
     pub screen: Vec4,
+    pub fpd: Vec4,
+    pub af: Vec4,
 }
 
 impl Camera {
@@ -19,6 +21,8 @@ impl Camera {
             ndc_to_world: Mat4::ZERO,
             origin: Vec4::ZERO,
             screen,
+            fpd: Vec4::ZERO,
+            af: Vec4::ZERO,
         }
     }
 

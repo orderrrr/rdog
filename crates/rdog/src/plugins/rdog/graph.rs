@@ -15,6 +15,7 @@ pub enum RdogE {
     ToneMapping,
     FXAA,
     Upscaling,
+    RBRenderingNode,
 }
 
 pub(crate) fn setup(render_app: &mut SubApp) {

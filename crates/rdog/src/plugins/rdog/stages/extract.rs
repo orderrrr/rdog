@@ -1,4 +1,5 @@
 use bevy::{
+    core::FrameCount,
     image::{ImageSampler, ImageSamplerDescriptor},
     prelude::*,
     render::{
@@ -6,6 +7,7 @@ use bevy::{
         Extract,
     },
     utils::HashSet,
+    window::PrimaryWindow,
 };
 
 use crate::{
@@ -14,9 +16,44 @@ use crate::{
         event::RdogEvent,
         state::{ExtractedImage, ExtractedImageData, ExtractedImages, RdogExtractedCamera},
     },
-    state::ExtractedConfig,
-    Config,
+    shader::RdogShaderState,
+    state::{ExtractedConfig, RdogExtractedExtras},
+    Config, EngineResource,
 };
+
+pub(crate) fn extras(
+    mut commands: Commands,
+    q_windows: Extract<Query<&Window, With<PrimaryWindow>>>,
+    q_frame: Extract<Res<FrameCount>>,
+    state: Extract<Res<State<RdogShaderState>>>,
+    mut rstate: ResMut<State<RdogShaderState>>,
+) {
+    *rstate = State::new(*state.get());
+
+    let mut pos = None;
+    if let Ok(window) = q_windows.get_single() {
+        if let Some(position) = window.physical_cursor_position() {
+            pos = Some(position);
+        }
+    }
+    commands.insert_resource(RdogExtractedExtras {
+        mouse: pos,
+        frame: q_frame.0,
+    });
+}
+
+pub(crate) fn events(
+    mut events: Extract<EventReader<RdogEvent>>,
+    mut render_events: EventWriter<RdogEvent>,
+    mut engine: ResMut<EngineResource>,
+) {
+    engine.dirty = false;
+
+    for e in events.read() {
+        info!("event: {:?} being passed to render thread.", e);
+        render_events.send(e.clone());
+    }
+}
 
 pub(crate) fn images(
     mut commands: Commands,
@@ -30,6 +67,7 @@ pub(crate) fn images(
             RdogEvent::MarkImageAsDynamic { id } => {
                 dynamic_images.insert(*id);
             }
+            _ => (),
         }
     }
 
@@ -144,7 +182,6 @@ pub(crate) fn cameras(
     }
 }
 
-#[allow(clippy::type_complexity)]
 pub(crate) fn config(mut commands: Commands, config: Extract<Res<Config>>) {
     commands.insert_resource(ExtractedConfig(config.clone()));
 }

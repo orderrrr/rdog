@@ -9,5 +9,4 @@ repository.workspace = true
 
 [dependencies]
 bytemuck = { workspace = true }
-spirv-std = { workspace = true }
 glam = { version = "0.29", default-features = false, features = ["bytemuck"] }

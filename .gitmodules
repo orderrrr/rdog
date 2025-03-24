@@ -1,3 +1,9 @@
 [submodule "deps/rust-gpu"]
 	path = deps/rust-gpu
 	url = https://github.com/EmbarkStudios/rust-gpu.git
+[submodule "crates/rdog_lua_to_wgsl/dep/tree-sitter-verilog"]
+	path = crates/rdog_lua_to_wgsl/dep/tree-sitter-verilog
+	url = https://github.com/tree-sitter/tree-sitter-verilog.git
+[submodule "crates/rdog_lua_to_wgsl/dep/tree-sitter-lua"]
+	path = crates/rdog_lua_to_wgsl/dep/tree-sitter-lua
+	url = https://github.com/tjdevries/tree-sitter-lua.git

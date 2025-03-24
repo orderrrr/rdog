@@ -229,7 +229,7 @@ pub fn pan_orbit_camera(
 
         // Finally, compute the new camera transform.
         // (if we changed anything, or if the pan-orbit
-        // controller was just added and thus we are running
+        // controller was just added, and thus we are running
         // for the first time and need to initialize)
         if any || state.is_added() || config.orbit_reset {
             config.user_orbit = true;

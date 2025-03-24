@@ -7,7 +7,12 @@ use bevy::{
     },
 };
 
-use crate::plugins::rdog::{state::SyncedState, EngineResource};
+use crate::{
+    plugins::rdog::{state::SyncedState, EngineResource},
+    rdog_passes::RdogPassResource,
+};
+
+use super::state::ExtractedConfig;
 
 #[derive(Default)]
 pub struct RdogRenderingNode;
@@ -24,6 +29,8 @@ impl ViewNode for RdogRenderingNode {
     ) -> Result<(), NodeRunError> {
         let entity = graph.view_entity();
         let engine = world.resource::<EngineResource>();
+        let passes = world.resource::<RdogPassResource>();
+        let config = world.resource::<ExtractedConfig>();
         let state = world.resource::<SyncedState>();
 
         let Some(camera) = state.cameras.get(&entity) else {
@@ -32,8 +39,11 @@ impl ViewNode for RdogRenderingNode {
 
         engine.render_camera(
             camera.handle,
+            config,
             render_context.command_encoder(),
             target.main_texture_view(),
+            &passes,
+            None,
         );
 
         Ok(())

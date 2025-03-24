@@ -1,7 +1,7 @@
 use std::{collections::HashMap, mem};
 
-use bevy::prelude::Image as BevyImage;
 use bevy::render::render_resource::Texture as BevyTexture;
+use bevy::{prelude::Image as BevyImage, utils::default};
 
 use bevy::asset::AssetId;
 use derivative::Derivative;
@@ -39,9 +39,9 @@ impl Images {
         Self {
             atlas,
             atlas_texture,
-            atlas_changes: Default::default(),
-            images: Default::default(),
-            dynamic_textures: Default::default(),
+            atlas_changes: default(),
+            images: default(),
+            dynamic_textures: default(),
         }
     }
 

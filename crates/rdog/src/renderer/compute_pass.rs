@@ -1,18 +1,18 @@
 use std::marker::PhantomData;
-use std::mem;
 
+use bevy::utils::default;
 use bytemuck::Pod;
-use glam::UVec2;
+use glam::UVec3;
 use log::debug;
 use rdog_lib::PassParams;
-use wgpu::PipelineCompilationOptions;
+use wgpu::{PipelineCompilationOptions, ShaderModule};
 
 use crate::{
     bind_group::{BindGroup, BindGroupBuilder},
     bindable::DoubleBufferedBindable,
 };
 
-use super::{render::CameraController, shaders::RdogShader};
+use super::render::CameraController;
 
 #[derive(Debug)]
 pub struct ComputePass<P = PassParams> {
@@ -29,8 +29,8 @@ where
     pub fn builder<'a>(label: impl ToString) -> CameraPassBuilder<'a, P> {
         CameraPassBuilder {
             label: label.to_string(),
-            bind_groups: Default::default(),
-            _params: Default::default(),
+            bind_groups: default(),
+            _params: default(),
         }
     }
 
@@ -38,8 +38,8 @@ where
         &self,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
-        size: UVec2,
-        params: P,
+        size: UVec3,
+        params: Option<&Vec<u8>>,
     ) {
         let label = format!("rdog_{}_pass", self.label);
 
@@ -50,8 +50,8 @@ where
 
         pass.set_pipeline(&self.pipeline);
 
-        if mem::size_of::<P>() > 0 {
-            pass.set_push_constants(0, bytemuck::bytes_of(&params));
+        if params.is_some() {
+            pass.set_push_constants(0, params.unwrap());
         }
 
         for (bind_group_idx, bind_group) in self.bind_groups.iter().enumerate() {
@@ -62,7 +62,7 @@ where
             );
         }
 
-        pass.dispatch_workgroups(size.x, size.y, 1);
+        pass.dispatch_workgroups(size.x, size.y, size.z);
     }
 }
 
@@ -88,8 +88,13 @@ where
         self
     }
 
-    pub fn build(self, device: &wgpu::Device, shader: &RdogShader) -> ComputePass<P> {
-        debug!("Initializing pass: {}:{}", self.label, shader.entry_point);
+    pub fn build(
+        self,
+        device: &wgpu::Device,
+        entry_point: &str,
+        module: &ShaderModule,
+    ) -> ComputePass<P> {
+        debug!("Initializing pass: {}:{}", self.label, entry_point);
 
         let bind_groups: Vec<_> = self
             .bind_groups
@@ -99,10 +104,10 @@ where
 
         let bind_group_layouts: Vec<_> = bind_groups.iter().map(|bg| bg.layout()).collect();
 
-        let push_constant_ranges = if mem::size_of::<P>() > 0 {
+        let push_constant_ranges = if size_of::<P>() > 0 {
             vec![wgpu::PushConstantRange {
                 stages: wgpu::ShaderStages::COMPUTE,
-                range: 0..mem::size_of::<P>() as u32,
+                range: 0..size_of::<P>() as u32,
             }]
         } else {
             vec![]
@@ -121,8 +126,8 @@ where
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some(&pipeline_label),
             layout: Some(&pipeline_layout),
-            module: &shader.module,
-            entry_point: Some(&shader.entry_point),
+            module,
+            entry_point: Some(&entry_point),
             compilation_options: PipelineCompilationOptions::default(),
             cache: None,
         });

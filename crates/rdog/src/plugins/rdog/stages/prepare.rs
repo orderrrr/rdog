@@ -3,7 +3,7 @@ use std::mem;
 use bevy::render::camera::ExtractedCamera as BevyExtractedCamera;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::texture::GpuImage;
-use bevy::render::view::ExtractedView;
+use bevy::render::view::{ExtractedView, RenderLayers};
 use bevy::utils::{Entry, HashSet};
 use bevy::{
     prelude::*,
@@ -14,27 +14,40 @@ use bevy::{
 };
 use glam::vec2;
 
+use crate::event::RdogEvent;
 use crate::images::ImageData;
 use crate::plugins::rdog::state::{ExtractedImageData, ExtractedImages, SyncedCamera, SyncedState};
 use crate::plugins::rdog::EngineResource;
-use crate::state::ExtractedConfig;
-use crate::CameraMode;
+use crate::plugins::rdog_passes::RdogPassResource;
+use crate::rdog_buffers::RdogBufferResource;
+use crate::state::{ExtractedConfig, RdogExtractedExtras};
+use crate::{CameraMode, RdogStateEvent, MAIN};
 
 use super::cache::RdogShaderCache;
 
-pub fn flush(
+pub fn flush(queue: Res<RenderQueue>, mut buffers: ResMut<RdogBufferResource>) {
+    for bufferl in buffers.values_mut() {
+        for buffer in bufferl.values_mut() {
+            buffer.flush(&queue);
+        }
+    }
+}
+
+pub fn parse_shaders(
     device: Res<RenderDevice>,
-    queue: Res<RenderQueue>,
+    mut events: EventWriter<RdogEvent>,
     mut engine: ResMut<EngineResource>,
-    cache: ResMut<RdogShaderCache>,
-    mut state: ResMut<SyncedState>,
+    mut cache: ResMut<RdogShaderCache>,
+    state: Res<SyncedState>,
 ) {
     if !cache.is_empty() {
         log::info!("computing shaders");
         state.compute_shaders(&mut engine, &device, &cache);
-    }
+        events.send(RdogEvent::Recompute);
+        engine.ready = true;
 
-    state.tick(&mut engine, &device, &queue);
+        cache.clear();
+    }
 }
 
 pub fn images(
@@ -79,17 +92,28 @@ pub fn images(
 }
 
 pub(crate) fn cameras(
-    device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
     mut engine: ResMut<EngineResource>,
-    mut cameras: Query<(Entity, &ViewTarget, &ExtractedView, &BevyExtractedCamera)>,
+    buffers: Res<RdogBufferResource>,
+    passes: Res<RdogPassResource>,
+    config: Res<ExtractedConfig>,
+    mut state_event: EventWriter<RdogStateEvent>,
+    mut cameras: Query<(
+        Entity,
+        &ViewTarget,
+        &ExtractedView,
+        &BevyExtractedCamera,
+        &RenderLayers,
+    )>,
 ) {
-    let device = device.wgpu_device();
-    let state = &mut *state;
     let engine = &mut *engine;
     let mut alive_cameras = HashSet::new();
 
-    for (entity, view_target, bevy_ext_view, bevy_ext_camera) in cameras.iter_mut() {
+    for (entity, view_target, bevy_ext_view, bevy_ext_camera, layer) in cameras.iter_mut() {
+        if *layer != RenderLayers::layer(MAIN) {
+            continue;
+        }
+
         let camera = crate::Camera {
             mode: CameraMode::Image,
             viewport: {
@@ -111,20 +135,30 @@ pub(crate) fn cameras(
                     position,
                 }
             },
-
             transform: bevy_ext_view.world_from_view.compute_matrix(),
             projection: bevy_ext_view.clip_from_view,
+
+            focus_point: config.camera_config.focus_point,
+            focus_dist: config.camera_config.focus_dist,
+            aperture: config.camera_config.aperture,
+            focal_length: config.camera_config.focal_length.clone(),
         };
 
         match state.cameras.entry(entity) {
             Entry::Occupied(entry) => {
-                engine.update_camera(device, entry.into_mut().handle, camera);
+                let h = entry.get().handle;
+                if buffers.contains_key(&h) && passes.contains_key(&h) {
+                    engine.update_camera(entry.get().handle, camera);
+                }
             }
 
             Entry::Vacant(entry) => {
+                info!("camera created");
                 entry.insert(SyncedCamera {
-                    handle: engine.create_camera(device, camera),
+                    handle: engine.create_camera(camera),
+                    view: view_target.main_texture_view().clone(),
                 });
+                state_event.send(RdogStateEvent::CameraAdded);
             }
         }
 
@@ -148,10 +182,14 @@ pub(crate) fn cameras(
 
 pub(crate) fn extras(
     mut engine: ResMut<EngineResource>,
-    config: ResMut<ExtractedConfig>,
+    extras: Res<RdogExtractedExtras>,
     time: Res<Time>,
 ) {
     let engine = &mut *engine;
     engine.time = vec2(time.elapsed_secs(), time.delta_secs());
-    engine.config = config.clone();
+    engine.frame.next();
+    engine.mouse = match extras.mouse {
+        Some(x) => x,
+        _ => Vec2::ZERO,
+    };
 }

@@ -1,9 +1,10 @@
+use bevy::utils::default;
+
 use super::bindable::DoubleBufferedBindable;
 
 #[derive(Debug)]
 pub struct BindGroup {
     bind_group_a: wgpu::BindGroup,
-    bind_group_b: wgpu::BindGroup,
     bind_group_layout: wgpu::BindGroupLayout,
 }
 
@@ -11,17 +12,13 @@ impl BindGroup {
     pub fn builder<'ctx>(label: impl ToString) -> BindGroupBuilder<'ctx> {
         BindGroupBuilder {
             label: label.to_string(),
-            layouts: Default::default(),
-            resources: Default::default(),
+            layouts: default(),
+            resources: default(),
         }
     }
 
-    pub fn get(&self, alternate: bool) -> &wgpu::BindGroup {
-        if alternate {
-            &self.bind_group_b
-        } else {
-            &self.bind_group_a
-        }
+    pub fn get(&self, _alternate: bool) -> &wgpu::BindGroup {
+        &self.bind_group_a
     }
 
     pub fn layout(&self) -> &wgpu::BindGroupLayout {
@@ -53,7 +50,7 @@ impl<'a> BindGroupBuilder<'a> {
             entries: &self.layouts,
         });
 
-        let (resources_a, resources_b): (Vec<_>, Vec<_>) = self
+        let (resources_a, _resources_b): (Vec<_>, Vec<_>) = self
             .resources
             .into_iter()
             .enumerate()
@@ -77,15 +74,8 @@ impl<'a> BindGroupBuilder<'a> {
             entries: &resources_a,
         });
 
-        let bind_group_b = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(&label),
-            layout: &bind_group_layout,
-            entries: &resources_b,
-        });
-
         BindGroup {
             bind_group_a,
-            bind_group_b,
             bind_group_layout,
         }
     }

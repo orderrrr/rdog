@@ -1,10 +1,11 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Deref};
 
 use bevy::{
     asset::{
         io::Reader, Asset, AssetEvent, AssetLoader, AssetServer, AsyncReadExt, Handle, LoadContext,
         LoadedFolder,
     },
+    log::info,
     prelude::{Commands, Deref, DerefMut, EventReader, NextState, Res, ResMut, Resource, States},
     reflect::TypePath,
 };
@@ -14,21 +15,32 @@ use thiserror::Error;
 pub enum RdogShaderState {
     #[default]
     Setup,
+    PartiallyComplete,
     Finished,
 }
 
 #[derive(Resource, Clone, Default, Deref, DerefMut)]
 pub struct RdogShaderFolder(Handle<LoadedFolder>);
 
+#[derive(Resource, Clone, Default, Deref, DerefMut)]
+pub struct RdogShaderLibFolder(Handle<LoadedFolder>);
+
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct RdogShaderAsset {
     pub name: String,
     pub data: FType,
+    pub stype: ShaderType,
+}
+
+#[derive(Debug, Clone)]
+pub enum ShaderType {
+    Lib,
+    Shader,
 }
 
 impl RdogShaderAsset {
-    pub fn new(name: String, data: FType) -> Self {
-        Self { name, data }
+    pub fn new(name: String, data: FType, stype: ShaderType) -> Self {
+        Self { name, data, stype }
     }
 }
 
@@ -58,15 +70,31 @@ impl AssetLoader for RdogShaderAssetLoader {
     ) -> Result<Self::Asset, Self::Error> {
         let fname = String::from(load_context.path().file_name().unwrap().to_str().unwrap());
 
-        let name = fname.replace("-", "_").replace(".spv", "").replace(".wgsl", "");
+        let name = fname
+            .replace("-", "_")
+            .replace(".spv", "")
+            .replace(".wgsl", "");
 
-        let data = match load_context.path().extension().unwrap().to_str().unwrap() {
+        let mut data = match load_context.path().extension().unwrap().to_str().unwrap() {
             "spv" => RdogShaderAsset::read_spv(reader).await?,
             "wgsl" => RdogShaderAsset::read_wgsl(reader).await?,
             _ => panic!("how did I get here?"),
         };
 
-        Ok(RdogShaderAsset::new(name, data))
+        let stype = match &mut data {
+            FType::Wgsl(s) => {
+                if s.contains("#define_import_path") {
+                    *s = s.replace("//* ", "").into(); // TODO - remove when https://github.com/wgsl-analyzer/wgsl-analyzer/pull/74 or similar merged
+                    ShaderType::Lib
+                } else {
+                    *s = s.replace("//* ", "").into(); // TODO - remove when https://github.com/wgsl-analyzer/wgsl-analyzer/pull/74 or similar merged
+                    ShaderType::Shader
+                }
+            }
+            _ => ShaderType::Shader,
+        };
+
+        Ok(RdogShaderAsset::new(name, data, stype))
     }
 
     fn extensions(&self) -> &[&str] {
@@ -93,15 +121,28 @@ pub fn load_shaders(asset_server: Res<AssetServer>, mut commands: Commands) {
     commands.insert_resource(RdogShaderFolder(handles));
 }
 
+pub fn load_shader_libs(asset_server: Res<AssetServer>, mut commands: Commands) {
+    let handles: Handle<LoadedFolder> = asset_server.load_folder("imports/");
+    commands.insert_resource(RdogShaderLibFolder(handles));
+}
+
 pub fn check_textures(
     mut next_state: ResMut<NextState<RdogShaderState>>,
     rdog_shader_folder: Res<RdogShaderFolder>,
+    rdog_shader_lib_folder: Res<RdogShaderLibFolder>,
     mut events: EventReader<AssetEvent<LoadedFolder>>,
 ) {
-    // Advance the `AppState` once all sprite handles have been loaded by the `AssetServer`
     for event in events.read() {
-        if event.is_loaded_with_dependencies(&rdog_shader_folder.0) {
-            next_state.set(RdogShaderState::Finished);
+        if event.is_loaded_with_dependencies(&rdog_shader_folder.0)
+            || event.is_loaded_with_dependencies(&rdog_shader_lib_folder.0)
+        {
+            info!("event");
+            match next_state.deref() {
+                NextState::Pending(RdogShaderState::PartiallyComplete) => {
+                    next_state.set(RdogShaderState::Finished)
+                }
+                _ => next_state.set(RdogShaderState::PartiallyComplete),
+            }
         }
     }
 }
