@@ -31,7 +31,12 @@ pub struct DiffRasterPass {
 }
 
 impl DiffRasterPass {
-    pub fn new(engine: &Engine, device: &wgpu::Device, _config: &Camera, buffers: &Buffers) -> Self {
+    pub fn new(
+        engine: &Engine,
+        device: &wgpu::Device,
+        _config: &Camera,
+        buffers: &Buffers,
+    ) -> Self {
         debug!("Initializing pass: raster");
 
         let format = buffers.get_old("render_tx").texture().format;
@@ -123,11 +128,7 @@ impl Pass for DiffRasterPass {
 
         let res = (camera.camera.viewport.size.as_vec2() * config.res).as_uvec2();
 
-        pass.set_scissor_rect(
-            0,0,
-            res.x,
-            res.y,
-        );
+        pass.set_scissor_rect(0, 0, res.x, res.y);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, self.bg0.get(alternate), &[]);
         pass.set_bind_group(1, self.bg1.get(alternate), &[]);
@@ -518,4 +519,3 @@ impl Pass for RasterPass {
         self
     }
 }
-
