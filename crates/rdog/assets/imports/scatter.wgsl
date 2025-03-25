@@ -43,6 +43,8 @@ fn subsurface_scatter(h: Hit, r: ptr<function, Ray>) -> ScatterRes {
         return ScatterRes(ZERO, false, h.m.a, 0.0, ONE, false, false, -1.0);
     }
 
+    (*r).o -= (h.n * 0.02);
+
     let ls = spherical_light_sample(cl, *r);
 
     return ScatterRes(ls, true, h.m.a, 0.0, ONE, false, false, 3.0);

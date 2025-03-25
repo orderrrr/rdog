@@ -117,9 +117,12 @@ fn ray_trace(ri: Ray) -> vec3f {
     var ct = 1.0;
     var rad = ONE;
 
+    var in = false;
+
     for (var i: u32 = 0; i < pass_params.bounce_count; i++) {
-        var h = trace_voxel_mask(r);
+        var h = trace_voxel_mask(r, in);
         r.o = pd(r, h.d);
+        in = h.i;
 
         if !h.h && i == 0 {
             break;
@@ -177,7 +180,7 @@ fn ray_trace(ri: Ray) -> vec3f {
 
 
 
-fn trace_voxel_mask(ri: Ray) -> Hit {
+fn trace_voxel_mask(ri: Ray, i: bool) -> Hit {
     var r = ri;
 
     let vd = f32(pass_params.voxel_dim);
@@ -261,87 +264,6 @@ fn trace_voxel_mask(ri: Ray) -> Hit {
     return Hit(TMAX, DANGER, DANGER, false, mat(u32(1)), false, false);
 }
 
-fn trace_voxel_mask_only(ri: Ray) -> Hit {
-    var r = ri;
-
-    let vd = f32(pass_params.voxel_dim);
-
-    var map_pos = vec3i(floor(r.o));
-
-    let full_step = dot(abs(r.d), vec3f(4.0 / vd));
-    let min_step = dot(abs(r.d), vec3f(3.0 / vd));
-
-    var total = vec4f(0.0);
-
-    var t = 0.0;
-
-    if any(r.o < vec3f(-1.0) || r.o > vec3f(1.0)) {
-        let dist = rbi(r, vec3f(-1.0), vec3f(1.0));
-        if dist < 0.0 {
-            return Hit(TMAX, DANGER, DANGER, false, mat(u32(1)), false, false);
-        }
-
-        let mv = (dist + 0.01);
-        t += mv;
-
-        r.o += r.d * mv;
-    }
-
-    var pd = 0.0;
-    var cdt = TMAX;
-
-    // Ray marching loop
-    for (var i: u32 = 0; i < pass_params.voxel_dim; i++) {
-        let d = get_voxel(r.o);
-
-        if cdt >= pd / 2.0 {
-            var h = map(r.o);
-
-            let interior = h.x <= 0.0;
-            h.x = abs(h.x);
-            pd = h.x;
-
-            if h.x <= MIN_DIST {
-                return Hit(t, DANGER, ONE, interior, mat_2(h), true, false);
-            }
-
-            cdt = 0.0;
-        }
-
-        if d.z >= 0.0001 {
-            let c1 = vec3f(-1.9, -1.0, 1.5);
-            let c2 = vec3f(1.4, -1.2, -2.4);
-            let color = vec3f(0.05) + d.x * (vec3f(1.0) - c1) + d.y * (c1 - c2);
-
-            total += vec4f(color * d.z * 1.0, d.z);
-
-//            if d.z > (rand_f() * 2.0 - 1.0) * 0.01 + .025 {
-//               return Hit(t, DANGER, total.xyz, false, mat(u32(1)), true, true);
-//            }
-        }
-
-        // we only want to lower res when we get close to dense areas
-        let density_factor = smoothstep(0.0, 1.0, d.z / .025);
-        let current_step_size = mix(full_step, min_step, density_factor);
-        let mv = min(current_step_size, pd);
-        cdt += mv;
-        t += mv;
-
-        r.o += r.d * mv;
-
-        // here we leave the voxel but didn't actually hit anything...
-        if any(r.o < vec3f(-1.0) || r.o > vec3f(1.0)) {
-//            if all(total.xyz <= vec3f(1.0)) {
-//                break;
-//            }
-
-            return Hit(t, ZERO, total.xyz, false, mat(u32(1)), false, true);
-        }
-    }
-
-    return Hit(TMAX, DANGER, DANGER, false, mat(u32(1)), false, false);
-}
-
 fn sample(h: Hit, ri: Ray, l: ScatterRes) -> vec3f {
     let prob = calculate_probabilities(h);
     let rng = rand_f();
@@ -376,11 +298,11 @@ fn sample_scattering(ri: Ray, n: vec3f) -> vec3f {
     let l = spherical_light_sample(cl, r);
     r.d = l;
 
-    let h = trace_voxel_mask(r);
+    let h = trace_voxel_mask(r, true);
 
     r.o = p1 + (l * h.d) + (0.03 * l);
 
-    let h1 = trace_voxel_mask(r);
+    let h1 = trace_voxel_mask(r, false);
 
     if h1.d < TMAX {
         if h1.m.emissive > 0.0 {
@@ -402,42 +324,42 @@ fn sample_scattering(ri: Ray, n: vec3f) -> vec3f {
     return out;
 }
 
-fn sample_light(ri: Ray, n: vec3f) -> vec3f {
-    var r = ri;
-
-    var out = ZERO;
-
-    let cl = light_map(r);
-
-    if cl.d > cl.falloff {
-        return out;
-    }
-
-    let l = spherical_light_sample(cl, r);
-
-    r.d = l;
-
-    let h1 = trace_voxel_mask_only(r);
-
-    if h1.d < TMAX {
-        if h1.m.emissive > 0.0 {
-            let scale = 3.0;
-            let bias = 0.01;
-
-            let n1 = -n;
-            let cos_theta = dot(n1, l);
-            let s = scale * (h1.d + bias);
-
-            let e = max(0.3 + cos_theta, .0);
-
-            let a = calc_attenuation(r, cl);
-
-            out += (t(s) * h1.a * 0.1 * vec3f(1.0, 1.0, 1.0)) * e * a * (h1.m.a * h1.m.emissive * a);
-        }
-    }
-
-    return out;
-}
+// fn sample_light(ri: Ray, n: vec3f) -> vec3f {
+//     var r = ri;
+//
+//     var out = ZERO;
+//
+//     let cl = light_map(r);
+//
+//     if cl.d > cl.falloff {
+//         return out;
+//     }
+//
+//     let l = spherical_light_sample(cl, r);
+//
+//     r.d = l;
+//
+//     let h1 = trace_voxel_mask_only(r, false);
+//
+//     if h1.d < TMAX {
+//         if h1.m.emissive > 0.0 {
+//             let scale = 3.0;
+//             let bias = 0.01;
+//
+//             let n1 = -n;
+//             let cos_theta = dot(n1, l);
+//             let s = scale * (h1.d + bias);
+//
+//             let e = max(0.3 + cos_theta, .0);
+//
+//             let a = calc_attenuation(r, cl);
+//
+//             out += (t(s) * h1.a * 0.1 * vec3f(1.0, 1.0, 1.0)) * e * a * (h1.m.a * h1.m.emissive * a);
+//         }
+//     }
+//
+//     return out;
+// }
 
 fn t(s: f32) -> vec3f {
     return
@@ -462,7 +384,7 @@ fn sample_direct(ri: Ray, n: vec3f) -> vec3f {
 
     r = dir(r, l);
 
-    let h = trace_voxel_mask(r);
+    let h = trace_voxel_mask(r, false);
 
     if h.d >= TMAX {
         return vec3f(0.0);
@@ -539,7 +461,7 @@ fn sample_specular(h: Hit, ri: Ray, l: ScatterRes) -> vec3f {
         r.o = r.o + (ls * 0.02);
         r.d = ls;
 
-        let h = trace_voxel_mask(r);
+        let h = trace_voxel_mask(r, false);
 
         let k_direct = (alpha2 + 1.0) / 8.0;
 
@@ -566,4 +488,3 @@ fn g_term_schlick_ggx(n_dot_v: f32, n_dot_l: f32, k: f32) -> f32 {
     let g_term_l = n_dot_l / (n_dot_l * (1.0 - k) + k);
     return g_term_v * g_term_l;
 }
-

@@ -15,26 +15,26 @@
 fn main(
     @builtin(global_invocation_id) id: vec3u,
 ) {
-    let vd = pass_params.voxel_dim;
-    rng_state = u32(id.x + (id.y * vd) + (id.z * vd * vd)) * globals.seed.y;
-
-    let pos = ((vec3f(id) / f32(vd)) - .5) * 2.;
-
-    let r = length(pos);
-    let ball = smoothstep(0.5, 0.2, r);
-    let a = 1.0;
-    let f = 12.0;
-    let b = max(0.0, min(1.0, (pow(0.5 * worley(pos, 16.0), 5.) + pow(worley(pos + f32(globals.time.x) , 4.0), 5.))));
-    let out = vec4(a, b * ball, 0.0, 1);
-
-//     let rng = worley(pos, 1.23) * 1.0;
+//     let vd = pass_params.voxel_dim;
+//     rng_state = u32(id.x + (id.y * vd) + (id.z * vd * vd)) * globals.seed.y;
+//
+//     let pos = ((vec3f(id) / f32(vd)) - .5) * 2.;
+//
+//     let r = length(pos);
+//     let ball = smoothstep(0.5, 0.2, r);
 //     let a = 1.0;
 //     let f = 12.0;
-//     let r = ((length(pos) - 1.0) * -1.0) * 2.0;
-//     let b = max((rng * (worley(pos * f32(rng_state), 1.44) * 0.25)) * r, 0.0);
-//     let out = vec4(a, b, 0, 1);
-
-    textureStore(voxel_depth, vec3u(id), out);
+//     let b = max(0.0, min(1.0, (pow(0.5 * worley(pos, 16.0), 5.) + pow(worley(pos + f32(globals.time.x) , 4.0), 5.))));
+//     let out = vec4(a, b * ball, 0.0, 1);
+//
+// //     let rng = worley(pos, 1.23) * 1.0;
+// //     let a = 1.0;
+// //     let f = 12.0;
+// //     let r = ((length(pos) - 1.0) * -1.0) * 2.0;
+// //     let b = max((rng * (worley(pos * f32(rng_state), 1.44) * 0.25)) * r, 0.0);
+// //     let out = vec4(a, b, 0, 1);
+//
+//     textureStore(voxel_depth, vec3u(id), out);
 }
 
 fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
