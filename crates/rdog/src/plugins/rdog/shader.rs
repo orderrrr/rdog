@@ -39,8 +39,12 @@ pub enum ShaderType {
 }
 
 impl RdogShaderAsset {
-    pub fn new(name: String, data: FType, stype: ShaderType) -> Self {
-        Self { name, data, stype }
+    pub fn new(name: &str, data: FType, stype: ShaderType) -> Self {
+        Self {
+            name: name.to_string(),
+            data,
+            stype,
+        }
     }
 }
 
@@ -94,7 +98,7 @@ impl AssetLoader for RdogShaderAssetLoader {
             _ => ShaderType::Shader,
         };
 
-        Ok(RdogShaderAsset::new(name, data, stype))
+        Ok(RdogShaderAsset::new(&name, data, stype))
     }
 
     fn extensions(&self) -> &[&str] {

@@ -1,8 +1,12 @@
 use bevy::log::{debug, info};
 use glam::UVec3;
 use rdog::{
-    bind_group::BindGroup, compute_pass::ComputePass, passes::Pass, render::CameraController,
-    renderer::buffers::Buffers, Camera, Config, Engine,
+    renderer::buffers::{bind_group::BindGroup, Buffers},
+    renderer::compute_pass::ComputePass,
+    renderer::passes::Pass, 
+    renderer::render::CameraController,
+    renderer::config::Camera,
+    Config, Engine,
 };
 use rdog_lib::OutputParams;
 use wgpu::StoreOp;

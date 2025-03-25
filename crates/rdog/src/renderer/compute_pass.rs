@@ -7,12 +7,7 @@ use log::debug;
 use rdog_lib::PassParams;
 use wgpu::{PipelineCompilationOptions, ShaderModule};
 
-use crate::{
-    bind_group::{BindGroup, BindGroupBuilder},
-    bindable::DoubleBufferedBindable,
-};
-
-use super::render::CameraController;
+use super::{buffers::{bind_group::{BindGroup, BindGroupBuilder}, bindable::DoubleBufferedBindable}, render::CameraController};
 
 #[derive(Debug)]
 pub struct ComputePass<P = PassParams> {

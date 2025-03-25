@@ -55,11 +55,6 @@ impl StorageBuffer {
     }
 
     /// Creates an immutable storage-buffer binding:
-    ///
-    /// ```
-    /// #[spirv(descriptor_set = ..., binding = ..., storage_buffer)]
-    /// items: &[T],
-    /// ```
     pub fn bind_readable(&self) -> impl Bindable + '_ {
         StorageBufferBinder {
             parent: self,

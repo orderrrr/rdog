@@ -9,7 +9,8 @@ use glam::{uvec2, vec4, Vec4};
 use guillotiere::{size2, Allocation, AtlasAllocator};
 use log::warn;
 
-use crate::{bindable::Bindable, texture::Texture};
+use super::buffers::bindable::Bindable;
+use super::buffers::texture::Texture;
 
 #[derive(Derivative)]
 #[derivative(Debug)]

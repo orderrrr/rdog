@@ -22,7 +22,7 @@ use bevy::{
 use rdog_lib::OutputParams;
 use wgpu::{BufferUsages, Extent3d, ImageDataLayout, TextureFormat};
 
-use crate::{bufferable::Bufferable, state::SyncedState, CameraHandle};
+use crate::{buffers::bufferable::Bufferable, state::SyncedState, CameraHandle};
 
 use super::{
     graph::{Rdog, RdogE},

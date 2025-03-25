@@ -2,9 +2,12 @@ use std::sync::Arc;
 
 use bevy::{log::debug, utils::default};
 
-use crate::{bufferable::Bufferable, mapped_uniform_buffer::MappedUniformBuffer, utils};
+use crate::utils;
 
-use super::storage_buffer::StorageBuffer;
+use super::{
+    bufferable::Bufferable, mapped_uniform_buffer::MappedUniformBuffer,
+    storage_buffer::StorageBuffer,
+};
 
 #[derive(Clone, Default)]
 pub struct BufferBuilder {

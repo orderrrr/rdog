@@ -1,10 +1,7 @@
-use crate::{
-    shader::{FType, RdogShaderAsset, ShaderType},
-    texture::Texture,
-};
+use crate::shader::{FType, RdogShaderAsset, ShaderType};
 
 use super::{
-    buffers::Buffers,
+    buffers::{texture::Texture, Buffers},
     camera_controllers::RenderControllers,
     images::Images,
     passes::Passes,
@@ -20,7 +17,7 @@ use bevy::{
 };
 use glam::Vec2;
 use log::info;
-use naga_oil::compose::{ComposableModuleDescriptor, Composer};
+use naga_oil::compose::ComposableModuleDescriptor;
 use rdog_lib::{self as lib};
 use std::{collections::HashMap, sync::Arc};
 use wgpu::{naga, Buffer};
@@ -30,7 +27,6 @@ pub struct Engine {
     pub ready: bool,
 
     pub shaders: ShaderCache,
-    pub shader_compose: Composer,
 
     pub frame: lib::Frame,
 
@@ -50,7 +46,7 @@ impl Engine {
 
         Self {
             ready: false,
-            shaders: ShaderCache::new_cache(),
+            shaders: ShaderCache::new(vec![naga::valid::Capabilities::PUSH_CONSTANT]),
             frame: lib::Frame::new(1),
             images: Images::new(device),
             time: default(),
@@ -58,13 +54,6 @@ impl Engine {
             dirty: true,
             seed,
             mouse: Vec2::default(),
-            shader_compose: {
-                let mut composer = Composer::default();
-                composer
-                    .capabilities
-                    .insert(naga::valid::Capabilities::PUSH_CONSTANT);
-                composer
-            },
         }
     }
 
@@ -90,7 +79,7 @@ impl Engine {
                 match shader.stype {
                     ShaderType::Lib => {
                         if let FType::Wgsl(source) = &shader.data {
-                            match self.shader_compose.add_composable_module(
+                            match self.shaders.composer.add_composable_module(
                                 ComposableModuleDescriptor {
                                     source,
                                     file_path: &shader.name,
@@ -106,7 +95,7 @@ impl Engine {
                                         error!(
                                             "Failed to load library module {}, {}",
                                             shader.name,
-                                            e.emit_to_string(&self.shader_compose)
+                                            e.emit_to_string(&self.shaders.composer)
                                         );
                                     }
                                     shaders_remaining.push(shader);
@@ -132,7 +121,7 @@ impl Engine {
         }
 
         if !lib_names.is_empty() {
-            for (shader_name, shader) in &mut self.shaders.iter_mut() {
+            for (shader_name, shader) in &mut self.shaders.cache.iter_mut() {
                 if shader
                     .imports
                     .iter()
@@ -144,8 +133,12 @@ impl Engine {
                         stype: ShaderType::Shader,
                     };
 
-                    let comp =
-                        RdogShader::new(self.frame.get(), device, &asset, &mut self.shader_compose);
+                    let comp = RdogShader::new(
+                        self.frame.get(),
+                        device,
+                        &asset,
+                        &mut self.shaders.composer,
+                    );
 
                     if let Some(s) = comp {
                         *shader = s;
@@ -159,10 +152,13 @@ impl Engine {
             match shader.stype {
                 ShaderType::Shader => {
                     info!("Computing shader: {}", shader.name);
-                    if let Some(comp) =
-                        RdogShader::new(self.frame.get(), device, shader, &mut self.shader_compose)
-                    {
-                        self.shaders.insert(shader.name.to_string(), comp);
+                    if let Some(comp) = RdogShader::new(
+                        self.frame.get(),
+                        device,
+                        shader,
+                        &mut self.shaders.composer,
+                    ) {
+                        self.shaders.cache.insert(shader.name.to_string(), comp);
                     }
                 }
                 _ => (),

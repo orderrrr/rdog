@@ -1,7 +1,7 @@
 use bevy::log::{debug, info};
 use glam::UVec3;
 use rdog::{
-    bind_group::BindGroup,
+    buffers::bind_group::BindGroup,
     compute_pass::ComputePass,
     passes::{Pass, PassConstruct},
     render::CameraController,

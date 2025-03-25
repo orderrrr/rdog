@@ -5,14 +5,13 @@ use bevy::{
 };
 use pipelines::{AccumPass, DiffPass, DiffRasterPass, OutputTracePass, RasterPass, ReadbackPass};
 use rdog::{
-    buffer_builder::BufferBuilder,
+    buffers::{buffer_builder::BufferBuilder, texture::Texture},
     event::RdogEvent,
     passes::{PassConstruct, Passes},
     rdog::passes::RdogPassResource,
     renderer::{buffers::Buffers, config::Camera},
     shader::RdogShaderState,
     state::{ExtractedConfig, SyncedState},
-    texture::Texture,
     Config, Engine, EngineResource, Globals, RdogBufferResource,
 };
 use wgpu::Device;

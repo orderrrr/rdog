@@ -1,5 +1,5 @@
 use rdog::{
-    bufferable::Bufferable,
+    renderer::buffers::bufferable::Bufferable,
     event::RdogEvent,
     renderer::{buffers::Buffers, config::Camera},
     state::{ExtractedConfig, SyncedState},
