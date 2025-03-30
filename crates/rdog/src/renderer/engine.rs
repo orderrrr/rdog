@@ -1,4 +1,4 @@
-use crate::shader::{FType, RdogShaderAsset, ShaderType};
+use crate::shader::RdogShaderAsset;
 
 use super::{
     buffers::{texture::Texture, Buffers},
@@ -6,20 +6,13 @@ use super::{
     images::Images,
     passes::Passes,
     render::CameraController,
-    shaders::{RdogShader, ShaderCache},
+    shaders::ShaderCache,
     Camera, CameraHandle, Config, Image,
 };
-use bevy::{
-    asset::AssetId,
-    log::{error, warn},
-    prelude::Image as BevyImage,
-    utils::default,
-};
+use bevy::{asset::AssetId, prelude::Image as BevyImage, utils::default};
 use glam::Vec2;
 use log::info;
-use naga_oil::compose::ComposableModuleDescriptor;
 use rdog_lib::{self as lib};
-use serde::de;
 use std::{collections::HashMap, sync::Arc};
 use wgpu::{naga, Buffer};
 
@@ -96,7 +89,7 @@ impl Engine {
         //     // Handle the remaining failed shaders here if needed
         // }
         self.shaders.update_shaders(device, shaders);
-        // 
+        //
         // self.shaders.recompute_libs();
         //
         // for shader in shaders {
