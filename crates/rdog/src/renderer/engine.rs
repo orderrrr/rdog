@@ -19,6 +19,7 @@ use glam::Vec2;
 use log::info;
 use naga_oil::compose::ComposableModuleDescriptor;
 use rdog_lib::{self as lib};
+use serde::de;
 use std::{collections::HashMap, sync::Arc};
 use wgpu::{naga, Buffer};
 
@@ -67,103 +68,45 @@ impl Engine {
 
     // TODO: redo this.
     pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
-        let mut lib_names = Vec::new();
-
-        let mut shaders_remaining = shaders.clone();
-        let mut retry_count = 0;
-        const MAX_RETRIES: usize = 5; // Adjust based on your needs
-
-        while !shaders_remaining.is_empty() && retry_count <= MAX_RETRIES {
-            let s: Vec<RdogShaderAsset> = shaders_remaining.drain(..).collect();
-            for shader in s.into_iter() {
-                match shader.stype {
-                    ShaderType::Lib => {
-                        if let FType::Wgsl(source) = &shader.data {
-                            match self.shaders.composer.add_composable_module(
-                                ComposableModuleDescriptor {
-                                    source,
-                                    file_path: &shader.name,
-                                    ..default()
-                                },
-                            ) {
-                                Ok(_) => {
-                                    info!("Library module loaded: {}", shader.name);
-                                    lib_names.push(shader.name.clone());
-                                }
-                                Err(e) => {
-                                    if retry_count == MAX_RETRIES - 1 {
-                                        error!(
-                                            "Failed to load library module {}, {}",
-                                            shader.name,
-                                            e.emit_to_string(&self.shaders.composer)
-                                        );
-                                    }
-                                    shaders_remaining.push(shader);
-                                }
-                            }
-                        }
-                    }
-                    _ => (),
-                }
-            }
-
-            retry_count += 1;
-        }
-
-        if shaders_remaining.is_empty() {
-            info!("All shaders have been successfully loaded.");
-        } else {
-            warn!(
-                "Some shaders failed to load even after {} retries.",
-                MAX_RETRIES
-            );
-            // Handle the remaining failed shaders here if needed
-        }
-
-        if !lib_names.is_empty() {
-            for (shader_name, shader) in &mut self.shaders.cache.iter_mut() {
-                if shader
-                    .imports
-                    .iter()
-                    .any(|import| lib_names.contains(import))
-                {
-                    let asset = RdogShaderAsset {
-                        name: shader_name.clone(),
-                        data: FType::Wgsl(shader.data.clone().into()),
-                        stype: ShaderType::Shader,
-                    };
-
-                    let comp = RdogShader::new(
-                        self.frame.get(),
-                        device,
-                        &asset,
-                        &mut self.shaders.composer,
-                    );
-
-                    if let Some(s) = comp {
-                        *shader = s;
-                        info!("Updated dependent shader: {}", shader_name);
-                    }
-                }
-            }
-        }
-
-        for shader in shaders {
-            match shader.stype {
-                ShaderType::Shader => {
-                    info!("Computing shader: {}", shader.name);
-                    if let Some(comp) = RdogShader::new(
-                        self.frame.get(),
-                        device,
-                        shader,
-                        &mut self.shaders.composer,
-                    ) {
-                        self.shaders.cache.insert(shader.name.to_string(), comp);
-                    }
-                }
-                _ => (),
-            }
-        }
+        // let mut shaders_remaining = shaders.clone();
+        // let mut retry_count = 0;
+        // const MAX_RETRIES: usize = 5; // Adjust based on your needs
+        //
+        // while !shaders_remaining.is_empty() && retry_count <= MAX_RETRIES {
+        //     let s: Vec<RdogShaderAsset> = shaders_remaining.drain(..).collect();
+        //
+        //     for shader in s.into_iter() {
+        //         if shader.stype == ShaderType::Lib {
+        //             if !self.shaders.import_lib(&shader) {
+        //                 shaders_remaining.push(shader);
+        //             }
+        //         }
+        //     }
+        //
+        //     retry_count += 1;
+        // }
+        //
+        // if shaders_remaining.is_empty() {
+        //     info!("All lib shaders have been successfully loaded.");
+        // } else {
+        //     warn!(
+        //         "Some shaders failed to load even after {} retries.",
+        //         MAX_RETRIES
+        //     );
+        //     // Handle the remaining failed shaders here if needed
+        // }
+        self.shaders.update_shaders(device, shaders);
+        // 
+        // self.shaders.recompute_libs();
+        //
+        // for shader in shaders {
+        //     if shader.stype == ShaderType::Shader {
+        //         info!("loading shader: {}", shader.name);
+        //         self.shaders.import(device, &shader);
+        //     }
+        // }
+        //
+        // self.shaders.recompute(device);
     }
 }
 

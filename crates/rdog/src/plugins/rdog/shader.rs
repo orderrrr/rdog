@@ -32,7 +32,7 @@ pub struct RdogShaderAsset {
     pub stype: ShaderType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShaderType {
     Lib,
     Shader,

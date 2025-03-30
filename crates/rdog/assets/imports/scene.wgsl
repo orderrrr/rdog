@@ -34,7 +34,7 @@ fn map(p: vec3f) -> vec3f {
     // var out = vec3f(sd_torus(p, vec2f(0.5, 0.2)), pack_material_ids(1.0, 2.0), 0.0);
     // out.x = max(op_onion(out.x, 0.05), p.y);
 
-    let s = vec3f(length(p - vec3f(.6, 0.0, 0.0)) - 0.4, pack_material_ids(1.0, 2.0), 0.0);
+    let s = vec3f(length(p - vec3f(.6, 0.0, 0.0)) - 0.2, pack_material_ids(1.0, 2.0), 0.0);
 
     // // if pass_params.voxel_debug > 0 {
     // var out = vec3f(sd_box_frame(p, vec3(1.0), 0.01), pack_material_ids(1.0, 1.0), 1.0);
@@ -45,6 +45,7 @@ fn map(p: vec3f) -> vec3f {
     // var out = vec3(length(p) - 0.5, pack_material_ids(1.0, 2.0), 0.0);
 
 //    return sd_min3(out, l);
+    // return l;
     return sd_min3(l, s);
 }
 
