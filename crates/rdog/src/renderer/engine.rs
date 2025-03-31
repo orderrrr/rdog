@@ -61,45 +61,7 @@ impl Engine {
 
     // TODO: redo this.
     pub fn compute_shaders(&mut self, device: &wgpu::Device, shaders: &Vec<RdogShaderAsset>) {
-        // let mut shaders_remaining = shaders.clone();
-        // let mut retry_count = 0;
-        // const MAX_RETRIES: usize = 5; // Adjust based on your needs
-        //
-        // while !shaders_remaining.is_empty() && retry_count <= MAX_RETRIES {
-        //     let s: Vec<RdogShaderAsset> = shaders_remaining.drain(..).collect();
-        //
-        //     for shader in s.into_iter() {
-        //         if shader.stype == ShaderType::Lib {
-        //             if !self.shaders.import_lib(&shader) {
-        //                 shaders_remaining.push(shader);
-        //             }
-        //         }
-        //     }
-        //
-        //     retry_count += 1;
-        // }
-        //
-        // if shaders_remaining.is_empty() {
-        //     info!("All lib shaders have been successfully loaded.");
-        // } else {
-        //     warn!(
-        //         "Some shaders failed to load even after {} retries.",
-        //         MAX_RETRIES
-        //     );
-        //     // Handle the remaining failed shaders here if needed
-        // }
         self.shaders.update_shaders(device, shaders);
-        //
-        // self.shaders.recompute_libs();
-        //
-        // for shader in shaders {
-        //     if shader.stype == ShaderType::Shader {
-        //         info!("loading shader: {}", shader.name);
-        //         self.shaders.import(device, &shader);
-        //     }
-        // }
-        //
-        // self.shaders.recompute(device);
     }
 }
 
