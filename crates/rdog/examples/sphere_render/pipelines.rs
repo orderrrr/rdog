@@ -196,14 +196,11 @@ impl PassConstruct for TracePass {
                 &buffers.get_old("materials").bind_readable(),
                 &buffers.get_old("lights").bind_readable(),
             ])
-            .bind([
-                &buffers.get_old("voxel_depth").bind_readable(),
-                &buffers.get_old("voxel_data").bind_readable(),
-            ])
+            .bind([])
             .build(
                 device,
                 "main",
-                &engine.shaders.get("voxel_trace").unwrap().module,
+                &engine.shaders.get("sphere_trace").unwrap().module,
             );
 
         Box::new(Self {
@@ -231,61 +228,6 @@ impl Pass for TracePass {
                 .extend(1),
             None,
         );
-    }
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-#[derive(Debug)]
-pub struct VoxelAccelPass {
-    name: String,
-    compute_passes: Vec<ComputePass>,
-}
-
-impl PassConstruct for VoxelAccelPass {
-    fn new(engine: &Engine, device: &wgpu::Device, _: &Camera, buffers: &Buffers) -> Box<dyn Pass> {
-        let octree_pass = ComputePass::builder("voxel")
-            .bind([
-                &buffers.get_old("curr_camera").bind_readable(),
-                &buffers.get_old("globals").bind_readable(),
-                &buffers.get_old("config").bind_readable(),
-            ])
-            .bind([
-                &buffers.get_old("materials").bind_readable(),
-                &buffers.get_old("lights").bind_readable(),
-            ])
-            .bind([
-                &buffers.get_old("voxel_depth").bind_writable(),
-                &buffers.get_old("voxel_data").bind_writable(),
-            ])
-            .build(
-                device,
-                &"main",
-                &engine.shaders.get("voxel").unwrap().module,
-            );
-
-        Box::new(Self {
-            name: "voxel".to_string(),
-            compute_passes: vec![octree_pass],
-        })
-    }
-}
-
-impl Pass for VoxelAccelPass {
-    fn run(
-        &self,
-        e: &Engine,
-        config: &Config,
-        camera: &CameraController,
-        encoder: &mut wgpu::CommandEncoder,
-        _view: &wgpu::TextureView,
-        _pass_params: Option<&Vec<u8>>,
-    ) {
-        if e.dirty {
-            self.compute_passes[0].run(camera, encoder, UVec3::splat(config.voxel_dim), None);
-        }
     }
 
     fn name(&self) -> &str {

@@ -6,6 +6,7 @@ use bevy::{
 use pipelines::{AccumPass, DiffPass, DiffRasterPass, OutputTracePass, RasterPass, ReadbackPass};
 use rdog::{
     buffers::{buffer_builder::BufferBuilder, texture::Texture},
+    create_render_plugin,
     event::RdogEvent,
     passes::{PassConstruct, Passes},
     rdog::passes::RdogPassResource,
@@ -58,28 +59,7 @@ fn main() {
         .run();
 }
 
-// TODO: put this in the app and make it so we just pass the init_buffers function
-pub struct InitialPlugin;
-
-impl Plugin for InitialPlugin {
-    fn build(&self, app: &mut App) {
-        info!("Initial demo init");
-
-        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
-            /*
-             * Pipeline Registry Plugin for registering plugins from app world.
-             * TODO: need a way to specify an order, or better yet a graph for this.
-             */
-            render_app.add_systems(
-                Render,
-                (buffer_events, setup_passes)
-                    .chain()
-                    .in_set(RenderSet::Prepare)
-                    .run_if(in_state(RdogShaderState::Finished)),
-            );
-        }
-    }
-}
+create_render_plugin!(InitialPlugin, buffer_events, setup_passes,);
 
 pub fn setup_passes(
     buffers: Res<RdogBufferResource>,

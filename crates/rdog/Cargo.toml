@@ -14,6 +14,10 @@ path = "examples/initial/mod.rs"
 name = "reaction_diffusion"
 path = "examples/reaction_diffusion/mod.rs"
 
+[[example]]
+name = "sphere_render"
+path = "examples/sphere_render/mod.rs"
+
 [dependencies]
 # shared = { path = "crates/shaders/shared" }
 glam = { version = "0.29", default-features = false }
