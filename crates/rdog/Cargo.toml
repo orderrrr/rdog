@@ -11,6 +11,10 @@ name = "initial"
 path = "examples/initial/mod.rs"
 
 [[example]]
+name = "voxel"
+path = "examples/voxel/mod.rs"
+
+[[example]]
 name = "reaction_diffusion"
 path = "examples/reaction_diffusion/mod.rs"
 

@@ -47,3 +47,4 @@ fn calc_normal(pos: vec3f) -> vec3f {
         0. + e.xyy * map(pos + ep * e.xyy).x + e.yyx * map(pos + ep * e.yyx).x + e.yxy * map(pos + ep * e.yxy).x + e.xxx * map(pos + ep * e.xxx).x
     );
 }
+
